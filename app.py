@@ -1,6 +1,8 @@
 from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+from flask_mail import Mail, Message
 from werkzeug.security import generate_password_hash, check_password_hash
+from itsdangerous import URLSafeTimedSerializer
 from dotenv import load_dotenv
 import requests
 import stripe
@@ -15,6 +17,16 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-fallback-key')
 
+# ─── Mail config ──────────────────────────────────────────────────────────────
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', '')
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', '')
+app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_USERNAME', '')
+mail = Mail(app)
+serializer = URLSafeTimedSerializer(app.secret_key)
+
 # ─── Stripe config ────────────────────────────────────────────────────────────
 STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY', '')
 STRIPE_PUBLISHABLE_KEY = os.environ.get('STRIPE_PUBLISHABLE_KEY', '')
@@ -26,7 +38,12 @@ print(f">>> STRIPE_SECRET_KEY starts with: {_sk_preview}", flush=True)
 print(f">>> STRIPE_PRICE_ID: {STRIPE_PRICE_ID or 'NOT SET'}", flush=True)
 
 # ─── Database ─────────────────────────────────────────────────────────────────
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'football_scout.db')
+# Use /data for Render persistent disk, fallback to local for dev
+if os.path.isdir('/data'):
+    DB_PATH = '/data/users.db'
+else:
+    DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'football_scout.db')
+print(f">>> Database path: {DB_PATH}", flush=True)
 
 def get_db():
     conn = sqlite3.connect(DB_PATH)
@@ -1774,8 +1791,42 @@ def manage_subscription():
 def forgot_password():
     sent = False
     if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        conn = get_db()
+        user = conn.execute('SELECT id FROM users WHERE email = ?', (email,)).fetchone()
+        conn.close()
+        if user and app.config['MAIL_USERNAME']:
+            token = serializer.dumps(email, salt='password-reset')
+            reset_url = request.host_url.rstrip('/') + url_for('reset_password', token=token)
+            try:
+                msg = Message('Football Scout — Password Reset',
+                              recipients=[email])
+                msg.html = f'''<p>You requested a password reset for Football Scout.</p>
+                <p><a href="{reset_url}">Click here to reset your password</a></p>
+                <p>This link expires in 1 hour. If you didn't request this, ignore this email.</p>'''
+                mail.send(msg)
+            except Exception as e:
+                print(f">>> Mail send error: {e}", flush=True)
         sent = True
     return render_template("forgot_password.html", sent=sent)
+
+@app.route("/reset-password/<token>", methods=["GET", "POST"])
+def reset_password(token):
+    try:
+        email = serializer.loads(token, salt='password-reset', max_age=3600)
+    except Exception:
+        return render_template("forgot_password.html", sent=False, error="This reset link is invalid or has expired.")
+    if request.method == "GET":
+        return render_template("reset_password.html", token=token)
+    password = request.form.get("password", "").strip()
+    if len(password) < 6:
+        return render_template("reset_password.html", token=token, error="Password must be at least 6 characters.")
+    hashed = generate_password_hash(password, method='pbkdf2:sha256')
+    conn = get_db()
+    conn.execute('UPDATE users SET password = ? WHERE email = ?', (hashed, email))
+    conn.commit()
+    conn.close()
+    return redirect(url_for('login'))
 
 @app.route("/cancel-subscription", methods=["POST"])
 @login_required
