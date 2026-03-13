@@ -3,6 +3,7 @@ import requests
 import csv
 import io
 import re
+import os
 
 app = Flask(__name__)
 
@@ -1693,7 +1694,6 @@ def halftime_route():
     )
 
 
-if __name__ == "__main__":
-    import os
-    port = int(os.environ.get("PORT", 5003))
-    app.run(debug=True, host="0.0.0.0", port=port)
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5003))
+    app.run(host='0.0.0.0', port=port)
