@@ -486,7 +486,7 @@
   {% if submitted and not error and results %}
   <div class="results-header">
     <h2>{{ team }}</h2>
-    <div class="meta">{{ total_plays }} plays analyzed &nbsp;·&nbsp; Run/Pass only (Rn &amp; Ps)</div>
+    <div class="meta">{{ total_plays }} plays analyzed &nbsp;·&nbsp; {% if all_formation_names %}{{ all_formation_names|join(', ') }}{% else %}Run/Pass only{% endif %}</div>
   </div>
 
   <div class="downs-grid">

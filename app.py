@@ -593,6 +593,7 @@ def _analyze_rows(team, rows):
 
     # Per-formation breakdown
     formations = {}
+    all_formation_names = []
     if form_col:
         # Group plays by formation
         form_groups = {}
@@ -601,12 +602,15 @@ def _analyze_rows(team, rows):
             if fname:
                 form_groups.setdefault(fname, []).append(r)
 
+        # All formation names sorted by play count (for subtitle)
+        all_formation_names = [f for f, _ in sorted(form_groups.items(), key=lambda x: -len(x[1]))]
+
         try:
             print(f">>> Formations found: {[(f, len(p)) for f, p in form_groups.items()]}", flush=True)
         except BrokenPipeError:
             pass
 
-        # Only include formations with 20+ plays
+        # Only include formations with 20+ plays for detailed breakdown
         for fname, fplays in sorted(form_groups.items(), key=lambda x: -len(x[1])):
             if len(fplays) >= 20:
                 formations[fname] = {
@@ -615,7 +619,7 @@ def _analyze_rows(team, rows):
                     'strategy_note': _formation_strategy_note(fname, fplays, col),
                 }
 
-    return total_plays, results, formations
+    return total_plays, results, formations, all_formation_names
 
 
 # ─── Halftime Advisor ────────────────────────────────────────────────────────
@@ -1572,13 +1576,14 @@ def analyze_route():
     results = {}
 
     formations = {}
+    all_formation_names = []
 
     if not team:
         error = "Please enter a team name."
     elif uploaded_file and uploaded_file.filename:
         try:
             csv_text = uploaded_file.read().decode("utf-8-sig")
-            total_plays, results, formations = analyze_text(team, csv_text)
+            total_plays, results, formations, all_formation_names = analyze_text(team, csv_text)
             if total_plays == 0:
                 error = f"No plays found for '{team}' in the uploaded file."
         except Exception as e:
@@ -1586,7 +1591,7 @@ def analyze_route():
     elif sheets_url:
         csv_url = sheets_url_to_csv(sheets_url)
         try:
-            total_plays, results, formations = analyze(team, csv_url)
+            total_plays, results, formations, all_formation_names = analyze(team, csv_url)
             if total_plays == 0:
                 error = f"No plays found for '{team}'. Check the team name and that the sheet is publicly accessible."
         except requests.exceptions.RequestException as e:
@@ -1601,6 +1606,7 @@ def analyze_route():
         team=team, sheets_url=sheets_url,
         total_plays=total_plays, results=results,
         formations=formations,
+        all_formation_names=all_formation_names,
         error=error, submitted=True,
     )
 
