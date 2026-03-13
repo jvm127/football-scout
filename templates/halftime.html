@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Halftime Advisor — {{ your_team }} vs {{ opp_team }}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0f1117;
+      color: #e2e8f0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      min-height: 100vh;
+      padding: 32px 24px;
+    }
+
+    .container { max-width: 900px; margin: 0 auto; }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      margin-bottom: 40px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid #2d3348;
+    }
+    header img { height: 36px; object-fit: contain; }
+    header h1 { font-size: 20px; font-weight: 700; color: #e2e8f0; letter-spacing: -0.02em; }
+
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #4f6ef7;
+      font-size: 13px;
+      font-weight: 500;
+      text-decoration: none;
+      margin-bottom: 28px;
+    }
+    .back-link:hover { color: #7b97ff; }
+
+    /* ── Re-submit form ── */
+    .input-card {
+      background: #1e2130;
+      border: 1px solid #2d3348;
+      border-radius: 12px;
+      padding: 24px 28px;
+      margin-bottom: 36px;
+    }
+    .input-card h2 {
+      font-size: 11px; font-weight: 700; color: #f59e0b;
+      text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 16px;
+    }
+    .ht-top-row { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
+    .ht-top-row .field { flex: 1 1 200px; }
+    .ht-textareas { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
+    @media (max-width: 640px) { .ht-textareas { grid-template-columns: 1fr; } }
+
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    label {
+      font-size: 11px; font-weight: 600; color: #64748b;
+      text-transform: uppercase; letter-spacing: 0.07em;
+    }
+    input[type="text"] {
+      background: #0f1117; border: 1px solid #2d3348; color: #e2e8f0;
+      padding: 10px 14px; border-radius: 8px; font-size: 14px;
+      font-family: inherit; outline: none; width: 100%;
+    }
+    input[type="text"]:focus { border-color: #f59e0b; }
+    textarea {
+      background: #0f1117; border: 1px solid #2d3348; color: #e2e8f0;
+      padding: 10px 14px; border-radius: 8px; font-size: 12px;
+      font-family: 'Courier New', monospace; outline: none; width: 100%;
+      resize: vertical; line-height: 1.5;
+    }
+    textarea:focus { border-color: #f59e0b; }
+
+    .btn-halftime {
+      background: #f59e0b; border: none; color: #0f1117;
+      padding: 10px 24px; border-radius: 8px; font-size: 14px;
+      font-weight: 700; font-family: inherit; cursor: pointer;
+    }
+    .btn-halftime:hover { background: #d97706; }
+
+    /* ── Error ── */
+    .error-banner {
+      background: #2d1b1b; border: 1px solid #7f1d1d; color: #fca5a5;
+      padding: 12px 18px; border-radius: 8px; font-size: 14px; margin-bottom: 28px;
+    }
+
+    /* ── Results header ── */
+    .results-header { margin-bottom: 32px; }
+    .results-header h2 {
+      font-size: 22px; font-weight: 700; color: #e2e8f0; letter-spacing: -0.02em;
+    }
+    .results-header .meta { font-size: 13px; color: #64748b; margin-top: 4px; }
+
+    /* ── Section label ── */
+    .section-label {
+      font-size: 11px; font-weight: 700; color: #f59e0b;
+      text-transform: uppercase; letter-spacing: 0.12em;
+      margin-bottom: 14px; margin-top: 36px;
+    }
+    .section-label:first-of-type { margin-top: 0; }
+
+    /* ── Summary card ── */
+    .summary-card {
+      background: #1e2130;
+      border: 1px solid #2d3348;
+      border-left: 4px solid #f59e0b;
+      border-radius: 12px;
+      padding: 20px 24px;
+      font-size: 15px;
+      line-height: 1.7;
+      color: #cbd5e1;
+    }
+
+    /* ── Adjustment cards ── */
+    .adj-card {
+      background: #1e2130;
+      border: 1px solid #2d3348;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .adj-card-header {
+      background: #252a3d;
+      border-bottom: 1px solid #2d3348;
+      padding: 12px 20px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #e2e8f0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .adj-card-header.yours { border-top: 3px solid #22c55e; }
+    .adj-card ul {
+      list-style: none;
+      padding: 0;
+    }
+    .adj-card ul li {
+      padding: 13px 20px;
+      border-bottom: 1px solid #1a1f2e;
+      font-size: 13px;
+      color: #94a3b8;
+      line-height: 1.6;
+      display: flex;
+      gap: 10px;
+    }
+    .adj-card ul li:last-child { border-bottom: none; }
+    .adj-card ul li::before {
+      content: none;
+    }
+
+    /* ── Top Performers ── */
+    .perf-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 640px) { .perf-grid { grid-template-columns: 1fr; } }
+
+    .perf-col-header {
+      background: #252a3d;
+      border-bottom: 1px solid #2d3348;
+      padding: 10px 16px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #e2e8f0;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .perf-col-header.yours { border-top: 3px solid #22c55e; }
+    .perf-col-header.theirs { border-top: 3px solid #ef4444; }
+
+    .perf-column {
+      background: #1e2130;
+      border: 1px solid #2d3348;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .perf-card {
+      padding: 14px 16px;
+      border-bottom: 1px solid #1a1f2e;
+    }
+    .perf-card:last-child { border-bottom: none; }
+
+    .perf-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: #e2e8f0;
+      margin-bottom: 4px;
+    }
+    .perf-stats {
+      font-size: 12px;
+      color: #f59e0b;
+      font-family: 'Courier New', monospace;
+      margin-bottom: 4px;
+    }
+    .perf-note {
+      font-size: 12px;
+      color: #94a3b8;
+      line-height: 1.5;
+      font-style: italic;
+    }
+    .perf-subheader {
+      background: #161926;
+      padding: 6px 16px;
+      font-size: 10px;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      border-bottom: 1px solid #1a1f2e;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <img src="https://www.whatifsports.com/images/whatifsports-light-full.svg" alt="WhatIfSports"/>
+    <h1>Football Scout</h1>
+  </header>
+
+  <a href="javascript:history.back()" class="back-link">← Back to Strategy</a>
+
+  <!-- Re-submit form -->
+  <div class="input-card">
+    <h2>⏱ Halftime Advisor</h2>
+    <form method="POST" action="/halftime">
+      <div class="ht-top-row">
+        <div class="field">
+          <label>Your Team</label>
+          <input type="text" name="ht_your_team" value="{{ your_team }}"/>
+        </div>
+        <div class="field">
+          <label>Opponent Team</label>
+          <input type="text" name="ht_opp_team" value="{{ opp_team }}"/>
+        </div>
+      </div>
+      <div class="ht-textareas">
+        <div class="field">
+          <label>Box Score &amp; Team Stats</label>
+          <textarea name="ht_box_score" rows="10">{{ box_raw }}</textarea>
+        </div>
+        <div class="field">
+          <label>Game Log</label>
+          <textarea name="ht_game_log" rows="10">{{ gamelog_raw }}</textarea>
+        </div>
+      </div>
+      <button type="submit" class="btn-halftime">Get Halftime Adjustments</button>
+    </form>
+  </div>
+
+  {% if error %}
+  <div class="error-banner">{{ error }}</div>
+  {% endif %}
+
+  {% if report %}
+  <div class="results-header">
+    <h2>{{ your_team }} vs {{ opp_team }}</h2>
+    <div class="meta">Halftime adjustments report</div>
+  </div>
+
+  <!-- Section 1: First Half Summary -->
+  <div class="section-label">First Half Summary</div>
+  <div class="summary-card">{{ report.summary }}</div>
+
+  <!-- Top Performers -->
+  {% if report.your_performers or report.their_performers %}
+  <div class="section-label">Top Performers — First Half</div>
+  <div class="perf-grid">
+    <div class="perf-column">
+      <div class="perf-col-header yours">{{ your_team }}</div>
+      {% for p in report.your_performers %}
+      {% if loop.index0 == 0 and p.side == 'offense' %}
+      <div class="perf-subheader">OFFENSE</div>
+      {% endif %}
+      {% if p.side == 'defense' and (loop.index0 == 0 or report.your_performers[loop.index0 - 1].side == 'offense') %}
+      <div class="perf-subheader">DEFENSE</div>
+      {% endif %}
+      <div class="perf-card">
+        <div class="perf-name">{{ p.tag }}</div>
+        <div class="perf-stats">{{ p.statline }}</div>
+        <div class="perf-note">{{ p.note }}</div>
+      </div>
+      {% endfor %}
+      {% if not report.your_performers %}
+      <div class="perf-card"><div class="perf-note">No qualifying performers found.</div></div>
+      {% endif %}
+    </div>
+    <div class="perf-column">
+      <div class="perf-col-header theirs">{{ opp_team }}</div>
+      {% for p in report.their_performers %}
+      {% if loop.index0 == 0 and p.side == 'offense' %}
+      <div class="perf-subheader">OFFENSE</div>
+      {% endif %}
+      {% if p.side == 'defense' and (loop.index0 == 0 or report.their_performers[loop.index0 - 1].side == 'offense') %}
+      <div class="perf-subheader">DEFENSE</div>
+      {% endif %}
+      <div class="perf-card">
+        <div class="perf-name">{{ p.tag }}</div>
+        <div class="perf-stats">{{ p.statline }}</div>
+        <div class="perf-note">{{ p.note }}</div>
+      </div>
+      {% endfor %}
+      {% if not report.their_performers %}
+      <div class="perf-card"><div class="perf-note">No qualifying performers found.</div></div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Section 2: What To Do To Win -->
+  <div class="section-label">What {{ your_team }} Needs To Do To Win The Second Half</div>
+  <div class="adj-card">
+    <div class="adj-card-header yours">🟢 {{ your_team }} — Second Half Game Plan</div>
+    <ul>
+      {% for bullet in report.win_bullets %}
+      <li>{{ bullet }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  {% endif %}
+
+</div>
+</body>
+</html>

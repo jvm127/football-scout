@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Strategy — {{ your_team }} vs {{ opponent_team }}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0f1117;
+      color: #e2e8f0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      min-height: 100vh;
+      padding: 32px 24px;
+    }
+
+    .container { max-width: 860px; margin: 0 auto; }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      margin-bottom: 40px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid #2d3348;
+    }
+    header img { height: 36px; object-fit: contain; }
+    header h1 { font-size: 20px; font-weight: 700; color: #e2e8f0; letter-spacing: -0.02em; }
+
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #4f6ef7;
+      font-size: 13px;
+      font-weight: 500;
+      text-decoration: none;
+      margin-bottom: 28px;
+    }
+    .back-link:hover { color: #7b97ff; }
+
+    /* ── Strategy Form ── */
+    .input-card {
+      background: #1e2130;
+      border: 1px solid #2d3348;
+      border-radius: 12px;
+      padding: 28px 32px;
+      margin-bottom: 36px;
+    }
+    .input-card h2 {
+      font-size: 11px;
+      font-weight: 700;
+      color: #4f6ef7;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin-bottom: 20px;
+    }
+    .strategy-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 640px) { .strategy-grid { grid-template-columns: 1fr; } }
+
+    .strategy-col { display: flex; flex-direction: column; gap: 10px; }
+
+    .field { display: flex; flex-direction: column; gap: 6px; }
+
+    label {
+      font-size: 11px;
+      font-weight: 600;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+    }
+
+    input[type="text"] {
+      background: #0f1117;
+      border: 1px solid #2d3348;
+      color: #e2e8f0;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+      width: 100%;
+      transition: border-color 0.15s;
+    }
+    input[type="text"]:focus { border-color: #4f6ef7; }
+    input[type="text"]::placeholder { color: #475569; }
+
+    textarea {
+      background: #0f1117;
+      border: 1px solid #2d3348;
+      color: #e2e8f0;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-family: 'Courier New', monospace;
+      outline: none;
+      width: 100%;
+      resize: vertical;
+      line-height: 1.5;
+      transition: border-color 0.15s;
+    }
+    textarea:focus { border-color: #4f6ef7; }
+    textarea::placeholder { color: #334155; }
+
+    .btn-submit {
+      background: #4f6ef7;
+      border: none;
+      color: #fff;
+      padding: 10px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-submit:hover { background: #3b57e8; }
+
+    /* ── Error ── */
+    .error-banner {
+      background: #2d1b1b;
+      border: 1px solid #7f1d1d;
+      color: #fca5a5;
+      padding: 12px 18px;
+      border-radius: 8px;
+      font-size: 14px;
+      margin-bottom: 28px;
+    }
+
+    /* ── Results header ── */
+    .results-header {
+      margin-bottom: 28px;
+    }
+    .results-header h2 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #e2e8f0;
+      letter-spacing: -0.02em;
+    }
+    .results-header .meta {
+      font-size: 13px;
+      color: #64748b;
+      margin-top: 4px;
+    }
+
+    /* ── Section labels ── */
+    .section-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: #4f6ef7;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin-bottom: 14px;
+      margin-top: 36px;
+    }
+    .section-label:first-of-type { margin-top: 0; }
+
+    /* ── Biggest Advantages / Dangers ── */
+    .highlights-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .highlight-card {
+      border-radius: 10px;
+      padding: 18px 20px;
+      border-left: 4px solid;
+    }
+
+    .highlight-card.adv {
+      background: #0f1f16;
+      border-color: #22c55e;
+    }
+
+    .highlight-card.dan {
+      background: #1a0f0f;
+      border-color: #ef4444;
+    }
+
+    .highlight-header {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .highlight-rank {
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .adv .highlight-rank { color: #22c55e; }
+    .dan .highlight-rank { color: #ef4444; }
+
+    .highlight-label {
+      font-size: 15px;
+      font-weight: 700;
+      color: #e2e8f0;
+      flex: 1;
+    }
+
+    .highlight-edge {
+      font-size: 15px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+    .adv .highlight-edge { color: #22c55e; }
+    .dan .highlight-edge { color: #ef4444; }
+
+    .highlight-body {
+      font-size: 13px;
+      color: #94a3b8;
+      line-height: 1.6;
+      margin-bottom: 8px;
+    }
+
+    .highlight-rec {
+      font-size: 13px;
+      font-weight: 600;
+      padding: 6px 10px;
+      border-radius: 6px;
+      display: inline-block;
+    }
+    .adv .highlight-rec { background: #14532d40; color: #86efac; }
+    .dan .highlight-rec { background: #450a0a40; color: #fca5a5; }
+
+    .no-highlights {
+      font-size: 13px;
+      color: #475569;
+      font-style: italic;
+      padding: 12px 0;
+    }
+
+    /* ── Matchup list ── */
+    .matchup-list {
+      background: #1e2130;
+      border: 1px solid #2d3348;
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+
+    .matchup-row {
+      display: grid;
+      grid-template-columns: 28px 160px 1fr auto;
+      align-items: start;
+      padding: 14px 20px;
+      border-bottom: 1px solid #1a1f2e;
+      gap: 14px;
+    }
+    .matchup-row:last-child { border-bottom: none; }
+
+    .matchup-row.tier-major  { background: #13221a; border-left: 3px solid #22c55e; }
+    .matchup-row.tier-slight { background: #1e1f13; border-left: 3px solid #eab308; }
+    .matchup-row.tier-even   { }
+    .matchup-row.tier-avoid  { background: #1e1313; border-left: 3px solid #ef4444; }
+    .matchup-row.tier-unknown { opacity: 0.5; }
+
+    .m-icon { font-size: 16px; line-height: 1; padding-top: 1px; }
+
+    .m-label { font-size: 14px; font-weight: 600; color: #e2e8f0; }
+    .m-desc  { font-size: 11px; color: #475569; margin-top: 2px; }
+
+    .m-rec { font-size: 13px; color: #94a3b8; line-height: 1.4; }
+    .tier-major  .m-rec { color: #86efac; }
+    .tier-avoid  .m-rec { color: #fca5a5; }
+
+    .m-edge {
+      font-size: 17px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      text-align: right;
+      padding-top: 1px;
+    }
+    .tier-major  .m-edge { color: #22c55e; }
+    .tier-slight .m-edge { color: #eab308; }
+    .tier-even   .m-edge { color: #64748b; }
+    .tier-avoid  .m-edge { color: #ef4444; }
+    .tier-unknown .m-edge { color: #475569; }
+
+    /* ── Game Plan Table ── */
+    .game-plan-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #1e2130;
+      border: 1px solid #2d3348;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .game-plan-table th {
+      background: #252a3d;
+      font-size: 11px;
+      font-weight: 600;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      padding: 12px 20px;
+      text-align: left;
+      border-bottom: 1px solid #2d3348;
+    }
+
+    .game-plan-table td {
+      padding: 13px 20px;
+      border-bottom: 1px solid #1a1f2e;
+      font-size: 14px;
+    }
+    .game-plan-table tr:last-child td { border-bottom: none; }
+
+    .gp-play { font-weight: 600; color: #e2e8f0; }
+
+    .gp-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+    .badge-major  { background: #14532d; color: #86efac; }
+    .badge-slight { background: #422006; color: #fcd34d; }
+    .badge-even   { background: #1e293b; color: #94a3b8; }
+    .badge-avoid  { background: #450a0a; color: #fca5a5; }
+    .badge-unknown { background: #1e293b; color: #475569; }
+
+    .gp-edge {
+      font-size: 13px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      color: #64748b;
+    }
+
+    /* ── Halftime Advisor Section ── */
+    .halftime-section {
+      margin-top: 48px;
+      border-top: 1px solid #2d3348;
+      padding-top: 36px;
+    }
+
+    .halftime-section .section-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #f59e0b;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin-bottom: 20px;
+    }
+
+    .ht-top-row {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .ht-top-row .field { flex: 1 1 200px; }
+
+    .ht-textareas {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    @media (max-width: 640px) {
+      .ht-textareas { grid-template-columns: 1fr; }
+    }
+
+    .btn-halftime {
+      background: #f59e0b;
+      border: none;
+      color: #0f1117;
+      padding: 10px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-halftime:hover { background: #d97706; }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <img src="https://www.whatifsports.com/images/whatifsports-light-full.svg" alt="WhatIfSports"/>
+    <h1>Football Scout</h1>
+  </header>
+
+  <a href="/" class="back-link">← New Scouting Report</a>
+
+  <!-- Strategy Form (pre-filled for easy re-run) -->
+  <div class="input-card">
+    <h2>Strategy</h2>
+    <form method="POST" action="/strategy">
+      <div class="strategy-grid">
+        <div class="strategy-col">
+          <div class="field">
+            <label for="opponent_team">Opponent Team</label>
+            <input type="text" id="opponent_team" name="opponent_team"
+                   value="{{ opponent_team }}"/>
+          </div>
+          <div class="field">
+            <label for="opponent_ratings">Opponent Team Ratings</label>
+            <textarea id="opponent_ratings" name="opponent_ratings" rows="10">{{ opponent_ratings_raw }}</textarea>
+          </div>
+        </div>
+        <div class="strategy-col">
+          <div class="field">
+            <label for="your_team">Your Team</label>
+            <input type="text" id="your_team" name="your_team"
+                   value="{{ your_team }}"/>
+          </div>
+          <div class="field">
+            <label for="your_ratings">Your Team Ratings</label>
+            <textarea id="your_ratings" name="your_ratings" rows="10">{{ your_ratings_raw }}</textarea>
+          </div>
+        </div>
+      </div>
+      <button type="submit" class="btn-submit">Generate Strategy</button>
+    </form>
+  </div>
+
+  <!-- Error -->
+  {% if error %}
+  <div class="error-banner">{{ error }}</div>
+  {% endif %}
+
+  <!-- Results -->
+  {% if matchups %}
+  <div class="results-header">
+    <h2>{{ your_team }} vs {{ opponent_team }}</h2>
+    <div class="meta">Matchup analysis — {{ matchups | selectattr('edge') | list | length }} of {{ matchups | length }} matchups with data</div>
+  </div>
+
+  <!-- Biggest Advantages -->
+  <div class="section-label">🟢 Biggest Advantages</div>
+  {% if advantages %}
+  <div class="highlights-list">
+    {% for item in advantages %}
+    <div class="highlight-card adv">
+      <div class="highlight-header">
+        <span class="highlight-rank">#{{ loop.index }}</span>
+        <span class="highlight-label">{{ item.label }}</span>
+        <span class="highlight-edge">+{{ item.edge }}</span>
+      </div>
+      <div class="highlight-body">{{ item.adv_text }}</div>
+      <span class="highlight-rec">▶ {{ item.adv_rec }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="no-highlights">No individual matchups with a +10 or greater advantage found.</p>
+  {% endif %}
+
+  <!-- Where They Have The Edge -->
+  <div class="section-label">🔴 Where They Have The Edge</div>
+  {% if dangers %}
+  <div class="highlights-list">
+    {% for item in dangers %}
+    <div class="highlight-card dan">
+      <div class="highlight-header">
+        <span class="highlight-rank">#{{ loop.index }}</span>
+        <span class="highlight-label">{{ item.label }}</span>
+        <span class="highlight-edge">{{ item.edge }}</span>
+      </div>
+      <div class="highlight-body">{{ item.dan_text }}</div>
+      <span class="highlight-rec">▶ {{ item.dan_rec }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="no-highlights">No individual matchups where they hold a -10 or greater advantage.</p>
+  {% endif %}
+
+  <!-- Matchup Edges -->
+  <div class="section-label">Matchup Edges</div>
+  <div class="matchup-list">
+    {% for m in matchups %}
+    <div class="matchup-row tier-{{ m.tier }}">
+      <div class="m-icon">{{ m.icon }}</div>
+      <div>
+        <div class="m-label">{{ m.label }}</div>
+        <div class="m-desc">{{ m.desc }}</div>
+      </div>
+      <div class="m-rec">
+        {% if m.tier == 'major' or m.tier == 'avoid' %}
+          {{ m.rec }}
+        {% else %}
+          {{ m.short }}
+        {% endif %}
+      </div>
+      <div class="m-edge">
+        {% if m.edge is not none %}
+          {% if m.edge > 0 %}+{% endif %}{{ m.edge }}
+        {% else %}
+          —
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Game Plan Summary -->
+  <div class="section-label">Game Plan Summary</div>
+  <table class="game-plan-table">
+    <thead>
+      <tr>
+        <th>Play Type</th>
+        <th>Recommendation</th>
+        <th>Edge</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in game_plan %}
+      <tr>
+        <td class="gp-play">{{ row.play }}</td>
+        <td>
+          <span class="gp-badge badge-{{ row.tier }}">
+            {{ row.icon }} {{ row.short }}
+          </span>
+        </td>
+        <td class="gp-edge">
+          {% if row.edge is not none %}
+            {% if row.edge > 0 %}+{% endif %}{{ row.edge }}
+          {% else %}—{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  <!-- Halftime Advisor -->
+  {% if matchups %}
+  <div class="halftime-section">
+    <div class="section-title">⏱ Halftime Advisor</div>
+    <form method="POST" action="/halftime">
+      <div class="ht-top-row">
+        <div class="field">
+          <label for="ht_your_team">Your Team</label>
+          <input type="text" id="ht_your_team" name="ht_your_team"
+                 value="{{ your_team }}" placeholder="e.g. Michigan"/>
+        </div>
+        <div class="field">
+          <label for="ht_opp_team">Opponent Team</label>
+          <input type="text" id="ht_opp_team" name="ht_opp_team"
+                 value="{{ opponent_team }}" placeholder="e.g. Minnesota"/>
+        </div>
+      </div>
+      <div class="ht-textareas">
+        <div class="field">
+          <label for="ht_box_score">Box Score &amp; Team Stats — paste halftime data here</label>
+          <textarea id="ht_box_score" name="ht_box_score" rows="12"
+                    placeholder="Total Yards    342    198&#10;Passing Yards   215    142&#10;Rushing Yards   127     56&#10;3rd Down         4/8    2/7&#10;Time of Poss   18:23  11:37&#10;First Downs      18      9&#10;Turnovers         1      2"></textarea>
+        </div>
+        <div class="field">
+          <label for="ht_game_log">Game Log — paste play-by-play here</label>
+          <textarea id="ht_game_log" name="ht_game_log" rows="12"
+                    placeholder="Q1 - Michigan: John Smith rushes right end for 8 yards&#10;Q1 - Michigan: Tom Jones passes short left to Mike Brown for 12 yards&#10;Q1 - Minnesota: Aaron Davis passes deep middle TD to Chris Wilson 24 yards&#10;..."></textarea>
+        </div>
+      </div>
+      <button type="submit" class="btn-halftime">Get Halftime Adjustments</button>
+    </form>
+  </div>
+  {% endif %}
+
+</div>
+</body>
+</html>

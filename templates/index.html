@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Football Scout</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0f1117;
+      color: #e2e8f0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      min-height: 100vh;
+      padding: 32px 24px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      margin-bottom: 40px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid #2d3348;
+    }
+
+    header img {
+      height: 36px;
+      object-fit: contain;
+    }
+
+    header h1 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #e2e8f0;
+      letter-spacing: -0.02em;
+    }
+
+    .container {
+      max-width: 860px;
+      margin: 0 auto;
+    }
+
+    /* ── Input Card ── */
+    .input-card {
+      background: #1e2130;
+      border: 1px solid #2d3348;
+      border-radius: 12px;
+      padding: 28px 32px;
+      margin-bottom: 36px;
+    }
+
+    .input-card h2 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-bottom: 20px;
+    }
+
+    .form-row {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      align-items: flex-end;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .field.team-field  { flex: 0 0 200px; }
+    .field.url-field   { flex: 1 1 300px; }
+    .field.file-field  { flex: 1 1 220px; }
+
+    .source-divider {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 16px 0 4px;
+      color: #475569;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+    }
+    .source-divider::before,
+    .source-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: #2d3348;
+    }
+
+    .file-drop {
+      background: #0f1117;
+      border: 1px dashed #2d3348;
+      border-radius: 8px;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      position: relative;
+    }
+    .file-drop:hover { border-color: #4f6ef7; background: #131520; }
+    .file-drop.has-file { border-color: #22c55e; border-style: solid; }
+
+    .file-drop input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+
+    .file-icon {
+      font-size: 16px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+
+    .file-text {
+      font-size: 13px;
+      color: #64748b;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .file-text.selected { color: #e2e8f0; }
+
+    label {
+      font-size: 11px;
+      font-weight: 600;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+    }
+
+    input[type="text"] {
+      background: #0f1117;
+      border: 1px solid #2d3348;
+      color: #e2e8f0;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+      width: 100%;
+      transition: border-color 0.15s;
+    }
+
+    input[type="text"]:focus { border-color: #4f6ef7; }
+    input[type="text"]::placeholder { color: #475569; }
+
+    .btn-submit {
+      background: #4f6ef7;
+      border: none;
+      color: #fff;
+      padding: 10px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.15s;
+      white-space: nowrap;
+      height: 40px;
+      align-self: flex-end;
+    }
+
+    .btn-submit:hover { background: #3b57e8; }
+
+    /* ── Error ── */
+    .error-banner {
+      background: #2d1b1b;
+      border: 1px solid #7f1d1d;
+      color: #fca5a5;
+      padding: 12px 18px;
+      border-radius: 8px;
+      font-size: 14px;
+      margin-bottom: 28px;
+    }
+
+    /* ── Results Header ── */
+    .results-header {
+      margin-bottom: 28px;
+    }
+
+    .results-header h2 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #e2e8f0;
+      letter-spacing: -0.02em;
+    }
+
+    .results-header .meta {
+      font-size: 13px;
+      color: #64748b;
+      margin-top: 4px;
+    }
+
+    /* ── Down Grid ── */
+    .downs-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+    }
+
+    @media (max-width: 640px) {
+      .downs-grid { grid-template-columns: 1fr; }
+      .field.team-field, .field.url-field, .field.file-field { flex: 1 1 100%; }
+    }
+
+    .down-card {
+      background: #1e2130;
+      border: 1px solid #2d3348;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .down-card-header {
+      padding: 14px 20px;
+      background: #252a3d;
+      border-bottom: 1px solid #2d3348;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .down-badge {
+      background: #4f6ef7;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 20px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .down-card-header h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #e2e8f0;
+    }
+
+    /* ── Stat Rows ── */
+    .stat-row {
+      display: grid;
+      grid-template-columns: 80px 1fr auto;
+      align-items: center;
+      padding: 14px 20px;
+      border-bottom: 1px solid #1a1f2e;
+      gap: 12px;
+      transition: background 0.1s;
+    }
+
+    .stat-row:last-child { border-bottom: none; }
+
+    .stat-row:hover { background: #252a3d; }
+
+    .stat-row.anomaly {
+      background: #1c1a2e;
+      border-left: 3px solid #a855f7;
+    }
+
+    .stat-row.anomaly:hover { background: #221f35; }
+
+    .range-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .yard-range {
+      font-size: 12px;
+      color: #475569;
+      margin-top: 1px;
+    }
+
+    .stat-bar-wrap {
+      position: relative;
+      height: 6px;
+      background: #2d3348;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .stat-bar {
+      height: 100%;
+      border-radius: 3px;
+      background: #4f6ef7;
+      transition: width 0.4s ease;
+    }
+
+    .stat-bar.anomaly-bar { background: #a855f7; }
+
+    .stat-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 70px;
+      justify-content: flex-end;
+    }
+
+    .pct-value {
+      font-size: 18px;
+      font-weight: 700;
+      color: #e2e8f0;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .pct-value.anomaly-text { color: #c084fc; }
+
+    .pct-suffix {
+      font-size: 13px;
+      color: #64748b;
+      font-weight: 500;
+    }
+
+    .flag-icon {
+      font-size: 14px;
+      line-height: 1;
+    }
+
+    .no-data {
+      font-size: 13px;
+      color: #475569;
+      font-style: italic;
+      padding: 14px 20px;
+      text-align: center;
+    }
+
+    .plays-count {
+      font-size: 11px;
+      color: #475569;
+      margin-top: 1px;
+    }
+
+    /* ── Formation Breakdown ── */
+    .formation-block {
+      margin-bottom: 36px;
+      background: #1e2130;
+      border: 1px solid #2d3348;
+      border-radius: 12px;
+      padding: 20px 24px;
+    }
+    .formation-header {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .formation-name {
+      font-size: 18px;
+      font-weight: 700;
+      color: #e2e8f0;
+    }
+    .formation-count {
+      font-size: 12px;
+      color: #64748b;
+    }
+    .formation-note {
+      margin-top: 16px;
+      padding: 12px 16px;
+      background: #161926;
+      border-left: 3px solid #f59e0b;
+      border-radius: 6px;
+      font-size: 13px;
+      color: #94a3b8;
+      line-height: 1.6;
+    }
+
+    /* ── Strategy Section ── */
+    .strategy-section {
+      margin-top: 48px;
+      border-top: 1px solid #2d3348;
+      padding-top: 36px;
+    }
+
+    .strategy-section .section-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #4f6ef7;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin-bottom: 20px;
+    }
+
+    .strategy-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    @media (max-width: 640px) {
+      .strategy-grid { grid-template-columns: 1fr; }
+    }
+
+    .strategy-col {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    textarea {
+      background: #0f1117;
+      border: 1px solid #2d3348;
+      color: #e2e8f0;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-family: 'Courier New', monospace;
+      outline: none;
+      width: 100%;
+      resize: vertical;
+      transition: border-color 0.15s;
+      line-height: 1.5;
+    }
+
+    textarea:focus { border-color: #4f6ef7; }
+    textarea::placeholder { color: #334155; }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <img src="https://www.whatifsports.com/images/whatifsports-light-full.svg" alt="WhatIfSports"/>
+    <h1>Football Scout</h1>
+  </header>
+
+  <!-- Input Card -->
+  <div class="input-card">
+    <h2>Scout a Team</h2>
+    <form method="POST" action="/analyze" enctype="multipart/form-data">
+      <!-- Row 1: team + url + submit -->
+      <div class="form-row">
+        <div class="field team-field">
+          <label for="team">Team Name</label>
+          <input type="text" id="team" name="team" placeholder="e.g. Minnesota"
+                 value="{{ team or '' }}" autocomplete="off"/>
+        </div>
+        <div class="field url-field">
+          <label for="sheets_url">Google Sheets URL</label>
+          <input type="text" id="sheets_url" name="sheets_url"
+                 placeholder="https://docs.google.com/spreadsheets/d/..."
+                 value="{{ sheets_url or '' }}"/>
+        </div>
+      </div>
+
+      <!-- Divider -->
+      <div class="source-divider">or upload a CSV</div>
+
+      <!-- Row 2: file upload + submit -->
+      <div class="form-row" style="align-items:flex-end;">
+        <div class="field file-field">
+          <label>CSV File</label>
+          <div class="file-drop" id="fileDrop">
+            <span class="file-icon">📂</span>
+            <span class="file-text" id="fileLabel">Choose file or drag &amp; drop</span>
+            <input type="file" name="csv_file" id="csvFile" accept=".csv,text/csv"/>
+          </div>
+        </div>
+        <button type="submit" class="btn-submit">Analyze</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Error -->
+  {% if submitted and error %}
+  <div class="error-banner">{{ error }}</div>
+  {% endif %}
+
+  <!-- Results -->
+  {% if submitted and not error and results %}
+  <div class="results-header">
+    <h2>{{ team }}</h2>
+    <div class="meta">{{ total_plays }} plays analyzed &nbsp;·&nbsp; Run/Pass only (Rn &amp; Ps)</div>
+  </div>
+
+  <div class="downs-grid">
+    {% set down_names = {1: "1st Down", 2: "2nd Down", 3: "3rd Down", 4: "4th Down"} %}
+    {% for down in [1, 2, 3, 4] %}
+    {% set down_rows = results[down] %}
+    <div class="down-card">
+      <div class="down-card-header">
+        <span class="down-badge">{{ down }}{% if down == 1 %}st{% elif down == 2 %}nd{% elif down == 3 %}rd{% else %}th{% endif %}</span>
+        <h3>{{ down_names[down] }}</h3>
+      </div>
+
+      {% set has_data = namespace(value=false) %}
+      {% for row in down_rows %}
+        {% if row.total > 0 %}{% set has_data.value = true %}{% endif %}
+      {% endfor %}
+
+      {% if not has_data.value %}
+        <div class="no-data">No plays found for this down</div>
+      {% else %}
+        {% for row in down_rows %}
+        {% if row.total > 0 %}
+        <div class="stat-row {% if row.anomaly %}anomaly{% endif %}">
+          <div>
+            <div class="range-label">{{ row.label }}</div>
+            <div class="yard-range">{{ row.range }} yds</div>
+          </div>
+          <div>
+            <div class="stat-bar-wrap">
+              <div class="stat-bar {% if row.anomaly %}anomaly-bar{% endif %}"
+                   style="width: {{ row.run_pct }}%"></div>
+            </div>
+            <div class="plays-count">{{ row.runs }}/{{ row.total }} plays</div>
+          </div>
+          <div class="stat-right">
+            {% if row.anomaly %}<span class="flag-icon">⚑</span>{% endif %}
+            <span class="pct-value {% if row.anomaly %}anomaly-text{% endif %}">{{ row.run_pct }}</span>
+            <span class="pct-suffix">%</span>
+          </div>
+        </div>
+        {% else %}
+        <div class="stat-row">
+          <div>
+            <div class="range-label">{{ row.label }}</div>
+            <div class="yard-range">{{ row.range }} yds</div>
+          </div>
+          <div><div class="stat-bar-wrap"><div class="stat-bar" style="width:0%"></div></div></div>
+          <div class="stat-right">
+            <span class="pct-value" style="color:#475569;">—</span>
+          </div>
+        </div>
+        {% endif %}
+        {% endfor %}
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Formation Breakdown -->
+  {% if formations %}
+  <div class="formation-section">
+    <div class="section-title" style="margin-top:40px; margin-bottom:24px; font-size:11px; font-weight:700; color:#f59e0b; text-transform:uppercase; letter-spacing:0.12em;">Formation Breakdown</div>
+
+    {% for fname, fdata in formations.items() %}
+    <div class="formation-block">
+      <div class="formation-header">
+        <span class="formation-name">{{ fname }}</span>
+        <span class="formation-count">{{ fdata.play_count }} plays</span>
+      </div>
+
+      <div class="downs-grid">
+        {% set down_names = {1: "1st Down", 2: "2nd Down", 3: "3rd Down", 4: "4th Down"} %}
+        {% for down in [1, 2, 3, 4] %}
+        {% set down_rows = fdata.results[down] %}
+        <div class="down-card">
+          <div class="down-card-header">
+            <span class="down-badge">{{ down }}{% if down == 1 %}st{% elif down == 2 %}nd{% elif down == 3 %}rd{% else %}th{% endif %}</span>
+            <h3>{{ down_names[down] }}</h3>
+          </div>
+
+          {% set has_data = namespace(value=false) %}
+          {% for row in down_rows %}
+            {% if row.total > 0 %}{% set has_data.value = true %}{% endif %}
+          {% endfor %}
+
+          {% if not has_data.value %}
+            <div class="no-data">No plays found for this down</div>
+          {% else %}
+            {% for row in down_rows %}
+            {% if row.total > 0 %}
+            <div class="stat-row {% if row.anomaly %}anomaly{% endif %}">
+              <div>
+                <div class="range-label">{{ row.label }}</div>
+                <div class="yard-range">{{ row.range }} yds</div>
+              </div>
+              <div>
+                <div class="stat-bar-wrap">
+                  <div class="stat-bar {% if row.anomaly %}anomaly-bar{% endif %}"
+                       style="width: {{ row.run_pct }}%"></div>
+                </div>
+                <div class="plays-count">{{ row.runs }}/{{ row.total }} plays</div>
+              </div>
+              <div class="stat-right">
+                {% if row.anomaly %}<span class="flag-icon">⚑</span>{% endif %}
+                <span class="pct-value {% if row.anomaly %}anomaly-text{% endif %}">{{ row.run_pct }}</span>
+                <span class="pct-suffix">%</span>
+              </div>
+            </div>
+            {% else %}
+            <div class="stat-row">
+              <div>
+                <div class="range-label">{{ row.label }}</div>
+                <div class="yard-range">{{ row.range }} yds</div>
+              </div>
+              <div><div class="stat-bar-wrap"><div class="stat-bar" style="width:0%"></div></div></div>
+              <div class="stat-right">
+                <span class="pct-value" style="color:#475569;">—</span>
+              </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="formation-note">{{ fdata.strategy_note }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Strategy Section -->
+  <div class="strategy-section">
+    <div class="section-title">Strategy</div>
+    <form method="POST" action="/strategy">
+      <div class="strategy-grid">
+        <div class="strategy-col">
+          <div class="field">
+            <label for="opponent_team">Opponent Team</label>
+            <input type="text" id="opponent_team" name="opponent_team"
+                   placeholder="e.g. Minnesota"
+                   value="{{ team or '' }}"/>
+          </div>
+          <div class="field">
+            <label for="opponent_ratings">Opponent Team Ratings — paste raw ratings data here</label>
+            <textarea id="opponent_ratings" name="opponent_ratings" rows="10"
+                      placeholder="Pos&#9;A&#9;Spd&#9;Str&#9;Blk&#9;Tkl&#9;Tot&#10;QB&#9;72&#9;68&#9;55&#9;40&#9;45&#9;85&#10;RB&#9;85&#9;88&#9;75&#9;60&#9;50&#9;90&#10;..."></textarea>
+          </div>
+        </div>
+        <div class="strategy-col">
+          <div class="field">
+            <label for="your_team">Your Team</label>
+            <input type="text" id="your_team" name="your_team"
+                   placeholder="e.g. Michigan"/>
+          </div>
+          <div class="field">
+            <label for="your_ratings">Your Team Ratings — paste raw ratings data here</label>
+            <textarea id="your_ratings" name="your_ratings" rows="10"
+                      placeholder="Pos&#9;A&#9;Spd&#9;Str&#9;Blk&#9;Tkl&#9;Tot&#10;QB&#9;80&#9;75&#9;65&#9;50&#9;55&#9;88&#10;RB&#9;82&#9;86&#9;78&#9;62&#9;55&#9;88&#10;..."></textarea>
+          </div>
+        </div>
+      </div>
+      <button type="submit" class="btn-submit">Generate Strategy</button>
+    </form>
+  </div>
+  {% endif %}
+
+</div>
+
+<script>
+  const csvFile  = document.getElementById('csvFile');
+  const fileLabel = document.getElementById('fileLabel');
+  const fileDrop  = document.getElementById('fileDrop');
+
+  csvFile.addEventListener('change', () => {
+    if (csvFile.files.length > 0) {
+      fileLabel.textContent = csvFile.files[0].name;
+      fileLabel.classList.add('selected');
+      fileDrop.classList.add('has-file');
+    } else {
+      fileLabel.textContent = 'Choose file or drag & drop';
+      fileLabel.classList.remove('selected');
+      fileDrop.classList.remove('has-file');
+    }
+  });
+</script>
+</body>
+</html>
