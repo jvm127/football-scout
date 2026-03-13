@@ -1674,7 +1674,7 @@ def signup():
     if existing:
         conn.close()
         return render_template("signup.html", error="An account with that email already exists.")
-    hashed = generate_password_hash(password)
+    hashed = generate_password_hash(password, method='pbkdf2:sha256')
     cursor = conn.execute('INSERT INTO users (email, password) VALUES (?, ?)', (email, hashed))
     user_id = cursor.lastrowid
     conn.commit()
