@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Payment Cancelled — Football Scout</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0f1117;
+      color: #e2e8f0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 24px;
+    }
+    .card {
+      background: #1e2130;
+      border: 1px solid #2d3348;
+      border-radius: 12px;
+      padding: 40px 36px;
+      max-width: 440px;
+      text-align: center;
+    }
+    .card h2 { font-size: 22px; font-weight: 700; margin-bottom: 12px; }
+    .card p { font-size: 15px; color: #94a3b8; line-height: 1.6; margin-bottom: 28px; }
+    .btn {
+      display: inline-block;
+      padding: 12px 28px; border-radius: 8px;
+      font-size: 14px; font-weight: 700; text-decoration: none;
+      font-family: inherit; cursor: pointer; border: none;
+    }
+    .btn-primary { background: #4f6ef7; color: #fff; margin-right: 10px; }
+    .btn-primary:hover { background: #3b57e8; }
+    .btn-outline { background: transparent; border: 1px solid #2d3348; color: #94a3b8; }
+    .btn-outline:hover { border-color: #4f6ef7; color: #e2e8f0; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Payment Cancelled</h2>
+    <p>No worries — you weren't charged. You can try again whenever you're ready.</p>
+    <a href="/checkout" class="btn btn-primary">Try Again</a>
+    <a href="/" class="btn btn-outline">Back to Home</a>
+  </div>
+</body>
+</html>

@@ -1,11 +1,81 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, redirect, url_for, flash
+from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+from werkzeug.security import generate_password_hash, check_password_hash
+from dotenv import load_dotenv
 import requests
+import stripe
+import sqlite3
 import csv
 import io
 import re
 import os
 
+load_dotenv()
+
 app = Flask(__name__)
+app.secret_key = os.environ.get('SECRET_KEY', 'dev-fallback-key')
+
+# ─── Stripe config ────────────────────────────────────────────────────────────
+stripe.api_key = os.environ.get('STRIPE_SECRET_KEY')
+STRIPE_PUBLISHABLE_KEY = os.environ.get('STRIPE_PUBLISHABLE_KEY')
+STRIPE_PRICE_ID = os.environ.get('STRIPE_PRICE_ID')
+
+# ─── Database ─────────────────────────────────────────────────────────────────
+DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'football_scout.db')
+
+def get_db():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def init_db():
+    conn = get_db()
+    conn.execute('''CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        email TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        subscribed INTEGER DEFAULT 0,
+        stripe_customer_id TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
+    conn.commit()
+    conn.close()
+
+init_db()
+
+# ─── Flask-Login ──────────────────────────────────────────────────────────────
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'landing'
+
+class User(UserMixin):
+    def __init__(self, id, email, password, subscribed, stripe_customer_id, created_at):
+        self.id = id
+        self.email = email
+        self.password = password
+        self.subscribed = bool(subscribed)
+        self.stripe_customer_id = stripe_customer_id
+        self.created_at = created_at
+
+@login_manager.user_loader
+def load_user(user_id):
+    conn = get_db()
+    row = conn.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
+    conn.close()
+    if row:
+        return User(**dict(row))
+    return None
+
+def subscription_required(f):
+    """Decorator: user must be logged in AND subscribed."""
+    from functools import wraps
+    @wraps(f)
+    @login_required
+    def decorated(*args, **kwargs):
+        if not current_user.subscribed:
+            return redirect(url_for('landing'))
+        return f(*args, **kwargs)
+    return decorated
 
 # ─── Scouting: down/distance breakpoints ────────────────────────────────────
 
@@ -1583,12 +1653,128 @@ def build_halftime_report(your_team, opp_team, your_stats, their_stats, plays, b
 
 # ─── Routes ──────────────────────────────────────────────────────────────────
 
-@app.route("/", methods=["GET"])
+@app.route("/")
+def landing():
+    if current_user.is_authenticated and current_user.subscribed:
+        return redirect(url_for('index'))
+    return render_template("landing.html")
+
+@app.route("/signup", methods=["GET", "POST"])
+def signup():
+    if request.method == "GET":
+        return render_template("signup.html")
+    email = request.form.get("email", "").strip().lower()
+    password = request.form.get("password", "").strip()
+    if not email or not password:
+        return render_template("signup.html", error="Email and password are required.")
+    if len(password) < 6:
+        return render_template("signup.html", error="Password must be at least 6 characters.")
+    conn = get_db()
+    existing = conn.execute('SELECT id FROM users WHERE email = ?', (email,)).fetchone()
+    if existing:
+        conn.close()
+        return render_template("signup.html", error="An account with that email already exists.")
+    hashed = generate_password_hash(password)
+    cursor = conn.execute('INSERT INTO users (email, password) VALUES (?, ?)', (email, hashed))
+    user_id = cursor.lastrowid
+    conn.commit()
+    row = conn.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
+    conn.close()
+    user = User(**dict(row))
+    login_user(user)
+    return redirect(url_for('checkout'))
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "GET":
+        return render_template("login.html")
+    email = request.form.get("email", "").strip().lower()
+    password = request.form.get("password", "").strip()
+    conn = get_db()
+    row = conn.execute('SELECT * FROM users WHERE email = ?', (email,)).fetchone()
+    conn.close()
+    if not row or not check_password_hash(row['password'], password):
+        return render_template("login.html", error="Invalid email or password.")
+    user = User(**dict(row))
+    login_user(user)
+    if user.subscribed:
+        return redirect(url_for('index'))
+    return redirect(url_for('checkout'))
+
+@app.route("/logout")
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('landing'))
+
+@app.route("/checkout")
+@login_required
+def checkout():
+    try:
+        session = stripe.checkout.Session.create(
+            customer_email=current_user.email,
+            payment_method_types=['card'],
+            line_items=[{'price': STRIPE_PRICE_ID, 'quantity': 1}],
+            mode='subscription',
+            success_url=request.host_url.rstrip('/') + url_for('payment_success') + '?session_id={CHECKOUT_SESSION_ID}',
+            cancel_url=request.host_url.rstrip('/') + url_for('payment_cancel'),
+            metadata={'user_id': str(current_user.id)},
+        )
+        return redirect(session.url, code=303)
+    except Exception as e:
+        return render_template("login.html", error=f"Payment error: {e}")
+
+@app.route("/success")
+@login_required
+def payment_success():
+    session_id = request.args.get('session_id')
+    if session_id:
+        try:
+            session = stripe.checkout.Session.retrieve(session_id)
+            customer_id = session.get('customer')
+            conn = get_db()
+            conn.execute('UPDATE users SET subscribed = 1, stripe_customer_id = ? WHERE id = ?',
+                         (customer_id, current_user.id))
+            conn.commit()
+            conn.close()
+        except Exception:
+            pass
+    return redirect(url_for('index'))
+
+@app.route("/cancel")
+@login_required
+def payment_cancel():
+    return render_template("cancel.html")
+
+@app.route("/account")
+@login_required
+def account():
+    return render_template("account.html", user=current_user)
+
+@app.route("/cancel-subscription", methods=["POST"])
+@login_required
+def cancel_subscription():
+    if current_user.stripe_customer_id:
+        try:
+            subscriptions = stripe.Subscription.list(customer=current_user.stripe_customer_id, status='active')
+            for sub in subscriptions.data:
+                stripe.Subscription.cancel(sub.id)
+            conn = get_db()
+            conn.execute('UPDATE users SET subscribed = 0 WHERE id = ?', (current_user.id,))
+            conn.commit()
+            conn.close()
+        except Exception:
+            pass
+    return redirect(url_for('account'))
+
+@app.route("/scout", methods=["GET"])
+@subscription_required
 def index():
     return render_template("index.html")
 
 
 @app.route("/analyze", methods=["POST"])
+@subscription_required
 def analyze_route():
     team = request.form.get("team", "").strip()
     sheets_url = request.form.get("sheets_url", "").strip()
@@ -1634,6 +1820,7 @@ def analyze_route():
 
 
 @app.route("/strategy", methods=["POST"])
+@subscription_required
 def strategy_route():
     opponent_team        = request.form.get("opponent_team", "").strip()
     your_team            = request.form.get("your_team", "").strip()
@@ -1682,6 +1869,7 @@ def strategy_route():
 
 
 @app.route("/halftime", methods=["POST"])
+@subscription_required
 def halftime_route():
     your_team    = request.form.get("ht_your_team",    "").strip()
     opp_team     = request.form.get("ht_opp_team",     "").strip()
