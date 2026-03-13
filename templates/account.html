@@ -88,13 +88,14 @@
       <span class="account-value">{{ user.created_at }}</span>
     </div>
 
+    {% if error %}
+    <div style="background:#2d1b1b;border:1px solid #7f1d1d;color:#fca5a5;padding:10px 14px;border-radius:8px;font-size:13px;margin-top:20px;">{{ error }}</div>
+    {% endif %}
+
     <div class="actions">
       <a href="/scout" class="btn btn-primary">Back to Scout</a>
       {% if user.subscribed %}
-      <form method="POST" action="/cancel-subscription" style="margin:0;">
-        <button type="submit" class="btn btn-danger"
-                onclick="return confirm('Cancel your subscription?')">Cancel Subscription</button>
-      </form>
+      <a href="/manage-subscription" class="btn btn-outline" style="border-color:#f59e0b;color:#f59e0b;">Manage Subscription</a>
       {% else %}
       <a href="/checkout" class="btn btn-primary">Subscribe — $7/mo</a>
       {% endif %}

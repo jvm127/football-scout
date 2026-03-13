@@ -1756,6 +1756,27 @@ def payment_cancel():
 def account():
     return render_template("account.html", user=current_user)
 
+@app.route("/manage-subscription")
+@login_required
+def manage_subscription():
+    if not current_user.stripe_customer_id:
+        return redirect(url_for('account'))
+    try:
+        session = stripe.billing_portal.Session.create(
+            customer=current_user.stripe_customer_id,
+            return_url=request.host_url.rstrip('/') + url_for('account'),
+        )
+        return redirect(session.url, code=303)
+    except Exception as e:
+        return render_template("account.html", user=current_user, error=f"Could not open billing portal: {e}")
+
+@app.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+    sent = False
+    if request.method == "POST":
+        sent = True
+    return render_template("forgot_password.html", sent=sent)
+
 @app.route("/cancel-subscription", methods=["POST"])
 @login_required
 def cancel_subscription():
