@@ -16,9 +16,14 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-fallback-key')
 
 # ─── Stripe config ────────────────────────────────────────────────────────────
-stripe.api_key = os.environ.get('STRIPE_SECRET_KEY')
-STRIPE_PUBLISHABLE_KEY = os.environ.get('STRIPE_PUBLISHABLE_KEY')
-STRIPE_PRICE_ID = os.environ.get('STRIPE_PRICE_ID')
+STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY', '')
+STRIPE_PUBLISHABLE_KEY = os.environ.get('STRIPE_PUBLISHABLE_KEY', '')
+STRIPE_PRICE_ID = os.environ.get('STRIPE_PRICE_ID', '')
+stripe.api_key = STRIPE_SECRET_KEY
+
+_sk_preview = STRIPE_SECRET_KEY[:10] if STRIPE_SECRET_KEY else 'NOT SET'
+print(f">>> STRIPE_SECRET_KEY starts with: {_sk_preview}", flush=True)
+print(f">>> STRIPE_PRICE_ID: {STRIPE_PRICE_ID or 'NOT SET'}", flush=True)
 
 # ─── Database ─────────────────────────────────────────────────────────────────
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'football_scout.db')
