@@ -562,7 +562,9 @@ def _analyze_rows(team, rows):
 
     # Print column headers to console for debugging
     try:
-        print(f"\n>>> CSV COLUMN HEADERS: {list(col_map.keys())}", flush=True)
+        print(f"\n>>> CSV COLUMN HEADERS (raw keys): {list(rows[0].keys()) if rows else 'NO ROWS'}", flush=True)
+        print(f">>> CSV COLUMN HEADERS (stripped): {list(col_map.keys())}", flush=True)
+        print(f">>> col_map mapping: {col_map}", flush=True)
     except BrokenPipeError:
         pass
 
@@ -571,13 +573,26 @@ def _analyze_rows(team, rows):
 
     # Detect formation column — try common names
     form_col = None
-    for candidate in ['Form', 'Formation', 'FORM', 'FORMATION', 'form', 'formation']:
+    for candidate in ['OForm', 'oform', 'OFORM', 'Form', 'Formation', 'FORM', 'FORMATION', 'form', 'formation']:
         if candidate in col_map:
             form_col = col_map[candidate]
             break
 
     try:
         print(f">>> Formation column found: {form_col!r}", flush=True)
+        if form_col:
+            unique_vals = {}
+            for r in rows:
+                v = r.get(form_col, "").strip()
+                unique_vals[v] = unique_vals.get(v, 0) + 1
+            print(f">>> ALL formation values (before filtering): {sorted(unique_vals.items(), key=lambda x: -x[1])}", flush=True)
+        else:
+            print(">>> NO formation column detected! Checking all columns for formation-like data...", flush=True)
+            for key in (rows[0].keys() if rows else []):
+                sample_vals = set()
+                for r in rows[:20]:
+                    sample_vals.add(r.get(key, "").strip())
+                print(f">>>   Column {key!r} sample values: {sample_vals}", flush=True)
     except BrokenPipeError:
         pass
 
@@ -619,6 +634,12 @@ def _analyze_rows(team, rows):
                     'play_count': len(fplays),
                     'strategy_note': _formation_strategy_note(fname, fplays, col),
                 }
+
+        try:
+            print(f">>> Formations with 20+ plays (sent to template): {list(formations.keys())}", flush=True)
+            print(f">>> Formations dict size: {len(formations)}", flush=True)
+        except BrokenPipeError:
+            pass
 
     return total_plays, results, formations, all_formation_names
 
