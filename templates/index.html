@@ -484,9 +484,78 @@
 
   <!-- Results -->
   {% if submitted and not error and results %}
+
+  {% if formations %}
+  {# ── Per-formation sections ── #}
+  {% for fname, fdata in formations.items() %}
+  <div class="results-header" {% if not loop.first %}style="margin-top:48px;"{% endif %}>
+    <h2>{{ team }}</h2>
+    <div class="meta">{{ fdata.play_count }} plays analyzed &nbsp;·&nbsp; {{ fname }}</div>
+  </div>
+
+  <div class="downs-grid">
+    {% set down_names = {1: "1st Down", 2: "2nd Down", 3: "3rd Down", 4: "4th Down"} %}
+    {% for down in [1, 2, 3, 4] %}
+    {% set down_rows = fdata.results[down] %}
+    <div class="down-card">
+      <div class="down-card-header">
+        <span class="down-badge">{{ down }}{% if down == 1 %}st{% elif down == 2 %}nd{% elif down == 3 %}rd{% else %}th{% endif %}</span>
+        <h3>{{ down_names[down] }}</h3>
+      </div>
+
+      {% set has_data = namespace(value=false) %}
+      {% for row in down_rows %}
+        {% if row.total > 0 %}{% set has_data.value = true %}{% endif %}
+      {% endfor %}
+
+      {% if not has_data.value %}
+        <div class="no-data">No plays found for this down</div>
+      {% else %}
+        {% for row in down_rows %}
+        {% if row.total > 0 %}
+        <div class="stat-row {% if row.anomaly %}anomaly{% endif %}">
+          <div>
+            <div class="range-label">{{ row.label }}</div>
+            <div class="yard-range">{{ row.range }} yds</div>
+          </div>
+          <div>
+            <div class="stat-bar-wrap">
+              <div class="stat-bar {% if row.anomaly %}anomaly-bar{% endif %}"
+                   style="width: {{ row.run_pct }}%"></div>
+            </div>
+            <div class="plays-count">{{ row.runs }}/{{ row.total }} plays</div>
+          </div>
+          <div class="stat-right">
+            {% if row.anomaly %}<span class="flag-icon">⚑</span>{% endif %}
+            <span class="pct-value {% if row.anomaly %}anomaly-text{% endif %}">{{ row.run_pct }}</span>
+            <span class="pct-suffix">%</span>
+          </div>
+        </div>
+        {% else %}
+        <div class="stat-row">
+          <div>
+            <div class="range-label">{{ row.label }}</div>
+            <div class="yard-range">{{ row.range }} yds</div>
+          </div>
+          <div><div class="stat-bar-wrap"><div class="stat-bar" style="width:0%"></div></div></div>
+          <div class="stat-right">
+            <span class="pct-value" style="color:#475569;">—</span>
+          </div>
+        </div>
+        {% endif %}
+        {% endfor %}
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  <div class="formation-note">{{ fdata.strategy_note }}</div>
+  {% endfor %}
+
+  {% else %}
+  {# ── No formations found — show overall results ── #}
   <div class="results-header">
     <h2>{{ team }}</h2>
-    <div class="meta">{{ total_plays }} plays analyzed &nbsp;·&nbsp; {% if all_formation_names %}{{ all_formation_names|join(', ') }}{% else %}Run/Pass only{% endif %}</div>
+    <div class="meta">{{ total_plays }} plays analyzed</div>
   </div>
 
   <div class="downs-grid">
@@ -541,79 +610,6 @@
         {% endif %}
         {% endfor %}
       {% endif %}
-    </div>
-    {% endfor %}
-  </div>
-
-  <!-- Formation Breakdown -->
-  {% if formations %}
-  <div class="formation-section">
-    <div class="section-title" style="margin-top:40px; margin-bottom:24px; font-size:11px; font-weight:700; color:#f59e0b; text-transform:uppercase; letter-spacing:0.12em;">Formation Breakdown</div>
-
-    {% for fname, fdata in formations.items() %}
-    <div class="formation-block">
-      <div class="formation-header">
-        <span class="formation-name">{{ fname }}</span>
-        <span class="formation-count">{{ fdata.play_count }} plays</span>
-      </div>
-
-      <div class="downs-grid">
-        {% set down_names = {1: "1st Down", 2: "2nd Down", 3: "3rd Down", 4: "4th Down"} %}
-        {% for down in [1, 2, 3, 4] %}
-        {% set down_rows = fdata.results[down] %}
-        <div class="down-card">
-          <div class="down-card-header">
-            <span class="down-badge">{{ down }}{% if down == 1 %}st{% elif down == 2 %}nd{% elif down == 3 %}rd{% else %}th{% endif %}</span>
-            <h3>{{ down_names[down] }}</h3>
-          </div>
-
-          {% set has_data = namespace(value=false) %}
-          {% for row in down_rows %}
-            {% if row.total > 0 %}{% set has_data.value = true %}{% endif %}
-          {% endfor %}
-
-          {% if not has_data.value %}
-            <div class="no-data">No plays found for this down</div>
-          {% else %}
-            {% for row in down_rows %}
-            {% if row.total > 0 %}
-            <div class="stat-row {% if row.anomaly %}anomaly{% endif %}">
-              <div>
-                <div class="range-label">{{ row.label }}</div>
-                <div class="yard-range">{{ row.range }} yds</div>
-              </div>
-              <div>
-                <div class="stat-bar-wrap">
-                  <div class="stat-bar {% if row.anomaly %}anomaly-bar{% endif %}"
-                       style="width: {{ row.run_pct }}%"></div>
-                </div>
-                <div class="plays-count">{{ row.runs }}/{{ row.total }} plays</div>
-              </div>
-              <div class="stat-right">
-                {% if row.anomaly %}<span class="flag-icon">⚑</span>{% endif %}
-                <span class="pct-value {% if row.anomaly %}anomaly-text{% endif %}">{{ row.run_pct }}</span>
-                <span class="pct-suffix">%</span>
-              </div>
-            </div>
-            {% else %}
-            <div class="stat-row">
-              <div>
-                <div class="range-label">{{ row.label }}</div>
-                <div class="yard-range">{{ row.range }} yds</div>
-              </div>
-              <div><div class="stat-bar-wrap"><div class="stat-bar" style="width:0%"></div></div></div>
-              <div class="stat-right">
-                <span class="pct-value" style="color:#475569;">—</span>
-              </div>
-            </div>
-            {% endif %}
-            {% endfor %}
-          {% endif %}
-        </div>
-        {% endfor %}
-      </div>
-
-      <div class="formation-note">{{ fdata.strategy_note }}</div>
     </div>
     {% endfor %}
   </div>
