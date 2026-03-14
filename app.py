@@ -65,10 +65,31 @@ def init_db():
         stripe_customer_id TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
+    conn.execute('''CREATE TABLE IF NOT EXISTS videos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        description TEXT,
+        video_url TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
     conn.commit()
     conn.close()
 
 init_db()
+
+ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'admin2024')
+
+def to_embed_url(url):
+    """Convert YouTube/Vimeo URLs to embeddable format."""
+    # YouTube: various formats
+    m = re.search(r'(?:youtube\.com/watch\?v=|youtu\.be/|youtube\.com/embed/)([\w-]+)', url)
+    if m:
+        return f'https://www.youtube.com/embed/{m.group(1)}'
+    # Vimeo
+    m = re.search(r'(?:vimeo\.com/)(\d+)', url)
+    if m:
+        return f'https://player.vimeo.com/video/{m.group(1)}'
+    return url
 
 # ─── Flask-Login ──────────────────────────────────────────────────────────────
 login_manager = LoginManager()
@@ -1999,6 +2020,51 @@ def halftime_route():
         box_raw=box_raw, gamelog_raw=gamelog_raw,
         report=report, error=error,
     )
+
+
+@app.route("/training")
+@subscription_required
+def training():
+    conn = get_db()
+    videos = conn.execute('SELECT * FROM videos ORDER BY created_at DESC').fetchall()
+    conn.close()
+    return render_template("training.html", videos=videos)
+
+@app.route("/admin", methods=["GET", "POST"])
+def admin():
+    if not session.get('admin_access'):
+        if request.method == "POST" and request.form.get("admin_code"):
+            if request.form.get("admin_code").strip() == ADMIN_PASSWORD:
+                session['admin_access'] = True
+            else:
+                return render_template("admin_login.html", error="Invalid admin code.")
+        else:
+            return render_template("admin_login.html")
+
+    action = request.form.get("action", "")
+    if action == "add" and request.method == "POST":
+        title = request.form.get("title", "").strip()
+        description = request.form.get("description", "").strip()
+        video_url = request.form.get("video_url", "").strip()
+        if title and video_url:
+            embed_url = to_embed_url(video_url)
+            conn = get_db()
+            conn.execute('INSERT INTO videos (title, description, video_url) VALUES (?, ?, ?)',
+                         (title, description, embed_url))
+            conn.commit()
+            conn.close()
+    elif action == "delete" and request.method == "POST":
+        video_id = request.form.get("video_id")
+        if video_id:
+            conn = get_db()
+            conn.execute('DELETE FROM videos WHERE id = ?', (video_id,))
+            conn.commit()
+            conn.close()
+
+    conn = get_db()
+    videos = conn.execute('SELECT * FROM videos ORDER BY created_at DESC').fetchall()
+    conn.close()
+    return render_template("admin.html", videos=videos)
 
 
 if __name__ == '__main__':

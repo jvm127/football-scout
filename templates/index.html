@@ -441,12 +441,15 @@
       <img src="https://www.whatifsports.com/images/whatifsports-light-full.svg" alt="WhatIfSports"/>
       <h1>Football Scout</h1>
     </div>
-    {% if current_user.is_authenticated %}
     <div style="display:flex;gap:10px;margin-left:auto;">
+      {% if current_user.is_authenticated and current_user.subscribed %}
+      <a href="/training" style="font-size:13px;font-weight:600;color:#f59e0b;text-decoration:none;padding:8px 16px;border:1px solid #f59e0b;border-radius:8px;transition:all 0.15s;">Training</a>
+      {% endif %}
+      {% if current_user.is_authenticated %}
       <a href="/account" style="font-size:13px;font-weight:600;color:#94a3b8;text-decoration:none;padding:8px 16px;border:1px solid #2d3348;border-radius:8px;transition:all 0.15s;">My Account</a>
       <a href="/logout" style="font-size:13px;font-weight:600;color:#94a3b8;text-decoration:none;padding:8px 16px;border:1px solid #2d3348;border-radius:8px;transition:all 0.15s;">Log Out</a>
+      {% endif %}
     </div>
-    {% endif %}
   </header>
 
   <!-- Input Card -->
