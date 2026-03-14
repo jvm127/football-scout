@@ -32,6 +32,31 @@
     .nav-link:hover { color: #e2e8f0; border-color: #4f6ef7; }
     .nav-link.active { color: #f59e0b; border-color: #f59e0b; }
 
+    .hamburger {
+      display: none; background: none; border: 1px solid #2d3348; color: #e2e8f0;
+      font-size: 22px; padding: 6px 10px; border-radius: 8px; cursor: pointer;
+      line-height: 1;
+    }
+    .mobile-menu {
+      display: none; position: absolute; top: 100%; right: 0; z-index: 100;
+      background: #1e2130; border: 1px solid #2d3348; border-radius: 12px;
+      padding: 8px 0; min-width: 180px; margin-top: 8px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.4);
+    }
+    .mobile-menu.open { display: flex; flex-direction: column; }
+    .mobile-menu a {
+      font-size: 14px; font-weight: 600; color: #94a3b8; text-decoration: none;
+      padding: 12px 20px; border-bottom: 1px solid #2d3348;
+    }
+    .mobile-menu a:last-child { border-bottom: none; }
+    .mobile-menu a:hover { color: #e2e8f0; background: #252a3d; }
+    .mobile-menu a.active { color: #f59e0b; }
+
+    @media (max-width: 640px) {
+      .nav-links { display: none; }
+      .hamburger { display: block; }
+    }
+
     .page-title {
       font-size: 24px; font-weight: 700; color: #e2e8f0; margin-bottom: 8px;
     }
@@ -78,7 +103,7 @@
 <body>
 <div class="container">
 
-  <header>
+  <header style="position:relative;">
     <div class="header-left">
       <img src="https://www.whatifsports.com/images/whatifsports-light-full.svg" alt="WhatIfSports"/>
       <h1>Football Scout</h1>
@@ -88,6 +113,13 @@
       <a href="/training" class="nav-link active">Training</a>
       <a href="/account" class="nav-link">My Account</a>
       <a href="/logout" class="nav-link">Log Out</a>
+    </div>
+    <button class="hamburger" onclick="document.getElementById('mobileMenu').classList.toggle('open')">&#9776;</button>
+    <div class="mobile-menu" id="mobileMenu">
+      <a href="/scout">Scout</a>
+      <a href="/training" class="active">Training</a>
+      <a href="/account">My Account</a>
+      <a href="/logout">Log Out</a>
     </div>
   </header>
 
@@ -115,5 +147,14 @@
   </div>
 
 </div>
+<script>
+  document.addEventListener('click', function(e) {
+    var menu = document.getElementById('mobileMenu');
+    var hamburger = document.querySelector('.hamburger');
+    if (menu && !menu.contains(e.target) && !hamburger.contains(e.target)) {
+      menu.classList.remove('open');
+    }
+  });
+</script>
 </body>
 </html>
