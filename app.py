@@ -1,5 +1,6 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, session
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+from datetime import timedelta
 from flask_mail import Mail, Message
 from werkzeug.security import generate_password_hash, check_password_hash
 from itsdangerous import URLSafeTimedSerializer
@@ -16,6 +17,10 @@ load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-fallback-key')
+app.permanent_session_lifetime = timedelta(days=30)
+
+# ─── Internal access ──────────────────────────────────────────────────────────
+INTERNAL_PASSWORD = os.environ.get('INTERNAL_PASSWORD', 'football2024')
 
 # ─── Mail config ──────────────────────────────────────────────────────────────
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
@@ -89,11 +94,14 @@ def load_user(user_id):
     return None
 
 def subscription_required(f):
-    """Decorator: user must be logged in AND subscribed."""
+    """Decorator: user must be logged in AND subscribed, OR have internal access."""
     from functools import wraps
     @wraps(f)
-    @login_required
     def decorated(*args, **kwargs):
+        if session.get('internal_access'):
+            return f(*args, **kwargs)
+        if not current_user.is_authenticated:
+            return redirect(url_for('landing'))
         if not current_user.subscribed:
             return redirect(url_for('landing'))
         return f(*args, **kwargs)
@@ -1675,8 +1683,21 @@ def build_halftime_report(your_team, opp_team, your_stats, their_stats, plays, b
 
 # ─── Routes ──────────────────────────────────────────────────────────────────
 
+@app.route("/internal", methods=["GET", "POST"])
+def internal_access():
+    if request.method == "POST":
+        code = request.form.get("code", "").strip()
+        if code == INTERNAL_PASSWORD:
+            session.permanent = True
+            session['internal_access'] = True
+            return redirect(url_for('index'))
+        return render_template("internal.html", error="Invalid access code.")
+    return render_template("internal.html")
+
 @app.route("/")
 def landing():
+    if session.get('internal_access'):
+        return redirect(url_for('index'))
     if current_user.is_authenticated and current_user.subscribed:
         return redirect(url_for('index'))
     return render_template("landing.html")

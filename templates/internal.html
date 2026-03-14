@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Internal Access — Football Scout</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0f1117;
+      color: #e2e8f0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 24px;
+    }
+    .auth-card {
+      background: #1e2130;
+      border: 1px solid #2d3348;
+      border-radius: 12px;
+      padding: 36px 32px;
+      width: 100%;
+      max-width: 360px;
+    }
+    .auth-card h2 {
+      font-size: 18px; font-weight: 700; color: #e2e8f0;
+      margin-bottom: 24px; text-align: center;
+    }
+    .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; }
+    label {
+      font-size: 11px; font-weight: 600; color: #64748b;
+      text-transform: uppercase; letter-spacing: 0.07em;
+    }
+    input[type="password"] {
+      background: #0f1117; border: 1px solid #2d3348; color: #e2e8f0;
+      padding: 10px 14px; border-radius: 8px; font-size: 14px;
+      font-family: inherit; outline: none; width: 100%;
+    }
+    input:focus { border-color: #4f6ef7; }
+    .btn-auth {
+      display: block; width: 100%;
+      background: #4f6ef7; border: none; color: #fff;
+      padding: 12px; border-radius: 8px; font-size: 15px;
+      font-weight: 700; font-family: inherit; cursor: pointer;
+    }
+    .btn-auth:hover { background: #3b57e8; }
+    .error-banner {
+      background: #2d1b1b; border: 1px solid #7f1d1d; color: #fca5a5;
+      padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="auth-card">
+    <h2>Access Code</h2>
+
+    {% if error %}
+    <div class="error-banner">{{ error }}</div>
+    {% endif %}
+
+    <form method="POST">
+      <div class="field">
+        <label for="code">Enter Code</label>
+        <input type="password" id="code" name="code" required autofocus/>
+      </div>
+      <button type="submit" class="btn-auth">Enter</button>
+    </form>
+  </div>
+</body>
+</html>
