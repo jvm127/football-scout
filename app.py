@@ -158,7 +158,7 @@ DOWN_LABELS = {
 
 # ─── Strategy: ratings parsing & matchup logic ──────────────────────────────
 
-POSITIONS = ['QB', 'RB', 'WR', 'TE', 'OL', 'DL', 'LB', 'DB']
+POSITIONS = ['QB', 'FB', 'RB', 'WR', 'TE', 'OL', 'DL', 'LB', 'DB']
 
 # Maps raw text tokens → canonical stat key
 STAT_MAP = {
@@ -218,7 +218,7 @@ RECOMMENDATIONS = {
 OFFENSE_FORMATIONS = {
     'I Formation':      {'RB': 1, 'WR': 2, 'TE': 1},
     'Pro':              {'RB': 1, 'WR': 2, 'TE': 1},
-    'Wishbone':         {'RB': 2, 'WR': 1, 'TE': 2},
+    'Wishbone':         {'FB': 1, 'RB': 2, 'WR': 1, 'TE': 1},
     'Notre Dame Box':   {'RB': 2, 'WR': 1, 'TE': 2},
     'Shotgun':          {'RB': 0, 'WR': 4, 'TE': 1},
     'Trips':            {'RB': 1, 'WR': 3, 'TE': 1},
@@ -246,8 +246,11 @@ def get_formation_matchup_note(off_form, def_form):
         return ''
 
     notes = []
-    # Wishbone/ND Box (2 TE) vs Nickel/Dime (2 LB)
-    if o in ('Wishbone', 'Notre Dame Box') and d in ('Nickel', 'Dime'):
+    # Wishbone (1 FB, 2 RB, 1 TE) vs Nickel/Dime (2 LB)
+    if o == 'Wishbone' and d in ('Nickel', 'Dime'):
+        notes.append(f'Your 3 ball carriers (FB, RB1, RB2) overpower their light box — run it down their throat, they only have {def_pers.get("DL",3)+def_pers.get("LB",2)} in the box')
+    # ND Box (2 RB, 2 TE) vs Nickel/Dime (2 LB)
+    if o == 'Notre Dame Box' and d in ('Nickel', 'Dime'):
         notes.append(f'Your 2 TEs force them to cover with DBs or give up easy completions underneath — exploit this all game')
     # Shotgun (4 WR) vs 4-4 (3 DB)
     if o == 'Shotgun' and d == '4-4':
@@ -264,12 +267,18 @@ def get_formation_matchup_note(off_form, def_form):
     # I Formation/Pro vs 5-2 (5 DL)
     if o in ('I Formation', 'Pro') and d == '5-2':
         notes.append(f'Their 5 DL will overpower your OL in the run game — consider spreading them out with Shotgun or Trips')
-    # ND Box/Wishbone (2 RB, 2 TE) vs Dime (2 LB)
-    if o in ('Notre Dame Box', 'Wishbone') and d == 'Dime':
+    # ND Box (2 RB, 2 TE) vs Dime (2 LB)
+    if o == 'Notre Dame Box' and d == 'Dime':
         notes.append(f'Perfect formation vs their pass defense — your RBs and TEs will overpower their 2 LBs, run it early and often')
+    # Wishbone (1 FB, 2 RB) vs Dime (2 LB)
+    if o == 'Wishbone' and d == 'Dime':
+        notes.append(f'Your Wishbone with FB and 2 RBs vs their Dime — they cannot stop the run with only 2 LBs, pound it inside with your FB and outside with your RBs')
     # Wishbone vs 3-4 (4 LB)
     if o == 'Wishbone' and d == '3-4':
-        notes.append(f'They have 4 LBs to match your run-heavy formation — only run if your RB STR and OL BLK edges are strong')
+        notes.append(f'They have 4 LBs to match your run-heavy Wishbone — FB inside runs will be contested, use RB speed to attack the edges')
+    # Wishbone vs 5-2 (5 DL)
+    if o == 'Wishbone' and d == '5-2':
+        notes.append(f'Their 5 DL clogs the inside — your FB power runs will be tough, use your RBs on sweeps and tosses to get outside')
 
     return ' | '.join(notes)
 
@@ -669,7 +678,9 @@ def compute_passing_targets(offense_r, defense_r, off_form=None, def_form=None,
       WR: SPD + AGI vs DB SPD + DB AGI (separation edge)
       TE: TOT vs LB TOT and SPD vs DB SPD
       RB: AGI vs LB AGI, capped at 20% (30% if AGI edge >= +25)
+      FB: AGI vs LB AGI, capped at 10% — safety valve only
     Players at the same position within 5 points of each other split evenly.
+    Wishbone: 1 FB + 2 RB + 1 TE + 1 WR — FB capped at 10%.
     Shotgun: 4 WR + 1 TE, no RB — WRs get at least 65%.
     Trips: 3 WR + 1 TE + 1 RB — WRs get at least 50%, RB capped at 20%.
     """
@@ -690,17 +701,20 @@ def compute_passing_targets(offense_r, defense_r, off_form=None, def_form=None,
     wrs = [p for p in your_players if p['pos'] == 'WR']
     tes = [p for p in your_players if p['pos'] == 'TE']
     rbs = [p for p in your_players if p['pos'] == 'RB']
+    fbs = [p for p in your_players if p['pos'] == 'FB']
 
     # Sort by TOT descending to pick starters
     wrs.sort(key=lambda p: -p['tot'])
     tes.sort(key=lambda p: -p['tot'])
     rbs.sort(key=lambda p: -p['tot'])
+    fbs.sort(key=lambda p: -p['tot'])
 
     # Determine formation personnel counts
     off_pers = OFFENSE_FORMATIONS.get(off_form, {'RB': 1, 'WR': 2, 'TE': 1})
     n_wr = off_pers.get('WR', 2)
     n_te = off_pers.get('TE', 1)
     n_rb = off_pers.get('RB', 1)
+    n_fb = off_pers.get('FB', 0)
 
     # Compute individual edge for each player
     def _wr_edge(p):
@@ -719,6 +733,10 @@ def compute_passing_targets(offense_r, defense_r, off_form=None, def_form=None,
         return sum(edges) / len(edges) if edges else 0
 
     def _rb_edge(p):
+        agi = p['stats'].get('A', 0)
+        return agi - lb_agi if agi and lb_agi else 0
+
+    def _fb_edge(p):
         agi = p['stats'].get('A', 0)
         return agi - lb_agi if agi and lb_agi else 0
 
@@ -749,8 +767,16 @@ def compute_passing_targets(offense_r, defense_r, off_form=None, def_form=None,
         rb_starters.append({'name': p['name'], 'pos': 'RB', 'edge': edge, 'explain': explain,
                             'css_class': 'pct-bar-rb', 'is_mismatch': rb_is_mismatch})
 
+    fb_starters = []
+    for p in fbs[:n_fb]:
+        edge = _fb_edge(p)
+        agi = p['stats'].get('A', '?')
+        explain = f"AGI {agi} vs LB AGI {lb_agi} ({'+' if edge >= 0 else ''}{round(edge)}) — safety valve only — rarely targeted, use on short yardage check-downs"
+        fb_starters.append({'name': p['name'], 'pos': 'FB', 'edge': edge, 'explain': explain,
+                            'css_class': 'pct-bar-fb'})
+
     # If no players parsed, fall back to position labels with averaged ratings
-    if not wr_starters and not te_starters and not rb_starters:
+    if not wr_starters and not te_starters and not rb_starters and not fb_starters:
         return _compute_passing_targets_fallback(offense_r, defense_r, off_form, def_form)
 
     # Fill missing positions with generic labels using averaged ratings
@@ -782,6 +808,12 @@ def compute_passing_targets(offense_r, defense_r, off_form=None, def_form=None,
             label = f"RB{i+1}" if n_rb > 1 else "RB"
             rb_starters.append({'name': label, 'pos': 'RB', 'edge': edge, 'explain': explain,
                                 'css_class': 'pct-bar-rb', 'is_mismatch': rb_is_mismatch})
+    if not fb_starters and n_fb > 0:
+        fb_agi_v = _stat(offense_r, 'FB', 'A') or _stat(offense_r, 'RB', 'A') or 0
+        edge = fb_agi_v - lb_agi if fb_agi_v and lb_agi else 0
+        explain = f"FB AGI {fb_agi_v} vs LB AGI {lb_agi} ({'+' if edge >= 0 else ''}{round(edge)}) — safety valve only"
+        fb_starters.append({'name': 'FB', 'pos': 'FB', 'edge': edge, 'explain': explain,
+                            'css_class': 'pct-bar-fb'})
 
     # Equalize same-position players within 5 points of each other
     def _equalize(starters):
@@ -811,9 +843,16 @@ def compute_passing_targets(offense_r, defense_r, off_form=None, def_form=None,
         w = max(s['edge'] + 30, 5)
         all_starters.append({**s, 'weight': w})
 
+    # FB weight — low priority, safety valve only
+    for s in fb_starters:
+        w = max(s['edge'] + 30, 5) * 0.3  # heavily reduced
+        all_starters.append({**s, 'weight': w})
+
     # Trips: RB capped at 20% max
     # Normal: RB capped at 20%, or 30% if mismatch
     # Shotgun: no RB in formation, cap irrelevant but set for safety
+    # FB: always capped at 10%
+    fb_cap = 10
     if off_form == 'Shotgun':
         rb_cap = 0
     elif off_form == 'Trips':
@@ -844,6 +883,10 @@ def compute_passing_targets(offense_r, defense_r, off_form=None, def_form=None,
     # Cap RB targets
     _cap_rb_and_distribute(targets, rb_cap)
 
+    # Cap FB targets at 10%
+    if fb_cap and any(t.get('_pos') == 'FB' for t in targets):
+        _cap_pos_and_distribute(targets, 'FB', fb_cap)
+
     # Shotgun: WRs collectively get at least 65%
     # Trips: WRs collectively get at least 50%
     if off_form == 'Shotgun':
@@ -856,29 +899,34 @@ def compute_passing_targets(offense_r, defense_r, off_form=None, def_form=None,
     return targets
 
 
-def _cap_rb_and_distribute(targets, rb_cap_val):
-    """Cap each RB target at rb_cap_val, redistribute excess to WR/TE proportionally."""
-    rb_excess = 0
-    non_rb_total = 0
+def _cap_pos_and_distribute(targets, pos, cap_val):
+    """Cap each target at pos to cap_val, redistribute excess to others proportionally."""
+    excess = 0
+    other_total = 0
     for t in targets:
-        if t.get('_pos') == 'RB' and t['pct'] > rb_cap_val:
-            rb_excess += t['pct'] - rb_cap_val
-            t['pct'] = rb_cap_val
-        elif t.get('_pos') != 'RB':
-            non_rb_total += t['pct']
+        if t.get('_pos') == pos and t['pct'] > cap_val:
+            excess += t['pct'] - cap_val
+            t['pct'] = cap_val
+        elif t.get('_pos') != pos:
+            other_total += t['pct']
 
-    if rb_excess > 0 and non_rb_total > 0:
+    if excess > 0 and other_total > 0:
         for t in targets:
-            if t.get('_pos') != 'RB':
-                share = t['pct'] / non_rb_total
-                t['pct'] += round(rb_excess * share)
+            if t.get('_pos') != pos:
+                share = t['pct'] / other_total
+                t['pct'] += round(excess * share)
 
     # Fix rounding to ensure sum is exactly 100
     total = sum(t['pct'] for t in targets)
     if total != 100 and targets:
-        non_rb = [t for t in targets if t.get('_pos') != 'RB']
-        if non_rb:
-            non_rb[0]['pct'] += (100 - total)
+        others = [t for t in targets if t.get('_pos') != pos]
+        if others:
+            others[0]['pct'] += (100 - total)
+
+
+def _cap_rb_and_distribute(targets, rb_cap_val):
+    """Cap each RB target at rb_cap_val, redistribute excess to others proportionally."""
+    _cap_pos_and_distribute(targets, 'RB', rb_cap_val)
 
 
 def _enforce_wr_floor(targets, wr_floor):
@@ -933,6 +981,7 @@ def _compute_passing_targets_fallback(offense_r, defense_r, off_form=None, def_f
     n_wr = off_pers.get('WR', 2)
     n_te = off_pers.get('TE', 1)
     n_rb = off_pers.get('RB', 1)
+    n_fb = off_pers.get('FB', 0)
 
     wr_explain = f"WR SPD {wr_spd} AGI {wr_a} vs DB SPD {db_spd} AGI {db_agi} ({'+' if wr_edge >= 0 else ''}{round(wr_edge)})"
     te_explain = f"TE TOT {te_tot} vs LB TOT {lb_tot}, SPD {te_spd} vs DB SPD {db_spd} ({'+' if te_edge >= 0 else ''}{round(te_edge)})"
@@ -955,6 +1004,13 @@ def _compute_passing_targets_fallback(offense_r, defense_r, off_form=None, def_f
         label = f"RB{i+1}" if n_rb > 1 else "RB"
         w = max(rb_edge + 30, 5)
         targets.append({'label': label, 'weight': w, 'edge': round(rb_edge), 'explain': rb_explain, 'css_class': 'pct-bar-rb', '_pos': 'RB'})
+    # FB fallback — Wishbone has 1 FB
+    for i in range(n_fb):
+        fb_agi_fb = _stat(offense_r, 'FB', 'A') or rb_agi or 0
+        fb_edge = fb_agi_fb - lb_agi if fb_agi_fb and lb_agi else 0
+        fb_explain = f"FB AGI {fb_agi_fb} vs LB AGI {lb_agi} ({'+' if fb_edge >= 0 else ''}{round(fb_edge)}) — safety valve only"
+        w = max(fb_edge + 30, 5) * 0.3
+        targets.append({'label': 'FB', 'weight': w, 'edge': round(fb_edge), 'explain': fb_explain, 'css_class': 'pct-bar-fb', '_pos': 'FB'})
 
     total_w = sum(t['weight'] for t in targets) or 1
     for t in targets:
@@ -966,6 +1022,8 @@ def _compute_passing_targets_fallback(offense_r, defense_r, off_form=None, def_f
 
     rb_cap = 0 if off_form == 'Shotgun' else (20 if off_form == 'Trips' else (30 if rb_is_mismatch else 20))
     _cap_rb_and_distribute(targets, rb_cap)
+    if any(t.get('_pos') == 'FB' for t in targets):
+        _cap_pos_and_distribute(targets, 'FB', 10)
     if off_form == 'Shotgun':
         _enforce_wr_floor(targets, 65)
     elif off_form == 'Trips':
@@ -1013,6 +1071,37 @@ def compute_run_split(offense_r, defense_r, off_form=None, def_form=None):
             'warning': 'Shotgun is a pass-first formation — no RB on the field. Commit to the passing game.',
             'outside': {'pct': 0, 'edge': 0, 'rb_spd': None, 'lb_spd': None},
             'inside':  {'pct': 0, 'edge': 0, 'ol_str': None, 'dl_str': None, 'rb_str': None, 'lb_str': None},
+        }
+
+    # Wishbone: run-first with 3 ball carriers (FB, RB1, RB2)
+    # FB is the inside power runner, RBs are outside speed options
+    if off_form == 'Wishbone':
+        fb_str = _stat(offense_r, 'FB', 'STR') or _stat(offense_r, 'RB', 'STR')
+        fb_inside_edge = (fb_str - (dl_str or 0)) if fb_str else 0
+
+        if fb_inside_edge >= 10 and outside_edge >= 15:
+            warning = f"Wishbone run-first: FB STR {fb_str} vs DL STR {dl_str} favors inside power, RB SPD {rb_spd} vs LB SPD {lb_spd} favors outside — attack both."
+            outside_pct = 50
+            inside_pct = 50
+        elif fb_inside_edge >= 10:
+            warning = f"Wishbone run-first: FB STR {fb_str} vs DL STR {dl_str} (+{round(fb_inside_edge)}) — pound it inside with your FB, use RBs on play-action."
+            outside_pct = 35
+            inside_pct = 65
+        elif outside_edge >= 15:
+            warning = f"Wishbone run-first: RB SPD {rb_spd} vs LB SPD {lb_spd} (+{round(outside_edge)}) — use your RBs on sweeps and tosses, FB as decoy inside."
+            outside_pct = 65
+            inside_pct = 35
+        else:
+            warning = f"Wishbone run-first: no clear edge inside or outside — mix FB dives with RB sweeps to keep the defense guessing."
+            outside_pct = 50
+            inside_pct = 50
+
+        return {
+            'outside': {'pct': outside_pct, 'edge': round(outside_edge),
+                         'rb_spd': rb_spd, 'lb_spd': lb_spd},
+            'inside': {'pct': inside_pct, 'edge': round(fb_inside_edge),
+                        'ol_str': ol_str, 'dl_str': dl_str, 'rb_str': fb_str, 'lb_str': lb_str},
+            'warning': warning,
         }
 
     if def_form in ('5-2', '4-4') or heavy_box >= 8:
@@ -2570,8 +2659,10 @@ def halftime_route():
 
             if their_defense in ('Nickel', 'Dime'):
                 strat_bullets.append(f"▶ They are in {their_defense} — run the ball more in the second half, they cannot stop it with {DEFENSE_FORMATIONS[their_defense]['DL']+DEFENSE_FORMATIONS[their_defense]['LB']} in the box")
-            if your_offense in ('Wishbone', 'Notre Dame Box'):
-                strat_bullets.append(f"▶ Your run-heavy {your_offense} formation should stay aggressive — 2 RBs and 2 TEs overpower their front")
+            if your_offense == 'Wishbone':
+                strat_bullets.append(f"▶ Your Wishbone with FB and 2 RBs is a run-first formation — use FB for inside power, RBs for outside speed, keep the defense guessing")
+            elif your_offense == 'Notre Dame Box':
+                strat_bullets.append(f"▶ Your run-heavy Notre Dame Box formation should stay aggressive — 2 RBs and 2 TEs overpower their front")
 
             # Passing targets with percentages
             pt_parts = [f"{t['label']} {t['pct']}%" for t in passing_targets]
