@@ -992,27 +992,13 @@ def compute_run_split(offense_r, defense_r, off_form=None, def_form=None):
     # Determine split
     warning = ''
 
-    # Shotgun is a pass-first formation — only recommend running with a clear edge
+    # Shotgun has no RB on the field — no traditional run game
     if off_form == 'Shotgun':
-        has_clear_edge = (outside_edge >= 15 or ol_str_edge >= 10)
-        if has_clear_edge:
-            warning = f"Shotgun is a pass-first formation, but you have a clear run edge — mix in draws and delayed runs to keep the defense honest."
-            if outside_edge >= 15:
-                outside_pct = 60
-                inside_pct = 40
-            else:
-                outside_pct = 40
-                inside_pct = 60
-        else:
-            warning = f"Shotgun is a pass-first formation with no RB — run only on draws or scrambles, focus on the passing game."
-            outside_pct = 50
-            inside_pct = 50
         return {
-            'outside': {'pct': outside_pct, 'edge': round(outside_edge),
-                         'rb_spd': rb_spd, 'lb_spd': lb_spd},
-            'inside': {'pct': inside_pct, 'edge': round(inside_edge),
-                        'ol_str': ol_str, 'dl_str': dl_str, 'rb_str': rb_str, 'lb_str': lb_str},
-            'warning': warning,
+            'shotgun_pass_only': True,
+            'warning': 'Shotgun is a pass-first formation with no RB on the field. Running is limited to WR reverses and jet sweeps only. Commit to the passing game in this formation.',
+            'outside': {'pct': 0, 'edge': 0, 'rb_spd': None, 'lb_spd': None},
+            'inside':  {'pct': 0, 'edge': 0, 'ol_str': ol_str, 'dl_str': dl_str, 'rb_str': None, 'lb_str': None},
         }
 
     if def_form in ('5-2', '4-4') or heavy_box >= 8:
@@ -2575,11 +2561,14 @@ def halftime_route():
 
             # Run split
             rs = run_split_data
-            strat_bullets.append(
-                f"▶ RUN SPLIT: Outside {rs['outside']['pct']}% / Inside {rs['inside']['pct']}%"
-            )
-            if rs['warning']:
-                strat_bullets.append(f"   {rs['warning']}")
+            if rs.get('shotgun_pass_only'):
+                strat_bullets.append(f"▶ RUN GAME: {rs['warning']}")
+            else:
+                strat_bullets.append(
+                    f"▶ RUN SPLIT: Outside {rs['outside']['pct']}% / Inside {rs['inside']['pct']}%"
+                )
+                if rs['warning']:
+                    strat_bullets.append(f"   {rs['warning']}")
 
             # Top advantages to exploit
             for adv in advantages[:2]:

@@ -645,8 +645,11 @@
 
   <!-- Run Game Split -->
   {% if run_split %}
-  <div class="section-label">Run Game Split</div>
+  <div class="section-label">Run Game{% if your_offense %} — {{ your_offense }}{% endif %}</div>
   <div class="pct-split-card">
+    {% if run_split.shotgun_pass_only %}
+    <div class="run-warning">{{ run_split.warning }}</div>
+    {% else %}
     {% if run_split.warning %}
     <div class="run-warning">{{ run_split.warning }}</div>
     {% endif %}
@@ -676,6 +679,7 @@
         {% endif %}
       </div>
     </div>
+    {% endif %}
   </div>
   {% endif %}
 
