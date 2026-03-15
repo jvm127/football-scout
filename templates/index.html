@@ -475,6 +475,8 @@
       <h1>Football Scout</h1>
     </div>
     <div class="nav-links">
+      <a href="https://www.thenextguess.com/" target="_blank" rel="noopener" class="nav-link">The Next Guess</a>
+      <a href="https://www.whatifsports.com/gd/office/" target="_blank" rel="noopener" class="nav-link">WIS Office</a>
       {% if current_user.is_authenticated and current_user.subscribed %}
       <a href="/training" class="nav-link accent">Training</a>
       {% endif %}
@@ -485,6 +487,8 @@
     </div>
     <button class="hamburger" onclick="document.getElementById('mobileMenu').classList.toggle('open')">&#9776;</button>
     <div class="mobile-menu" id="mobileMenu">
+      <a href="https://www.thenextguess.com/" target="_blank" rel="noopener">The Next Guess</a>
+      <a href="https://www.whatifsports.com/gd/office/" target="_blank" rel="noopener">WIS Office</a>
       {% if current_user.is_authenticated and current_user.subscribed %}
       <a href="/training" class="accent">Training</a>
       {% endif %}
@@ -528,8 +532,6 @@
           </div>
         </div>
         <button type="submit" class="btn-submit">Analyze</button>
-        <a href="https://www.thenextguess.com/" target="_blank" rel="noopener" class="btn-submit" style="background:#2d3348;color:#e2e8f0;text-decoration:none;text-align:center;">The Next Guess</a>
-        <a href="https://www.whatifsports.com/gd/office/" target="_blank" rel="noopener" class="btn-submit" style="background:#2d3348;color:#e2e8f0;text-decoration:none;text-align:center;">WIS Office</a>
       </div>
     </form>
   </div>
