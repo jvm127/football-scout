@@ -293,6 +293,16 @@
           <textarea name="ht_game_log" rows="10">{{ gamelog_raw }}</textarea>
         </div>
       </div>
+      <div class="ht-textareas">
+        <div class="field">
+          <label>Your Team Ratings</label>
+          <textarea name="ht_your_ratings" rows="8" placeholder="Pos&#9;A&#9;Spd&#9;Str&#9;Blk&#9;Tkl&#9;Tot&#10;QB&#9;80&#9;75&#9;65&#9;50&#9;55&#9;88&#10;RB&#9;82&#9;86&#9;78&#9;62&#9;55&#9;88&#10;...">{{ your_ratings_raw }}</textarea>
+        </div>
+        <div class="field">
+          <label>Opponent Team Ratings</label>
+          <textarea name="ht_opp_ratings" rows="8" placeholder="Pos&#9;A&#9;Spd&#9;Str&#9;Blk&#9;Tkl&#9;Tot&#10;QB&#9;72&#9;68&#9;55&#9;40&#9;45&#9;85&#10;RB&#9;85&#9;88&#9;75&#9;60&#9;50&#9;90&#10;...">{{ opp_ratings_raw }}</textarea>
+        </div>
+      </div>
       <button type="submit" class="btn-halftime">Get Halftime Adjustments</button>
     </form>
   </div>

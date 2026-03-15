@@ -1761,9 +1761,10 @@ def login():
     return redirect(url_for('checkout'))
 
 @app.route("/logout")
-@login_required
 def logout():
     logout_user()
+    session.pop('internal_access', None)
+    session.pop('admin_access', None)
     return redirect(url_for('landing'))
 
 @app.route("/checkout")
@@ -1806,8 +1807,9 @@ def payment_cancel():
     return render_template("cancel.html")
 
 @app.route("/account")
-@login_required
 def account():
+    if not current_user.is_authenticated and not session.get('internal_access'):
+        return redirect(url_for('landing'))
     return render_template("account.html", user=current_user)
 
 @app.route("/manage-subscription")
@@ -1985,15 +1987,18 @@ def strategy_route():
 @app.route("/halftime-advisor", methods=["GET"])
 @subscription_required
 def halftime_advisor():
-    return render_template("halftime.html", your_team='', opp_team='', box_raw='', gamelog_raw='', report={}, error=None)
+    return render_template("halftime.html", your_team='', opp_team='', box_raw='', gamelog_raw='',
+                           your_ratings_raw='', opp_ratings_raw='', report={}, error=None)
 
 @app.route("/halftime", methods=["POST"])
 @subscription_required
 def halftime_route():
-    your_team    = request.form.get("ht_your_team",    "").strip()
-    opp_team     = request.form.get("ht_opp_team",     "").strip()
-    box_raw      = request.form.get("ht_box_score",    "").strip()
-    gamelog_raw  = request.form.get("ht_game_log",     "").strip()
+    your_team        = request.form.get("ht_your_team",    "").strip()
+    opp_team         = request.form.get("ht_opp_team",     "").strip()
+    box_raw          = request.form.get("ht_box_score",    "").strip()
+    gamelog_raw      = request.form.get("ht_game_log",     "").strip()
+    your_ratings_raw = request.form.get("ht_your_ratings", "").strip()
+    opp_ratings_raw  = request.form.get("ht_opp_ratings",  "").strip()
 
     try:
         print(f"\n>>> HALFTIME game_log first 100 chars: {gamelog_raw[:100]!r}", flush=True)
@@ -2018,6 +2023,7 @@ def halftime_route():
         "halftime.html",
         your_team=your_team, opp_team=opp_team,
         box_raw=box_raw, gamelog_raw=gamelog_raw,
+        your_ratings_raw=your_ratings_raw, opp_ratings_raw=opp_ratings_raw,
         report=report, error=error,
     )
 
@@ -2059,5 +2065,8 @@ def admin():
 
 
 if __name__ == '__main__':
+    print(">>> Registered routes:", flush=True)
+    for rule in sorted(app.url_map.iter_rules(), key=lambda r: r.rule):
+        print(f">>>   {rule.rule:30s} → {rule.endpoint} [{', '.join(rule.methods - {'OPTIONS', 'HEAD'})}]", flush=True)
     port = int(os.environ.get('PORT', 5003))
     app.run(host='0.0.0.0', port=port)
