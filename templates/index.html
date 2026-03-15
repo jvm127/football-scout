@@ -477,10 +477,8 @@
     <div class="nav-links">
       <a href="https://www.thenextguess.com/" target="_blank" rel="noopener" class="nav-link">The Next Guess</a>
       <a href="https://www.whatifsports.com/gd/office/" target="_blank" rel="noopener" class="nav-link">WIS Office</a>
-      {% if current_user.is_authenticated and current_user.subscribed %}
+      {% if current_user.is_authenticated or session.get('internal_access') %}
       <a href="/training" class="nav-link accent">Training</a>
-      {% endif %}
-      {% if current_user.is_authenticated %}
       <a href="/account" class="nav-link">My Account</a>
       <a href="/logout" class="nav-link">Log Out</a>
       {% endif %}
@@ -489,10 +487,8 @@
     <div class="mobile-menu" id="mobileMenu">
       <a href="https://www.thenextguess.com/" target="_blank" rel="noopener">The Next Guess</a>
       <a href="https://www.whatifsports.com/gd/office/" target="_blank" rel="noopener">WIS Office</a>
-      {% if current_user.is_authenticated and current_user.subscribed %}
+      {% if current_user.is_authenticated or session.get('internal_access') %}
       <a href="/training" class="accent">Training</a>
-      {% endif %}
-      {% if current_user.is_authenticated %}
       <a href="/account">My Account</a>
       <a href="/logout">Log Out</a>
       {% endif %}
