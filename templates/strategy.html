@@ -626,32 +626,18 @@
 
   <!-- Passing Target Percentages -->
   {% if passing_targets %}
-  <div class="section-label">Passing Targets</div>
+  <div class="section-label">Passing Targets{% if your_offense %} — {{ your_offense }}{% endif %}</div>
   <div class="pct-split-card">
+    {% for t in passing_targets %}
     <div class="pct-row">
-      <div class="pct-label">WR</div>
+      <div class="pct-label">{{ t.label }}</div>
       <div class="pct-bar-wrap">
-        <div class="pct-bar pct-bar-wr" style="width: {{ passing_targets.wr.pct }}%"></div>
+        <div class="pct-bar {{ t.css_class }}" style="width: {{ t.pct }}%"></div>
       </div>
-      <div class="pct-value">{{ passing_targets.wr.pct }}%</div>
-      <div class="pct-detail">{{ passing_targets.wr.explain }}</div>
+      <div class="pct-value">{{ t.pct }}%</div>
+      <div class="pct-detail">{{ t.explain }}</div>
     </div>
-    <div class="pct-row">
-      <div class="pct-label">TE</div>
-      <div class="pct-bar-wrap">
-        <div class="pct-bar pct-bar-te" style="width: {{ passing_targets.te.pct }}%"></div>
-      </div>
-      <div class="pct-value">{{ passing_targets.te.pct }}%</div>
-      <div class="pct-detail">{{ passing_targets.te.explain }}</div>
-    </div>
-    <div class="pct-row">
-      <div class="pct-label">RB</div>
-      <div class="pct-bar-wrap">
-        <div class="pct-bar pct-bar-rb" style="width: {{ passing_targets.rb.pct }}%"></div>
-      </div>
-      <div class="pct-value">{{ passing_targets.rb.pct }}%</div>
-      <div class="pct-detail">{{ passing_targets.rb.explain }}</div>
-    </div>
+    {% endfor %}
   </div>
   {% endif %}
 
