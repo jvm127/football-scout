@@ -641,7 +641,11 @@ def find_individual_edges(offense_r, defense_r):
 def compute_passing_targets(offense_r, defense_r, off_form=None, def_form=None):
     """Compute passing target percentages based on formation personnel.
     Returns a list of {'label', 'pct', 'edge', 'explain', 'css_class'} dicts
-    matching exactly who is on the field. Always sums to 100%."""
+    matching exactly who is on the field. Always sums to 100%.
+
+    RB uses AGI vs LB AGI (not TOT), capped at 20% normally or 30% if AGI edge >= +25.
+    Shotgun/Trips: WRs collectively get at least 50%.
+    """
     te_tot = _stat(offense_r, 'TE', 'TOT')
     lb_tot = _stat(defense_r, 'LB', 'TOT')
     te_spd = _stat(offense_r, 'TE', 'SPD')
@@ -649,9 +653,17 @@ def compute_passing_targets(offense_r, defense_r, off_form=None, def_form=None):
     wr_spd = _stat(offense_r, 'WR', 'SPD')
     wr_a = _stat(offense_r, 'WR', 'A')
     db_a = _stat(defense_r, 'DB', 'A')
-    rb_tot = _stat(offense_r, 'RB', 'TOT')
 
-    # Compute raw edges
+    # RB edge: use AGI vs LB AGI (not TOT)
+    rb_agi = _stat(offense_r, 'RB', 'A')
+    lb_agi = _stat(defense_r, 'LB', 'A')
+    rb_edge = 0
+    if rb_agi is not None and lb_agi is not None:
+        rb_edge = rb_agi - lb_agi
+    rb_is_mismatch = rb_edge >= 25  # extreme mismatch
+    rb_cap = 30 if rb_is_mismatch else 20  # max RB pct
+
+    # Compute TE edge
     te_edges = []
     if te_tot is not None and lb_tot is not None:
         te_edges.append(te_tot - lb_tot)
@@ -659,16 +671,13 @@ def compute_passing_targets(offense_r, defense_r, off_form=None, def_form=None):
         te_edges.append(te_spd - db_spd)
     te_edge = sum(te_edges) / len(te_edges) if te_edges else 0
 
+    # Compute WR edge
     wr_edges = []
     if wr_spd is not None and db_spd is not None:
         wr_edges.append(wr_spd - db_spd)
     if wr_a is not None and db_a is not None:
         wr_edges.append(wr_a - db_a)
     wr_edge = sum(wr_edges) / len(wr_edges) if wr_edges else 0
-
-    rb_edge = 0
-    if rb_tot is not None and lb_tot is not None:
-        rb_edge = rb_tot - lb_tot
 
     def_pers = DEFENSE_FORMATIONS.get(def_form, {}) if def_form else {}
     num_db = def_pers.get('DB', 4)
@@ -684,8 +693,61 @@ def compute_passing_targets(offense_r, defense_r, off_form=None, def_form=None):
     if wr_spd is not None and db_spd is not None:
         wr_explain = f"WR SPD {wr_spd} vs DB SPD {db_spd} ({'+' if wr_edge >= 0 else ''}{round(wr_edge)})"
     rb_explain = ''
-    if rb_tot is not None and lb_tot is not None:
-        rb_explain = f"RB TOT {rb_tot} vs LB TOT {lb_tot} ({'+' if rb_edge >= 0 else ''}{round(rb_edge)}) — checkdown"
+    if rb_agi is not None and lb_agi is not None:
+        if rb_is_mismatch:
+            rb_explain = f"RB AGI {rb_agi} vs LB AGI {lb_agi} (+{rb_edge}) — mismatch weapon — their LBs cannot stay with your RB in space, target him in the flat and on screens"
+        else:
+            rb_explain = f"RB AGI {rb_agi} vs LB AGI {lb_agi} ({'+' if rb_edge >= 0 else ''}{rb_edge}) — safety valve — use on 3rd and short or when coverage takes away your primary options"
+
+    def _cap_rb_and_distribute(targets, rb_cap_val):
+        """Cap each RB target at rb_cap_val, redistribute excess to WR/TE proportionally."""
+        rb_excess = 0
+        non_rb_total = 0
+        for t in targets:
+            if t['label'].startswith('RB') and t['pct'] > rb_cap_val:
+                rb_excess += t['pct'] - rb_cap_val
+                t['pct'] = rb_cap_val
+            elif not t['label'].startswith('RB'):
+                non_rb_total += t['pct']
+
+        if rb_excess > 0 and non_rb_total > 0:
+            for t in targets:
+                if not t['label'].startswith('RB'):
+                    share = t['pct'] / non_rb_total
+                    t['pct'] += round(rb_excess * share)
+
+        # Fix rounding to ensure sum is exactly 100
+        total = sum(t['pct'] for t in targets)
+        if total != 100 and targets:
+            # Adjust the largest non-RB target
+            non_rb = [t for t in targets if not t['label'].startswith('RB')]
+            if non_rb:
+                non_rb[0]['pct'] += (100 - total)
+
+    def _enforce_wr_floor(targets, wr_floor):
+        """Ensure WR targets collectively reach at least wr_floor%."""
+        wr_targets = [t for t in targets if t['label'].startswith('WR')]
+        non_wr = [t for t in targets if not t['label'].startswith('WR')]
+        wr_total = sum(t['pct'] for t in wr_targets)
+        if wr_total >= wr_floor or not wr_targets:
+            return
+        deficit = wr_floor - wr_total
+        non_wr_total = sum(t['pct'] for t in non_wr)
+        if non_wr_total <= 0:
+            return
+        # Take proportionally from non-WR
+        for t in non_wr:
+            take = round(deficit * (t['pct'] / non_wr_total))
+            t['pct'] -= take
+        # Give evenly to WRs
+        per_wr = deficit // len(wr_targets)
+        remainder = deficit - per_wr * len(wr_targets)
+        for i, t in enumerate(wr_targets):
+            t['pct'] += per_wr + (1 if i < remainder else 0)
+        # Fix rounding
+        total = sum(t['pct'] for t in targets)
+        if total != 100 and wr_targets:
+            wr_targets[0]['pct'] += (100 - total)
 
     # Build targets list based on formation personnel
     targets = []
@@ -694,7 +756,7 @@ def compute_passing_targets(offense_r, defense_r, off_form=None, def_form=None):
         # 2 RB, 1 WR, 2 TE — show TE1, TE2, RB1, RB2, WR
         te_w = max(te_edge + 30, 5) * db_te_adj
         rb_w = max(rb_edge + 30, 5)
-        wr_w = max(wr_edge + 30, 5) * db_wr_adj * 0.6  # only 1 WR, weight down
+        wr_w = max(wr_edge + 30, 5) * db_wr_adj * 0.6
         total = te_w * 2 + rb_w * 2 + wr_w
         te1_pct = round(te_w / total * 100)
         te2_pct = round(te_w / total * 100)
@@ -705,17 +767,18 @@ def compute_passing_targets(offense_r, defense_r, off_form=None, def_form=None):
             {'label': 'TE1', 'pct': te1_pct, 'edge': round(te_edge), 'explain': te_explain, 'css_class': 'pct-bar-te'},
             {'label': 'TE2', 'pct': te2_pct, 'edge': round(te_edge), 'explain': 'Second TE — same matchup advantage', 'css_class': 'pct-bar-te'},
             {'label': 'RB1', 'pct': rb1_pct, 'edge': round(rb_edge), 'explain': rb_explain, 'css_class': 'pct-bar-rb'},
-            {'label': 'RB2', 'pct': rb2_pct, 'edge': round(rb_edge), 'explain': 'Second RB — checkdown and flat routes', 'css_class': 'pct-bar-rb'},
+            {'label': 'RB2', 'pct': rb2_pct, 'edge': round(rb_edge), 'explain': 'Second RB — flat routes and checkdowns', 'css_class': 'pct-bar-rb'},
             {'label': 'WR', 'pct': wr_pct, 'edge': round(wr_edge), 'explain': wr_explain, 'css_class': 'pct-bar-wr'},
         ]
+        _cap_rb_and_distribute(targets, rb_cap)
 
     elif off_form in ('Shotgun', 'Trips'):
-        # 1 RB, 3 WR, 1 TE — show WR1, WR2, WR3, TE, and RB only if strong checkdown edge
+        # 1 RB, 3 WR, 1 TE — show WR1, WR2, WR3, TE, and RB only if meaningful edge
         wr_w = max(wr_edge + 30, 5) * db_wr_adj
         te_w = max(te_edge + 30, 5) * db_te_adj
-        include_rb = rb_edge >= 5  # only include RB if meaningful checkdown edge
+        include_rb = rb_edge >= 5
         if include_rb:
-            rb_w = max(rb_edge + 30, 5) * 0.6  # reduced — only 1 RB as checkdown
+            rb_w = max(rb_edge + 30, 5) * 0.4  # heavily reduced
             total = wr_w * 3 + te_w + rb_w
             wr1_pct = round(wr_w / total * 100)
             wr2_pct = round(wr_w / total * 100)
@@ -729,6 +792,7 @@ def compute_passing_targets(offense_r, defense_r, off_form=None, def_form=None):
                 {'label': 'TE', 'pct': te_pct, 'edge': round(te_edge), 'explain': te_explain, 'css_class': 'pct-bar-te'},
                 {'label': 'RB', 'pct': rb_pct, 'edge': round(rb_edge), 'explain': rb_explain, 'css_class': 'pct-bar-rb'},
             ]
+            _cap_rb_and_distribute(targets, rb_cap)
         else:
             total = wr_w * 3 + te_w
             wr1_pct = round(wr_w / total * 100)
@@ -741,6 +805,8 @@ def compute_passing_targets(offense_r, defense_r, off_form=None, def_form=None):
                 {'label': 'WR3', 'pct': wr3_pct, 'edge': round(wr_edge), 'explain': 'Third WR — slot receiver', 'css_class': 'pct-bar-wr'},
                 {'label': 'TE', 'pct': te_pct, 'edge': round(te_edge), 'explain': te_explain, 'css_class': 'pct-bar-te'},
             ]
+        # Shotgun/Trips: WRs collectively get at least 50%
+        _enforce_wr_floor(targets, 50)
 
     else:
         # I Formation / Pro / no formation selected: 1 RB, 2 WR, 1 TE
@@ -756,6 +822,7 @@ def compute_passing_targets(offense_r, defense_r, off_form=None, def_form=None):
             {'label': 'TE', 'pct': te_pct, 'edge': round(te_edge), 'explain': te_explain, 'css_class': 'pct-bar-te'},
             {'label': 'RB', 'pct': rb_pct, 'edge': round(rb_edge), 'explain': rb_explain, 'css_class': 'pct-bar-rb'},
         ]
+        _cap_rb_and_distribute(targets, rb_cap)
 
     # Sort by pct descending
     targets.sort(key=lambda t: -t['pct'])
