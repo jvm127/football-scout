@@ -399,7 +399,7 @@
 
     .pct-row {
       display: grid;
-      grid-template-columns: 64px 1fr 52px;
+      grid-template-columns: minmax(120px, auto) 1fr 52px;
       align-items: center;
       gap: 12px;
       padding: 10px 0;
@@ -411,6 +411,7 @@
       font-size: 13px;
       font-weight: 700;
       color: #e2e8f0;
+      white-space: nowrap;
     }
 
     .pct-bar-wrap {
@@ -441,10 +442,11 @@
     }
 
     .pct-detail {
-      grid-column: 2 / 4;
+      grid-column: 1 / 4;
       font-size: 11px;
       color: #64748b;
       margin-top: -4px;
+      padding-left: 4px;
     }
 
     .run-warning {

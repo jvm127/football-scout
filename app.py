@@ -638,193 +638,315 @@ def find_individual_edges(offense_r, defense_r):
     return advantages[:8], dangers[:8]
 
 
-def compute_passing_targets(offense_r, defense_r, off_form=None, def_form=None):
-    """Compute passing target percentages based on formation personnel.
+def compute_passing_targets(offense_r, defense_r, off_form=None, def_form=None,
+                            your_players=None):
+    """Compute passing target percentages using individual player stats.
+
     Returns a list of {'label', 'pct', 'edge', 'explain', 'css_class'} dicts
     matching exactly who is on the field. Always sums to 100%.
 
-    RB uses AGI vs LB AGI (not TOT), capped at 20% normally or 30% if AGI edge >= +25.
+    Each player gets a percentage based on their individual stats:
+      WR: SPD + AGI vs DB SPD + DB AGI (separation edge)
+      TE: TOT vs LB TOT and SPD vs DB SPD
+      RB: AGI vs LB AGI, capped at 20% (30% if AGI edge >= +25)
+    Players at the same position within 5 points of each other split evenly.
     Shotgun/Trips: WRs collectively get at least 50%.
     """
-    te_tot = _stat(offense_r, 'TE', 'TOT')
-    lb_tot = _stat(defense_r, 'LB', 'TOT')
-    te_spd = _stat(offense_r, 'TE', 'SPD')
-    db_spd = _stat(defense_r, 'DB', 'SPD')
-    wr_spd = _stat(offense_r, 'WR', 'SPD')
-    wr_a = _stat(offense_r, 'WR', 'A')
-    db_a = _stat(defense_r, 'DB', 'A')
+    your_players = your_players or []
 
-    # RB edge: use AGI vs LB AGI (not TOT)
-    rb_agi = _stat(offense_r, 'RB', 'A')
-    lb_agi = _stat(defense_r, 'LB', 'A')
-    rb_edge = 0
-    if rb_agi is not None and lb_agi is not None:
-        rb_edge = rb_agi - lb_agi
-    rb_is_mismatch = rb_edge >= 25  # extreme mismatch
-    rb_cap = 30 if rb_is_mismatch else 20  # max RB pct
-
-    # Compute TE edge
-    te_edges = []
-    if te_tot is not None and lb_tot is not None:
-        te_edges.append(te_tot - lb_tot)
-    if te_spd is not None and db_spd is not None:
-        te_edges.append(te_spd - db_spd)
-    te_edge = sum(te_edges) / len(te_edges) if te_edges else 0
-
-    # Compute WR edge
-    wr_edges = []
-    if wr_spd is not None and db_spd is not None:
-        wr_edges.append(wr_spd - db_spd)
-    if wr_a is not None and db_a is not None:
-        wr_edges.append(wr_a - db_a)
-    wr_edge = sum(wr_edges) / len(wr_edges) if wr_edges else 0
+    # Defensive averages for comparison
+    db_spd = _stat(defense_r, 'DB', 'SPD') or 0
+    db_agi = _stat(defense_r, 'DB', 'A') or 0
+    lb_tot = _stat(defense_r, 'LB', 'TOT') or 0
+    lb_agi = _stat(defense_r, 'LB', 'A') or 0
 
     def_pers = DEFENSE_FORMATIONS.get(def_form, {}) if def_form else {}
     num_db = def_pers.get('DB', 4)
-
-    # DB coverage adjustment factor
     db_wr_adj = 0.85 if num_db >= 5 else (1.2 if num_db <= 3 else 1.0)
     db_te_adj = 1.15 if num_db >= 5 else 1.0
 
-    te_explain = ''
-    if te_tot is not None and lb_tot is not None:
-        te_explain = f"TE TOT {te_tot} vs LB TOT {lb_tot} ({'+' if te_edge >= 0 else ''}{round(te_edge)})"
-    wr_explain = ''
-    if wr_spd is not None and db_spd is not None:
-        wr_explain = f"WR SPD {wr_spd} vs DB SPD {db_spd} ({'+' if wr_edge >= 0 else ''}{round(wr_edge)})"
-    rb_explain = ''
-    if rb_agi is not None and lb_agi is not None:
+    # Gather individual players by position
+    wrs = [p for p in your_players if p['pos'] == 'WR']
+    tes = [p for p in your_players if p['pos'] == 'TE']
+    rbs = [p for p in your_players if p['pos'] == 'RB']
+
+    # Sort by TOT descending to pick starters
+    wrs.sort(key=lambda p: -p['tot'])
+    tes.sort(key=lambda p: -p['tot'])
+    rbs.sort(key=lambda p: -p['tot'])
+
+    # Determine formation personnel counts
+    off_pers = OFFENSE_FORMATIONS.get(off_form, {'RB': 1, 'WR': 2, 'TE': 1})
+    n_wr = off_pers.get('WR', 2)
+    n_te = off_pers.get('TE', 1)
+    n_rb = off_pers.get('RB', 1)
+
+    # Compute individual edge for each player
+    def _wr_edge(p):
+        spd = p['stats'].get('SPD', 0)
+        agi = p['stats'].get('A', 0)
+        return ((spd - db_spd) + (agi - db_agi)) / 2.0
+
+    def _te_edge(p):
+        tot = p['stats'].get('TOT', 0)
+        spd = p['stats'].get('SPD', 0)
+        edges = []
+        if tot and lb_tot:
+            edges.append(tot - lb_tot)
+        if spd and db_spd:
+            edges.append(spd - db_spd)
+        return sum(edges) / len(edges) if edges else 0
+
+    def _rb_edge(p):
+        agi = p['stats'].get('A', 0)
+        return agi - lb_agi if agi and lb_agi else 0
+
+    # Build starter lists with edges
+    wr_starters = []
+    for p in wrs[:n_wr]:
+        edge = _wr_edge(p)
+        explain = f"SPD {p['stats'].get('SPD','?')} AGI {p['stats'].get('A','?')} vs DB SPD {db_spd} AGI {db_agi} ({'+' if edge >= 0 else ''}{round(edge)})"
+        wr_starters.append({'name': p['name'], 'pos': 'WR', 'edge': edge, 'explain': explain, 'css_class': 'pct-bar-wr'})
+
+    te_starters = []
+    for p in tes[:n_te]:
+        edge = _te_edge(p)
+        tot = p['stats'].get('TOT', '?')
+        spd = p['stats'].get('SPD', '?')
+        explain = f"TOT {tot} vs LB TOT {lb_tot}, SPD {spd} vs DB SPD {db_spd} ({'+' if edge >= 0 else ''}{round(edge)})"
+        te_starters.append({'name': p['name'], 'pos': 'TE', 'edge': edge, 'explain': explain, 'css_class': 'pct-bar-te'})
+
+    rb_starters = []
+    for p in rbs[:n_rb]:
+        edge = _rb_edge(p)
+        agi = p['stats'].get('A', '?')
+        rb_is_mismatch = edge >= 25
         if rb_is_mismatch:
-            rb_explain = f"RB AGI {rb_agi} vs LB AGI {lb_agi} (+{rb_edge}) — mismatch weapon — their LBs cannot stay with your RB in space, target him in the flat and on screens"
+            explain = f"AGI {agi} vs LB AGI {lb_agi} (+{round(edge)}) — mismatch weapon — their LBs cannot stay with your RB in space, target him in the flat and on screens"
         else:
-            rb_explain = f"RB AGI {rb_agi} vs LB AGI {lb_agi} ({'+' if rb_edge >= 0 else ''}{rb_edge}) — safety valve — use on 3rd and short or when coverage takes away your primary options"
+            explain = f"AGI {agi} vs LB AGI {lb_agi} ({'+' if edge >= 0 else ''}{round(edge)}) — safety valve — use on 3rd and short or when coverage takes away your primary options"
+        rb_starters.append({'name': p['name'], 'pos': 'RB', 'edge': edge, 'explain': explain,
+                            'css_class': 'pct-bar-rb', 'is_mismatch': rb_is_mismatch})
 
-    def _cap_rb_and_distribute(targets, rb_cap_val):
-        """Cap each RB target at rb_cap_val, redistribute excess to WR/TE proportionally."""
-        rb_excess = 0
-        non_rb_total = 0
-        for t in targets:
-            if t['label'].startswith('RB') and t['pct'] > rb_cap_val:
-                rb_excess += t['pct'] - rb_cap_val
-                t['pct'] = rb_cap_val
-            elif not t['label'].startswith('RB'):
-                non_rb_total += t['pct']
+    # If no players parsed, fall back to position labels with averaged ratings
+    if not wr_starters and not te_starters and not rb_starters:
+        return _compute_passing_targets_fallback(offense_r, defense_r, off_form, def_form)
 
-        if rb_excess > 0 and non_rb_total > 0:
-            for t in targets:
-                if not t['label'].startswith('RB'):
-                    share = t['pct'] / non_rb_total
-                    t['pct'] += round(rb_excess * share)
+    # Fill missing positions with generic labels using averaged ratings
+    if not wr_starters:
+        wr_spd = _stat(offense_r, 'WR', 'SPD') or 0
+        wr_a = _stat(offense_r, 'WR', 'A') or 0
+        edge = ((wr_spd - db_spd) + (wr_a - db_agi)) / 2.0
+        for i in range(n_wr):
+            label = f"WR{i+1}" if n_wr > 1 else "WR"
+            wr_starters.append({'name': label, 'pos': 'WR', 'edge': edge,
+                                'explain': f"WR SPD {wr_spd} AGI {wr_a} vs DB SPD {db_spd} AGI {db_agi}", 'css_class': 'pct-bar-wr'})
+    if not te_starters:
+        te_tot_v = _stat(offense_r, 'TE', 'TOT') or 0
+        te_spd_v = _stat(offense_r, 'TE', 'SPD') or 0
+        edges = []
+        if te_tot_v and lb_tot: edges.append(te_tot_v - lb_tot)
+        if te_spd_v and db_spd: edges.append(te_spd_v - db_spd)
+        edge = sum(edges) / len(edges) if edges else 0
+        for i in range(n_te):
+            label = f"TE{i+1}" if n_te > 1 else "TE"
+            te_starters.append({'name': label, 'pos': 'TE', 'edge': edge,
+                                'explain': f"TE TOT {te_tot_v} vs LB TOT {lb_tot}", 'css_class': 'pct-bar-te'})
+    if not rb_starters:
+        rb_agi_v = _stat(offense_r, 'RB', 'A') or 0
+        edge = rb_agi_v - lb_agi if rb_agi_v and lb_agi else 0
+        rb_is_mismatch = edge >= 25
+        explain = f"RB AGI {rb_agi_v} vs LB AGI {lb_agi} ({'+' if edge >= 0 else ''}{round(edge)}) — {'mismatch weapon' if rb_is_mismatch else 'safety valve'}"
+        for i in range(n_rb):
+            label = f"RB{i+1}" if n_rb > 1 else "RB"
+            rb_starters.append({'name': label, 'pos': 'RB', 'edge': edge, 'explain': explain,
+                                'css_class': 'pct-bar-rb', 'is_mismatch': rb_is_mismatch})
 
-        # Fix rounding to ensure sum is exactly 100
-        total = sum(t['pct'] for t in targets)
-        if total != 100 and targets:
-            # Adjust the largest non-RB target
-            non_rb = [t for t in targets if not t['label'].startswith('RB')]
-            if non_rb:
-                non_rb[0]['pct'] += (100 - total)
-
-    def _enforce_wr_floor(targets, wr_floor):
-        """Ensure WR targets collectively reach at least wr_floor%."""
-        wr_targets = [t for t in targets if t['label'].startswith('WR')]
-        non_wr = [t for t in targets if not t['label'].startswith('WR')]
-        wr_total = sum(t['pct'] for t in wr_targets)
-        if wr_total >= wr_floor or not wr_targets:
+    # Equalize same-position players within 5 points of each other
+    def _equalize(starters):
+        if len(starters) <= 1:
             return
-        deficit = wr_floor - wr_total
-        non_wr_total = sum(t['pct'] for t in non_wr)
-        if non_wr_total <= 0:
-            return
-        # Take proportionally from non-WR
-        for t in non_wr:
-            take = round(deficit * (t['pct'] / non_wr_total))
-            t['pct'] -= take
-        # Give evenly to WRs
-        per_wr = deficit // len(wr_targets)
-        remainder = deficit - per_wr * len(wr_targets)
-        for i, t in enumerate(wr_targets):
-            t['pct'] += per_wr + (1 if i < remainder else 0)
-        # Fix rounding
-        total = sum(t['pct'] for t in targets)
-        if total != 100 and wr_targets:
-            wr_targets[0]['pct'] += (100 - total)
+        edges = [s['edge'] for s in starters]
+        if max(edges) - min(edges) <= 5:
+            avg = sum(edges) / len(edges)
+            for s in starters:
+                s['edge'] = avg
 
-    # Build targets list based on formation personnel
+    _equalize(wr_starters)
+    _equalize(te_starters)
+    _equalize(rb_starters)
+
+    # Compute raw weights
+    all_starters = []
+    for s in wr_starters:
+        w = max(s['edge'] + 30, 5) * db_wr_adj
+        all_starters.append({**s, 'weight': w})
+    for s in te_starters:
+        w = max(s['edge'] + 30, 5) * db_te_adj
+        all_starters.append({**s, 'weight': w})
+
+    # RB weight — reduced in Shotgun
+    rb_weight_mult = 0.4 if off_form in ('Shotgun',) else 1.0
+    for s in rb_starters:
+        w = max(s['edge'] + 30, 5) * rb_weight_mult
+        all_starters.append({**s, 'weight': w})
+
+    # Shotgun: only include RB as safety valve at 10-15% max
+    # Trips: RB capped at 20% max
+    # Normal: RB capped at 20%, or 30% if mismatch
+    if off_form == 'Shotgun':
+        rb_cap = 15
+    elif off_form == 'Trips':
+        rb_cap = 20
+    else:
+        # Check if any RB is a mismatch
+        any_rb_mismatch = any(s.get('is_mismatch') for s in rb_starters)
+        rb_cap = 30 if any_rb_mismatch else 20
+
+    # Convert weights to percentages
+    total_w = sum(s['weight'] for s in all_starters)
+    if total_w <= 0:
+        total_w = 1
     targets = []
+    for s in all_starters:
+        pct = round(s['weight'] / total_w * 100)
+        label = f"{s['name']} ({s['pos']})"
+        targets.append({
+            'label': label, 'pct': pct, 'edge': round(s['edge']),
+            'explain': s['explain'], 'css_class': s['css_class'],
+            '_pos': s['pos'], '_is_mismatch': s.get('is_mismatch', False),
+        })
 
-    if off_form in ('Wishbone', 'Notre Dame Box'):
-        # 2 RB, 1 WR, 2 TE — show TE1, TE2, RB1, RB2, WR
-        te_w = max(te_edge + 30, 5) * db_te_adj
-        rb_w = max(rb_edge + 30, 5)
-        wr_w = max(wr_edge + 30, 5) * db_wr_adj * 0.6
-        total = te_w * 2 + rb_w * 2 + wr_w
-        te1_pct = round(te_w / total * 100)
-        te2_pct = round(te_w / total * 100)
-        rb1_pct = round(rb_w / total * 100)
-        rb2_pct = round(rb_w / total * 100)
-        wr_pct = 100 - te1_pct - te2_pct - rb1_pct - rb2_pct
-        targets = [
-            {'label': 'TE1', 'pct': te1_pct, 'edge': round(te_edge), 'explain': te_explain, 'css_class': 'pct-bar-te'},
-            {'label': 'TE2', 'pct': te2_pct, 'edge': round(te_edge), 'explain': 'Second TE — same matchup advantage', 'css_class': 'pct-bar-te'},
-            {'label': 'RB1', 'pct': rb1_pct, 'edge': round(rb_edge), 'explain': rb_explain, 'css_class': 'pct-bar-rb'},
-            {'label': 'RB2', 'pct': rb2_pct, 'edge': round(rb_edge), 'explain': 'Second RB — flat routes and checkdowns', 'css_class': 'pct-bar-rb'},
-            {'label': 'WR', 'pct': wr_pct, 'edge': round(wr_edge), 'explain': wr_explain, 'css_class': 'pct-bar-wr'},
-        ]
-        _cap_rb_and_distribute(targets, rb_cap)
+    # Fix rounding
+    total_pct = sum(t['pct'] for t in targets)
+    if total_pct != 100 and targets:
+        targets[0]['pct'] += (100 - total_pct)
 
-    elif off_form in ('Shotgun', 'Trips'):
-        # 1 RB, 3 WR, 1 TE — show WR1, WR2, WR3, TE, and RB only if meaningful edge
-        wr_w = max(wr_edge + 30, 5) * db_wr_adj
-        te_w = max(te_edge + 30, 5) * db_te_adj
-        include_rb = rb_edge >= 5
-        if include_rb:
-            rb_w = max(rb_edge + 30, 5) * 0.4  # heavily reduced
-            total = wr_w * 3 + te_w + rb_w
-            wr1_pct = round(wr_w / total * 100)
-            wr2_pct = round(wr_w / total * 100)
-            wr3_pct = round(wr_w / total * 100)
-            te_pct = round(te_w / total * 100)
-            rb_pct = 100 - wr1_pct - wr2_pct - wr3_pct - te_pct
-            targets = [
-                {'label': 'WR1', 'pct': wr1_pct, 'edge': round(wr_edge), 'explain': wr_explain, 'css_class': 'pct-bar-wr'},
-                {'label': 'WR2', 'pct': wr2_pct, 'edge': round(wr_edge), 'explain': 'Second WR — same speed/agility matchup', 'css_class': 'pct-bar-wr'},
-                {'label': 'WR3', 'pct': wr3_pct, 'edge': round(wr_edge), 'explain': 'Third WR — slot receiver', 'css_class': 'pct-bar-wr'},
-                {'label': 'TE', 'pct': te_pct, 'edge': round(te_edge), 'explain': te_explain, 'css_class': 'pct-bar-te'},
-                {'label': 'RB', 'pct': rb_pct, 'edge': round(rb_edge), 'explain': rb_explain, 'css_class': 'pct-bar-rb'},
-            ]
-            _cap_rb_and_distribute(targets, rb_cap)
-        else:
-            total = wr_w * 3 + te_w
-            wr1_pct = round(wr_w / total * 100)
-            wr2_pct = round(wr_w / total * 100)
-            wr3_pct = round(wr_w / total * 100)
-            te_pct = 100 - wr1_pct - wr2_pct - wr3_pct
-            targets = [
-                {'label': 'WR1', 'pct': wr1_pct, 'edge': round(wr_edge), 'explain': wr_explain, 'css_class': 'pct-bar-wr'},
-                {'label': 'WR2', 'pct': wr2_pct, 'edge': round(wr_edge), 'explain': 'Second WR — same speed/agility matchup', 'css_class': 'pct-bar-wr'},
-                {'label': 'WR3', 'pct': wr3_pct, 'edge': round(wr_edge), 'explain': 'Third WR — slot receiver', 'css_class': 'pct-bar-wr'},
-                {'label': 'TE', 'pct': te_pct, 'edge': round(te_edge), 'explain': te_explain, 'css_class': 'pct-bar-te'},
-            ]
-        # Shotgun/Trips: WRs collectively get at least 50%
+    # Cap RB targets
+    _cap_rb_and_distribute(targets, rb_cap)
+
+    # Shotgun/Trips: WRs collectively get at least 50%
+    if off_form in ('Shotgun', 'Trips'):
         _enforce_wr_floor(targets, 50)
 
-    else:
-        # I Formation / Pro / no formation selected: 1 RB, 2 WR, 1 TE
-        wr_w = max(wr_edge + 30, 5) * db_wr_adj
-        te_w = max(te_edge + 30, 5) * db_te_adj
-        rb_w = max(rb_edge + 30, 5)
-        total = wr_w + te_w + rb_w
-        wr_pct = round(wr_w / total * 100)
-        te_pct = round(te_w / total * 100)
-        rb_pct = 100 - wr_pct - te_pct
-        targets = [
-            {'label': 'WR', 'pct': wr_pct, 'edge': round(wr_edge), 'explain': wr_explain, 'css_class': 'pct-bar-wr'},
-            {'label': 'TE', 'pct': te_pct, 'edge': round(te_edge), 'explain': te_explain, 'css_class': 'pct-bar-te'},
-            {'label': 'RB', 'pct': rb_pct, 'edge': round(rb_edge), 'explain': rb_explain, 'css_class': 'pct-bar-rb'},
-        ]
-        _cap_rb_and_distribute(targets, rb_cap)
-
     # Sort by pct descending
+    targets.sort(key=lambda t: -t['pct'])
+    return targets
+
+
+def _cap_rb_and_distribute(targets, rb_cap_val):
+    """Cap each RB target at rb_cap_val, redistribute excess to WR/TE proportionally."""
+    rb_excess = 0
+    non_rb_total = 0
+    for t in targets:
+        if t.get('_pos') == 'RB' and t['pct'] > rb_cap_val:
+            rb_excess += t['pct'] - rb_cap_val
+            t['pct'] = rb_cap_val
+        elif t.get('_pos') != 'RB':
+            non_rb_total += t['pct']
+
+    if rb_excess > 0 and non_rb_total > 0:
+        for t in targets:
+            if t.get('_pos') != 'RB':
+                share = t['pct'] / non_rb_total
+                t['pct'] += round(rb_excess * share)
+
+    # Fix rounding to ensure sum is exactly 100
+    total = sum(t['pct'] for t in targets)
+    if total != 100 and targets:
+        non_rb = [t for t in targets if t.get('_pos') != 'RB']
+        if non_rb:
+            non_rb[0]['pct'] += (100 - total)
+
+
+def _enforce_wr_floor(targets, wr_floor):
+    """Ensure WR targets collectively reach at least wr_floor%."""
+    wr_targets = [t for t in targets if t.get('_pos') == 'WR']
+    non_wr = [t for t in targets if t.get('_pos') != 'WR']
+    wr_total = sum(t['pct'] for t in wr_targets)
+    if wr_total >= wr_floor or not wr_targets:
+        return
+    deficit = wr_floor - wr_total
+    non_wr_total = sum(t['pct'] for t in non_wr)
+    if non_wr_total <= 0:
+        return
+    for t in non_wr:
+        take = round(deficit * (t['pct'] / non_wr_total))
+        t['pct'] -= take
+    per_wr = deficit // len(wr_targets)
+    remainder = deficit - per_wr * len(wr_targets)
+    for i, t in enumerate(wr_targets):
+        t['pct'] += per_wr + (1 if i < remainder else 0)
+    total = sum(t['pct'] for t in targets)
+    if total != 100 and wr_targets:
+        wr_targets[0]['pct'] += (100 - total)
+
+
+def _compute_passing_targets_fallback(offense_r, defense_r, off_form=None, def_form=None):
+    """Fallback when no individual players are parsed — uses averaged ratings."""
+    db_spd = _stat(defense_r, 'DB', 'SPD') or 0
+    db_agi = _stat(defense_r, 'DB', 'A') or 0
+    lb_tot = _stat(defense_r, 'LB', 'TOT') or 0
+    lb_agi = _stat(defense_r, 'LB', 'A') or 0
+    te_tot = _stat(offense_r, 'TE', 'TOT') or 0
+    te_spd = _stat(offense_r, 'TE', 'SPD') or 0
+    wr_spd = _stat(offense_r, 'WR', 'SPD') or 0
+    wr_a = _stat(offense_r, 'WR', 'A') or 0
+    rb_agi = _stat(offense_r, 'RB', 'A') or 0
+
+    def_pers = DEFENSE_FORMATIONS.get(def_form, {}) if def_form else {}
+    num_db = def_pers.get('DB', 4)
+    db_wr_adj = 0.85 if num_db >= 5 else (1.2 if num_db <= 3 else 1.0)
+    db_te_adj = 1.15 if num_db >= 5 else 1.0
+
+    wr_edge = ((wr_spd - db_spd) + (wr_a - db_agi)) / 2.0
+    te_edges = []
+    if te_tot and lb_tot: te_edges.append(te_tot - lb_tot)
+    if te_spd and db_spd: te_edges.append(te_spd - db_spd)
+    te_edge = sum(te_edges) / len(te_edges) if te_edges else 0
+    rb_edge = rb_agi - lb_agi if rb_agi and lb_agi else 0
+    rb_is_mismatch = rb_edge >= 25
+
+    off_pers = OFFENSE_FORMATIONS.get(off_form, {'RB': 1, 'WR': 2, 'TE': 1})
+    n_wr = off_pers.get('WR', 2)
+    n_te = off_pers.get('TE', 1)
+    n_rb = off_pers.get('RB', 1)
+
+    wr_explain = f"WR SPD {wr_spd} AGI {wr_a} vs DB SPD {db_spd} AGI {db_agi} ({'+' if wr_edge >= 0 else ''}{round(wr_edge)})"
+    te_explain = f"TE TOT {te_tot} vs LB TOT {lb_tot}, SPD {te_spd} vs DB SPD {db_spd} ({'+' if te_edge >= 0 else ''}{round(te_edge)})"
+    if rb_is_mismatch:
+        rb_explain = f"RB AGI {rb_agi} vs LB AGI {lb_agi} (+{round(rb_edge)}) — mismatch weapon"
+    else:
+        rb_explain = f"RB AGI {rb_agi} vs LB AGI {lb_agi} ({'+' if rb_edge >= 0 else ''}{round(rb_edge)}) — safety valve"
+
+    targets = []
+    for i in range(n_wr):
+        label = f"WR{i+1}" if n_wr > 1 else "WR"
+        w = max(wr_edge + 30, 5) * db_wr_adj
+        targets.append({'label': label, 'weight': w, 'edge': round(wr_edge), 'explain': wr_explain, 'css_class': 'pct-bar-wr', '_pos': 'WR'})
+    for i in range(n_te):
+        label = f"TE{i+1}" if n_te > 1 else "TE"
+        w = max(te_edge + 30, 5) * db_te_adj
+        targets.append({'label': label, 'weight': w, 'edge': round(te_edge), 'explain': te_explain, 'css_class': 'pct-bar-te', '_pos': 'TE'})
+    rb_w_mult = 0.4 if off_form == 'Shotgun' else 1.0
+    for i in range(n_rb):
+        label = f"RB{i+1}" if n_rb > 1 else "RB"
+        w = max(rb_edge + 30, 5) * rb_w_mult
+        targets.append({'label': label, 'weight': w, 'edge': round(rb_edge), 'explain': rb_explain, 'css_class': 'pct-bar-rb', '_pos': 'RB'})
+
+    total_w = sum(t['weight'] for t in targets) or 1
+    for t in targets:
+        t['pct'] = round(t['weight'] / total_w * 100)
+        del t['weight']
+    total_pct = sum(t['pct'] for t in targets)
+    if total_pct != 100 and targets:
+        targets[0]['pct'] += (100 - total_pct)
+
+    rb_cap = 15 if off_form == 'Shotgun' else (20 if off_form == 'Trips' else (30 if rb_is_mismatch else 20))
+    _cap_rb_and_distribute(targets, rb_cap)
+    if off_form in ('Shotgun', 'Trips'):
+        _enforce_wr_floor(targets, 50)
+
     targets.sort(key=lambda t: -t['pct'])
     return targets
 
@@ -1800,20 +1922,15 @@ def build_halftime_report(your_team, opp_team, your_stats, their_stats, plays, b
         if t3: chunk.append(f"{opp_team} is {t3}")
         sentences.append('; '.join(chunk) + '.')
 
-    # What the game is hinging on
+    # Third-down conversion context (data-backed only)
     if ys and ts:
         try:
             margin = abs(yi - ti)
-            if margin <= 7:
-                sentences.append(f"This game is hinging on third-down execution and whoever can control the tempo coming out of the locker room.")
-            elif yi > ti:
-                sentences.append(f"This game hinges on whether {your_team} can keep the foot on the gas and prevent {opp_team} from finding a rhythm in the second half.")
-            else:
-                sentences.append(f"This game hinges on whether {your_team} can make the adjustments needed to claw back into it before the deficit grows.")
+            y3_val = your_stats.get('third_down')
+            if y3_val and margin <= 7:
+                sentences.append(f"{your_team} is {y3_val} on third down — conversion rate will decide this game.")
         except (ValueError, TypeError):
             pass
-    else:
-        sentences.append("This game is hinging on which coaching staff makes the better halftime adjustments.")
 
     summary = ' '.join(sentences) if sentences else (
         "Stats could not be fully parsed — recommendations below are drawn from available play-by-play data."
@@ -1821,7 +1938,7 @@ def build_halftime_report(your_team, opp_team, your_stats, their_stats, plays, b
 
     # ── Top Performers section ──────────────────────────────────────────────
     def _build_offense_performers(team_name):
-        """Top 3 offensive skill players by yards (RB rush, WR/TE/RB rec, QB pass)."""
+        """Top 2 offensive skill players by yards (RB rush, WR/TE/RB rec, QB pass)."""
         candidates = []
         for name, info in pstats.items():
             if info.get('team') != team_name:
@@ -1857,7 +1974,7 @@ def build_halftime_report(your_team, opp_team, your_stats, their_stats, plays, b
         candidates.sort(key=lambda x: -x[1])
 
         cards = []
-        for name, yds, info, statline in candidates[:3]:
+        for name, yds, info, statline in candidates[:2]:
             tag = _player_tag(name, pstats, team_name)
             role = info.get('role', '')
             if role == 'RB' and info.get('rush_att', 0) > 0:
@@ -1884,7 +2001,7 @@ def build_halftime_report(your_team, opp_team, your_stats, their_stats, plays, b
         return cards
 
     def _build_defense_performers(team_name):
-        """Top 3 defensive players by tackles (DL, LB, DB all eligible)."""
+        """Top 2 defensive players by tackles (DL, LB, DB all eligible)."""
         candidates = []
         for name, info in pstats.items():
             if info.get('team') != team_name:
@@ -1899,7 +2016,7 @@ def build_halftime_report(your_team, opp_team, your_stats, their_stats, plays, b
                 candidates.append((name, tackles, info, statline))
         candidates.sort(key=lambda x: -x[1])
         cards = []
-        for name, tackles, info, statline in candidates[:3]:
+        for name, tackles, info, statline in candidates[:2]:
             tag = _player_tag(name, pstats, team_name)
             if tackles >= 8:
                 note = "All over the field — making plays in every phase of the defense."
@@ -2021,34 +2138,25 @@ def build_halftime_report(your_team, opp_team, your_stats, their_stats, plays, b
                     f"▶ On 3rd and short keep running the ball — the ground game converted {len(rush3)} times in the first half"
                 )
 
-    # ── SCORE SITUATION ────────────────────────────────────────────────────
+    # ── SCORE SITUATION — only include if we have data to be specific ────
     if ys and ts:
         try:
             deficit = ti - yi
-            if deficit > 0 and deficit <= 8:
+            if deficit > 8:
                 win_bullets.append(
-                    f"▶ You are within striking distance — score first in the third quarter and this game changes"
+                    f"▶ Down {deficit} points — throw on early downs to maximize possessions, you need {(deficit + 6) // 7} scores minimum"
                 )
-            elif deficit > 8:
-                win_bullets.append(
-                    f"▶ You are down {deficit} — go aggressive immediately, cannot afford to trade punts"
-                )
-            elif deficit == 0:
-                win_bullets.append(
-                    f"▶ It is tied — come out of halftime and set the tempo, score first and make {opp_team} chase you"
-                )
-            elif abs(deficit) >= 14:
-                win_bullets.append(
-                    f"▶ You have the lead — establish the run early in the third to control clock and force {opp_team} to chase"
-                )
-            else:
-                win_bullets.append(
-                    f"▶ You have the lead — keep doing what got you here, stay aggressive and do not let {opp_team} hang around"
-                )
+            elif deficit > 0 and deficit <= 8:
+                # Only add if we have passing/run data to back up a recommendation
+                if your_pass_data:
+                    best_pd = max(your_pass_data, key=lambda d: sum(your_pass_data[d]['yards']) if your_pass_data[d]['comp'] > 0 else 0)
+                    pd = your_pass_data[best_pd]
+                    if pd['comp'] > 0:
+                        win_bullets.append(
+                            f"▶ Down {deficit} — your {best_pd} passing game is {pd['comp']}/{pd['att']}, keep attacking there to close the gap"
+                        )
         except (ValueError, TypeError):
             pass
-    else:
-        win_bullets.append(f"▶ Come out of halftime with energy — establish the run early and force {opp_team} to adjust to you")
 
     if not win_bullets:
         win_bullets = ["Paste play-by-play data to generate specific second-half recommendations."]
@@ -2330,12 +2438,11 @@ def strategy_route():
             matchups            = compute_matchups(offense_r, defense_r)
             game_plan           = build_game_plan(matchups)
             advantages, dangers = find_individual_edges(offense_r, defense_r)
-            passing_targets     = compute_passing_targets(offense_r, defense_r, your_offense, their_defense)
-            run_split           = compute_run_split(offense_r, defense_r, your_offense, their_defense)
-            formation_note      = get_formation_matchup_note(your_offense, their_defense)
-
             your_players = parse_players(your_ratings_raw)
             opp_players  = parse_players(opponent_ratings_raw)
+            passing_targets     = compute_passing_targets(offense_r, defense_r, your_offense, their_defense, your_players)
+            run_split           = compute_run_split(offense_r, defense_r, your_offense, their_defense)
+            formation_note      = get_formation_matchup_note(your_offense, their_defense)
             standouts    = find_standout_players(your_players, opp_players)
 
     return render_template(
@@ -2407,12 +2514,11 @@ def halftime_route():
         if offense_r and defense_r:
             matchups = compute_matchups(offense_r, defense_r)
             advantages, dangers = find_individual_edges(offense_r, defense_r)
-            passing_targets = compute_passing_targets(offense_r, defense_r, your_offense, their_defense)
-            run_split_data = compute_run_split(offense_r, defense_r, your_offense, their_defense)
-            formation_note = get_formation_matchup_note(your_offense, their_defense)
-
             your_players = parse_players(your_ratings_raw)
             opp_players = parse_players(opp_ratings_raw)
+            passing_targets = compute_passing_targets(offense_r, defense_r, your_offense, their_defense, your_players)
+            run_split_data = compute_run_split(offense_r, defense_r, your_offense, their_defense)
+            formation_note = get_formation_matchup_note(your_offense, their_defense)
             standouts = find_standout_players(your_players, opp_players)
 
             # Inject strategy bullets into report
