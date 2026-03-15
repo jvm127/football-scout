@@ -341,6 +341,65 @@
       color: #64748b;
     }
 
+    /* ── Percentage Split Cards ── */
+    .pct-split-card {
+      background: #1e2130;
+      border: 1px solid #2d3348;
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin-bottom: 12px;
+    }
+
+    .pct-row {
+      display: grid;
+      grid-template-columns: 64px 1fr 52px;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid #1a1f2e;
+    }
+    .pct-row:last-child { border-bottom: none; }
+
+    .pct-label {
+      font-size: 13px;
+      font-weight: 700;
+      color: #e2e8f0;
+    }
+
+    .pct-bar-wrap {
+      height: 22px;
+      background: #0f1117;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .pct-bar {
+      height: 100%;
+      border-radius: 6px;
+      transition: width 0.3s ease;
+    }
+
+    .pct-bar-wr      { background: #4f6ef7; }
+    .pct-bar-te      { background: #f59e0b; }
+    .pct-bar-rb      { background: #22c55e; }
+    .pct-bar-outside { background: #8b5cf6; }
+    .pct-bar-inside  { background: #ec4899; }
+
+    .pct-value {
+      font-size: 15px;
+      font-weight: 700;
+      color: #e2e8f0;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .pct-detail {
+      grid-column: 2 / 4;
+      font-size: 11px;
+      color: #64748b;
+      margin-top: -4px;
+    }
+
   </style>
 </head>
 <body>
@@ -397,8 +456,8 @@
     <div class="meta">Matchup analysis — {{ matchups | selectattr('edge') | list | length }} of {{ matchups | length }} matchups with data</div>
   </div>
 
-  <!-- Biggest Advantages -->
-  <div class="section-label">🟢 Biggest Advantages</div>
+  <!-- Biggest Mismatches (Your Advantages) -->
+  <div class="section-label">🟢 Your Mismatches (+20 or more)</div>
   {% if advantages %}
   <div class="highlights-list">
     {% for item in advantages %}
@@ -414,11 +473,11 @@
     {% endfor %}
   </div>
   {% else %}
-  <p class="no-highlights">No individual matchups with a +10 or greater advantage found.</p>
+  <p class="no-highlights">No mismatches of +20 or greater found in your favor.</p>
   {% endif %}
 
-  <!-- Where They Have The Edge -->
-  <div class="section-label">🔴 Where They Have The Edge</div>
+  <!-- Danger Zones (Their Advantages) -->
+  <div class="section-label">🔴 Danger Zones (Their Mismatches)</div>
   {% if dangers %}
   <div class="highlights-list">
     {% for item in dangers %}
@@ -434,7 +493,86 @@
     {% endfor %}
   </div>
   {% else %}
-  <p class="no-highlights">No individual matchups where they hold a -10 or greater advantage.</p>
+  <p class="no-highlights">No danger zones — they don't hold a -20 or greater edge anywhere.</p>
+  {% endif %}
+
+  <!-- Passing Target Percentages -->
+  {% if passing_targets %}
+  <div class="section-label">🎯 Passing Targets</div>
+  <div class="pct-split-card">
+    <div class="pct-row">
+      <div class="pct-label">WR</div>
+      <div class="pct-bar-wrap">
+        <div class="pct-bar pct-bar-wr" style="width: {{ passing_targets.wr.pct }}%"></div>
+      </div>
+      <div class="pct-value">{{ passing_targets.wr.pct }}%</div>
+      <div class="pct-detail">
+        {% if passing_targets.wr.wr_spd is not none and passing_targets.wr.db_spd is not none %}
+          WR Spd {{ passing_targets.wr.wr_spd }} vs DB Spd {{ passing_targets.wr.db_spd }}
+          ({% if passing_targets.wr.edge > 0 %}+{% endif %}{{ passing_targets.wr.edge }})
+        {% endif %}
+      </div>
+    </div>
+    <div class="pct-row">
+      <div class="pct-label">TE</div>
+      <div class="pct-bar-wrap">
+        <div class="pct-bar pct-bar-te" style="width: {{ passing_targets.te.pct }}%"></div>
+      </div>
+      <div class="pct-value">{{ passing_targets.te.pct }}%</div>
+      <div class="pct-detail">
+        {% if passing_targets.te.te_spd is not none and passing_targets.te.lb_spd is not none %}
+          TE Spd {{ passing_targets.te.te_spd }} vs LB Spd {{ passing_targets.te.lb_spd }}
+          ({% if passing_targets.te.edge > 0 %}+{% endif %}{{ passing_targets.te.edge }})
+        {% endif %}
+      </div>
+    </div>
+    <div class="pct-row">
+      <div class="pct-label">RB</div>
+      <div class="pct-bar-wrap">
+        <div class="pct-bar pct-bar-rb" style="width: {{ passing_targets.rb.pct }}%"></div>
+      </div>
+      <div class="pct-value">{{ passing_targets.rb.pct }}%</div>
+      <div class="pct-detail">
+        {% if passing_targets.rb.rb_spd is not none and passing_targets.rb.db_spd is not none %}
+          RB Spd {{ passing_targets.rb.rb_spd }} vs DB Spd {{ passing_targets.rb.db_spd }}
+          ({% if passing_targets.rb.edge > 0 %}+{% endif %}{{ passing_targets.rb.edge }})
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Run Game Split -->
+  {% if run_split %}
+  <div class="section-label">🏈 Run Game Split</div>
+  <div class="pct-split-card">
+    <div class="pct-row">
+      <div class="pct-label">Outside</div>
+      <div class="pct-bar-wrap">
+        <div class="pct-bar pct-bar-outside" style="width: {{ run_split.outside.pct }}%"></div>
+      </div>
+      <div class="pct-value">{{ run_split.outside.pct }}%</div>
+      <div class="pct-detail">
+        {% if run_split.outside.rb_spd is not none and run_split.outside.lb_spd is not none %}
+          RB Spd {{ run_split.outside.rb_spd }} vs LB Spd {{ run_split.outside.lb_spd }}
+          ({% if run_split.outside.edge > 0 %}+{% endif %}{{ run_split.outside.edge }})
+        {% endif %}
+      </div>
+    </div>
+    <div class="pct-row">
+      <div class="pct-label">Inside</div>
+      <div class="pct-bar-wrap">
+        <div class="pct-bar pct-bar-inside" style="width: {{ run_split.inside.pct }}%"></div>
+      </div>
+      <div class="pct-value">{{ run_split.inside.pct }}%</div>
+      <div class="pct-detail">
+        {% if run_split.inside.ol_str is not none and run_split.inside.dl_str is not none %}
+          OL Str {{ run_split.inside.ol_str }} vs DL Str {{ run_split.inside.dl_str }}
+          ({% if run_split.inside.edge > 0 %}+{% endif %}{{ run_split.inside.edge }})
+        {% endif %}
+      </div>
+    </div>
+  </div>
   {% endif %}
 
   <!-- Matchup Edges -->

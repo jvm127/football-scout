@@ -211,11 +211,6 @@ RECOMMENDATIONS = {
         'slight': 'TE seam routes and drag routes are a reliable check-down option',
         'avoid': 'Their LBs can cover your TE — spread with extra WRs instead',
     },
-    'qb_pressure': {
-        'major': 'QB has time to work — use longer developing routes and play-action',
-        'slight': 'Pressure is manageable — mix quick throws with deeper concepts',
-        'avoid': 'Expect heavy DL pressure — prioritize quick game, hot routes, and RB outlets',
-    },
 }
 
 
@@ -287,10 +282,20 @@ def _stat(ratings, pos, stat):
     return ratings.get(pos, {}).get(stat)
 
 
-def _tier(edge):
-    """Return (css_class, icon, short_label) for an edge value."""
+def _tier(edge, key=None):
+    """Return (css_class, icon, short_label) for an edge value.
+    Outside run uses different thresholds: +30 Major, +15 Slight, <+15 Even.
+    """
     if edge is None:
         return 'unknown', '—', 'No data'
+    if key == 'outside_run':
+        if edge >= 30:
+            return 'major',  '✅', 'Major Advantage'
+        if edge >= 15:
+            return 'slight', '⚠️', 'Slight Advantage'
+        if edge >= -14:
+            return 'even',   '–',  'Even Matchup'
+        return     'avoid',  '❌', 'Avoid'
     if edge >= 10:
         return 'major',  '✅', 'Major Advantage'
     if edge >= 5:
@@ -325,14 +330,9 @@ def compute_matchups(offense_r, defense_r):
         ('te_mismatch', 'TE Mismatch',   'Your TE Spd vs Their LB Spd',    edge('TE', 'SPD', 'LB', 'SPD')),
     ]
 
-    # QB Protection: 65 minus their DL SPD — low DL speed = high positive number
-    their_dl_spd = _stat(defense_r, 'DL', 'SPD')
-    qb_edge = (65 - their_dl_spd) if their_dl_spd is not None else None
-    raw.append(('qb_pressure', 'QB Protection', 'Their DL Spd (65 − Their DL Spd)', qb_edge))
-
     matchups = []
     for key, label, desc, e in raw:
-        css, icon, short = _tier(e)
+        css, icon, short = _tier(e, key=key)
         rec = RECOMMENDATIONS.get(key, {}).get(css, '')
         matchups.append({
             'key': key, 'label': label, 'desc': desc,
@@ -344,203 +344,248 @@ def compute_matchups(offense_r, defense_r):
     return matchups
 
 
-INDIVIDUAL_EDGE_DEFS = [
-    {
-        'key': 'rb_spd_lb',
-        'label': 'RB Speed vs LB Speed',
-        'off': ('RB', 'SPD'), 'def': ('LB', 'SPD'),
-        'adv_text': (
-            "Your running backs are significantly faster than their linebackers. "
-            "When your RB reaches the edge or breaks through the first level, the LBs simply won't close in time. "
-            "Outside runs, tosses, and RB screens in space become high-percentage plays."
-        ),
-        'adv_rec': "Toss sweeps, outside zone, and RB screen passes — attack the perimeter on early downs.",
-        'dan_text': (
-            "Their linebackers are faster than your running backs, limiting your outside run game. "
-            "Sweeps and tosses will get run down before reaching the corner. "
-            "Keep carries between the tackles and use your passing game to create space."
-        ),
-        'dan_rec': "Avoid outside runs — stick to inside zone and quick dump-offs to RB.",
-    },
-    {
-        'key': 'rb_spd_db',
-        'label': 'RB Speed vs DB Speed',
-        'off': ('RB', 'SPD'), 'def': ('DB', 'SPD'),
-        'adv_text': (
-            "Your running backs have a speed edge over their defensive backs in the open field. "
-            "Once your RB clears the second level, safeties and corners won't run him down. "
-            "Draw plays, delay routes, and swing passes become big-play opportunities."
-        ),
-        'adv_rec': "Draw plays, RB delay routes, and swing passes into open space.",
-        'dan_text': (
-            "Their defensive backs can run down your RB in the open field. "
-            "Big plays on screens and outside runs will be cut short by their speed in pursuit. "
-            "Get the ball out quickly and take the safe checkdown rather than hoping for yards after contact."
-        ),
-        'dan_rec': "Limit RB in open space — quick inside runs and safe checkdowns only.",
-    },
-    {
-        'key': 'rb_str_lb',
-        'label': 'RB Strength vs LB Strength',
-        'off': ('RB', 'STR'), 'def': ('LB', 'STR'),
-        'adv_text': (
-            "Your running backs are physically stronger than their linebackers. "
-            "Your RB will win contact situations inside the tackles and break through arm tackles at the second level. "
-            "Power runs and short-yardage situations heavily favor your offense."
-        ),
-        'adv_rec': "Power runs between the guards — inside zone and lead plays on any down and distance.",
-        'dan_text': (
-            "Their linebackers are physically stronger than your running backs. "
-            "Your RB will struggle to break tackles and pick up yards after contact in power situations. "
-            "Use quickness and misdirection rather than trying to run through defenders."
-        ),
-        'dan_rec': "Avoid power runs — use counters, traps, and misdirection instead.",
-    },
-    {
-        'key': 'ol_blk_dl',
-        'label': 'OL Blocking vs DL Tackling',
-        'off': ('OL', 'BLK'), 'def': ('DL', 'TKL'),
-        'adv_text': (
-            "Your offensive linemen are significantly better at blocking than their defensive linemen are at making tackles. "
-            "Your OL will consistently seal defenders and create running lanes. "
-            "This is a foundational advantage that makes the entire run game viable on any down."
-        ),
-        'adv_rec': "Commit to the run — any gap scheme works. OL will dominate the point of attack.",
-        'dan_text': (
-            "Their defensive linemen are better tacklers than your OL are blockers. "
-            "Running lanes will be filled quickly and short runs will get stuffed at the line. "
-            "Look to the passing game to move the ball efficiently."
-        ),
-        'dan_rec': "Abandon the run early — use quick passing and movement to neutralize their DL.",
-    },
-    {
-        'key': 'ol_str_dl',
-        'label': 'OL Strength vs DL Strength',
-        'off': ('OL', 'STR'), 'def': ('DL', 'STR'),
-        'adv_text': (
-            "Your offensive line wins the strength battle at the point of attack. "
-            "In short yardage and goal line situations your OL will drive their DL off the ball. "
-            "Power runs and QB sneaks are near-automatic when the strength gap is this large."
-        ),
-        'adv_rec': "Power runs, QB sneaks, and goal line packages — go physical at the line.",
-        'dan_text': (
-            "Their defensive line is physically stronger than your offensive line. "
-            "Expect struggles in short yardage and power run situations. "
-            "Get the ball out quickly in the passing game before their DL can engage your linemen."
-        ),
-        'dan_rec': "Avoid power runs and slow-developing plays — quick game and screens only.",
-    },
-    {
-        'key': 'wr_spd_db',
-        'label': 'WR Speed vs DB Speed',
-        'off': ('WR', 'SPD'), 'def': ('DB', 'SPD'),
-        'adv_text': (
-            "Your wide receivers have a clear speed advantage over their cornerbacks and safeties. "
-            "Vertical routes will consistently put your WRs behind coverage downfield. "
-            "Your QB should look deep on first and second down to exploit this mismatch."
-        ),
-        'adv_rec': "Go routes, post routes, and vertical concepts — attack deep coverage every series.",
-        'dan_text': (
-            "Their defensive backs are faster than your wide receivers. "
-            "Deep routes will be covered and your WRs will struggle to create separation vertically. "
-            "Use short and intermediate routes with quick releases to get the ball out before coverage closes."
-        ),
-        'dan_rec': "Short and intermediate routes only — slants, crossers, and quick outs.",
-    },
-    {
-        'key': 'te_spd_lb',
-        'label': 'TE Speed vs LB Speed',
-        'off': ('TE', 'SPD'), 'def': ('LB', 'SPD'),
-        'adv_text': (
-            "Your tight end is significantly faster than their linebackers in coverage. "
-            "Linebackers simply cannot run with a fast TE over the middle or down the seam. "
-            "This is one of the most exploitable mismatches in football — target your TE relentlessly."
-        ),
-        'adv_rec': "TE seam routes, crossing routes, and TE leak plays — make them pay every drive.",
-        'dan_text': (
-            "Their linebackers have the speed to cover your tight end. "
-            "TE seam routes and crossers won't create the separation you need. "
-            "Use your TE as a blocker or target him only on quick routes in traffic."
-        ),
-        'dan_rec': "Use TE as a blocker — route tree should favor WR options instead.",
-    },
-    {
-        'key': 'te_str_lb',
-        'label': 'TE Strength vs LB Strength',
-        'off': ('TE', 'STR'), 'def': ('LB', 'STR'),
-        'adv_text': (
-            "Your tight end is stronger than their linebackers in physical matchups. "
-            "Your TE will win contested catches and break through arm tackles after the catch. "
-            "Use your TE as both a power blocker on run plays and a physical receiving threat on short routes."
-        ),
-        'adv_rec': "TE blocking on power runs, and short TE routes over the middle in traffic.",
-        'dan_text': (
-            "Their linebackers are stronger than your tight end. "
-            "Your TE will get jammed at the line of scrimmage and lose contested catch situations. "
-            "Keep your TE in to help with pass protection or use him only on quick releases."
-        ),
-        'dan_rec': "Keep TE in protection — don't rely on TE as a primary receiving option.",
-    },
+# ─── Mismatch scanning: every offensive pos vs every defensive pos ───────────
+
+MISMATCH_COMPARISONS = [
+    # (off_pos, off_stat, def_pos, def_stat, label_template)
+    ('RB', 'SPD', 'LB', 'SPD', 'RB Speed vs LB Speed'),
+    ('RB', 'SPD', 'DB', 'SPD', 'RB Speed vs DB Speed'),
+    ('RB', 'STR', 'LB', 'STR', 'RB Strength vs LB Strength'),
+    ('RB', 'A',   'LB', 'A',   'RB Agility vs LB Agility'),
+    ('RB', 'A',   'DB', 'A',   'RB Agility vs DB Agility'),
+    ('WR', 'SPD', 'DB', 'SPD', 'WR Speed vs DB Speed'),
+    ('WR', 'SPD', 'LB', 'SPD', 'WR Speed vs LB Speed'),
+    ('WR', 'A',   'DB', 'A',   'WR Agility vs DB Agility'),
+    ('WR', 'A',   'LB', 'A',   'WR Agility vs LB Agility'),
+    ('TE', 'SPD', 'LB', 'SPD', 'TE Speed vs LB Speed'),
+    ('TE', 'SPD', 'DB', 'SPD', 'TE Speed vs DB Speed'),
+    ('TE', 'STR', 'LB', 'STR', 'TE Strength vs LB Strength'),
+    ('TE', 'A',   'LB', 'A',   'TE Agility vs LB Agility'),
+    ('OL', 'BLK', 'DL', 'TKL', 'OL Blocking vs DL Tackling'),
+    ('OL', 'STR', 'DL', 'STR', 'OL Strength vs DL Strength'),
+    ('OL', 'A',   'DL', 'A',   'OL Agility vs DL Agility'),
+    ('RB', 'STR', 'DL', 'STR', 'RB Strength vs DL Strength'),
+    ('RB', 'SPD', 'DL', 'SPD', 'RB Speed vs DL Speed'),
+    ('WR', 'STR', 'DB', 'STR', 'WR Strength vs DB Strength'),
+    ('TE', 'STR', 'DL', 'STR', 'TE Strength vs DL Strength'),
 ]
 
-# Special threshold check — not a vs comparison
-DL_SPD_SAFE_THRESHOLD = 55
+MISMATCH_THRESHOLD = 20  # flag edges of +20 or more
 
-INDIVIDUAL_EDGE_LABELS = {e['key']: e for e in INDIVIDUAL_EDGE_DEFS}
+
+def _mismatch_narrative(off_pos, off_stat, off_val, def_pos, def_stat, def_val, edge_val):
+    """Generate a specific narrative using real numbers from parsed ratings."""
+    stat_names = {'SPD': 'speed', 'STR': 'strength', 'A': 'agility', 'BLK': 'blocking', 'TKL': 'tackling'}
+    off_stat_name = stat_names.get(off_stat, off_stat)
+    def_stat_name = stat_names.get(def_stat, def_stat)
+
+    return (
+        f"Your {off_pos} {off_stat_name} ({off_val}) vs their {def_pos} {def_stat_name} ({def_val}) "
+        f"creates a +{edge_val} mismatch. "
+        f"This is a significant edge that should be exploited in your game plan."
+    )
+
+
+def _mismatch_rec(off_pos, off_stat, def_pos, edge_val):
+    """Generate a specific recommendation based on the mismatch type."""
+    if off_pos == 'RB' and off_stat == 'SPD' and def_pos == 'LB':
+        return f"Toss sweeps and outside zone — your RB has a +{edge_val} speed edge on their LBs."
+    if off_pos == 'RB' and off_stat == 'SPD' and def_pos == 'DB':
+        return f"Draw plays, screens, and swing passes — your RB outruns their DBs by +{edge_val}."
+    if off_pos == 'RB' and off_stat == 'SPD' and def_pos == 'DL':
+        return f"Stretch runs and outside zone — your RB outruns their DL by +{edge_val}."
+    if off_pos == 'RB' and off_stat == 'STR' and def_pos == 'LB':
+        return f"Power runs inside — your RB is +{edge_val} stronger than their LBs."
+    if off_pos == 'RB' and off_stat == 'STR' and def_pos == 'DL':
+        return f"Inside zone and gap schemes — your RB can break through their DL tackles (+{edge_val})."
+    if off_pos == 'RB' and off_stat == 'A':
+        return f"Counters, traps, and cutback runs — your RB agility edge is +{edge_val} vs their {def_pos}."
+    if off_pos == 'WR' and off_stat == 'SPD' and def_pos == 'DB':
+        return f"Go routes and post routes — your WRs burn their DBs with a +{edge_val} speed edge."
+    if off_pos == 'WR' and off_stat == 'SPD' and def_pos == 'LB':
+        return f"WR routes over the middle — your WRs are +{edge_val} faster than their LBs in coverage."
+    if off_pos == 'WR' and off_stat == 'A' and def_pos == 'DB':
+        return f"Crossing routes and option routes — your WRs have a +{edge_val} agility edge at the break."
+    if off_pos == 'WR' and off_stat == 'A' and def_pos == 'LB':
+        return f"Slot WR routes vs linebackers — +{edge_val} agility mismatch in the intermediate zones."
+    if off_pos == 'WR' and off_stat == 'STR':
+        return f"Contested catches and physical routes — your WRs are +{edge_val} stronger than their DBs."
+    if off_pos == 'TE' and off_stat == 'SPD' and def_pos == 'LB':
+        return f"TE seam routes and crosses — your TE is +{edge_val} faster than their LBs."
+    if off_pos == 'TE' and off_stat == 'SPD' and def_pos == 'DB':
+        return f"TE routes into deep zones — your TE has a +{edge_val} speed edge over their DBs."
+    if off_pos == 'TE' and off_stat == 'STR':
+        return f"TE blocking on power runs and short routes in traffic — +{edge_val} strength edge vs their {def_pos}."
+    if off_pos == 'TE' and off_stat == 'A':
+        return f"TE option routes and release moves — +{edge_val} agility edge vs their {def_pos}."
+    if off_pos == 'OL' and off_stat == 'BLK':
+        return f"Commit to the run — your OL blocking edge is +{edge_val} over their DL tackling."
+    if off_pos == 'OL' and off_stat == 'STR':
+        return f"Power runs and goal line plays — your OL is +{edge_val} stronger than their DL."
+    if off_pos == 'OL' and off_stat == 'A':
+        return f"Outside zone and pulling schemes — your OL agility is +{edge_val} over their DL."
+    return f"Exploit this +{edge_val} edge with {off_pos} vs their {def_pos}."
+
+
+def _danger_narrative(off_pos, off_stat, off_val, def_pos, def_stat, def_val, edge_val):
+    """Generate a danger narrative using real numbers."""
+    stat_names = {'SPD': 'speed', 'STR': 'strength', 'A': 'agility', 'BLK': 'blocking', 'TKL': 'tackling'}
+    off_stat_name = stat_names.get(off_stat, off_stat)
+    def_stat_name = stat_names.get(def_stat, def_stat)
+
+    return (
+        f"Their {def_pos} {def_stat_name} ({def_val}) vs your {off_pos} {off_stat_name} ({off_val}) "
+        f"gives them a {edge_val} advantage. "
+        f"Avoid situations where this matchup is isolated."
+    )
+
+
+def _danger_rec(off_pos, off_stat, def_pos, edge_val):
+    """Generate a danger zone recommendation."""
+    if off_pos == 'RB' and off_stat == 'SPD' and def_pos == 'LB':
+        return f"Avoid outside runs — their LBs have a {edge_val} speed edge over your RBs."
+    if off_pos == 'RB' and off_stat == 'SPD' and def_pos == 'DB':
+        return f"Limit RB in open field — their DBs are {edge_val} faster than your RBs."
+    if off_pos == 'RB' and off_stat == 'STR':
+        return f"No power runs — their {def_pos} is {edge_val} stronger than your RBs."
+    if off_pos == 'WR' and off_stat == 'SPD':
+        return f"No deep shots — their {def_pos} has a {edge_val} speed edge over your WRs."
+    if off_pos == 'WR' and off_stat == 'A':
+        return f"Avoid intermediate routes — their {def_pos} mirrors your WRs ({edge_val} agility edge)."
+    if off_pos == 'TE' and off_stat == 'SPD':
+        return f"Don't route your TE vs their {def_pos} — {edge_val} speed disadvantage."
+    if off_pos == 'TE' and off_stat == 'STR':
+        return f"Keep TE in protection — their {def_pos} is {edge_val} stronger."
+    if off_pos == 'OL' and off_stat == 'BLK':
+        return f"Limit run plays — their DL tackling is {edge_val} better than your OL blocking."
+    if off_pos == 'OL' and off_stat == 'STR':
+        return f"Avoid power runs — their DL is {edge_val} stronger than your OL."
+    return f"Avoid this matchup — their {def_pos} has a {edge_val} edge over your {off_pos}."
 
 
 def find_individual_edges(offense_r, defense_r, your_team, opponent_team):
-    """Return dicts with 'advantages' and 'dangers' lists for the highlights sections."""
-    results = []
+    """Scan every offensive vs defensive position. Flag +20 edges as mismatches.
+    Returns (advantages, dangers) using real numbers from parsed ratings."""
+    advantages = []
+    dangers = []
 
-    for defn in INDIVIDUAL_EDGE_DEFS:
-        off = _stat(offense_r, defn['off'][0], defn['off'][1])
-        dfn = _stat(defense_r, defn['def'][0], defn['def'][1])
-        if off is None or dfn is None:
+    for off_pos, off_stat, def_pos, def_stat, label in MISMATCH_COMPARISONS:
+        off_val = _stat(offense_r, off_pos, off_stat)
+        def_val = _stat(defense_r, def_pos, def_stat)
+        if off_val is None or def_val is None:
             continue
-        edge = off - dfn
-        results.append({
-            'key': defn['key'],
-            'label': defn['label'],
-            'edge': edge,
-            'adv_text': defn['adv_text'],
-            'adv_rec': defn['adv_rec'],
-            'dan_text': defn['dan_text'],
-            'dan_rec': defn['dan_rec'],
-        })
+        edge_val = off_val - def_val
 
-    # Special: their DL SPD threshold check
-    dl_spd = _stat(defense_r, 'DL', 'SPD')
-    if dl_spd is not None and dl_spd < DL_SPD_SAFE_THRESHOLD:
-        results.append({
-            'key': 'dl_spd_thresh',
-            'label': f'Their DL Speed ({dl_spd}) — Below Pressure Threshold',
-            'edge': DL_SPD_SAFE_THRESHOLD - dl_spd,  # positive = your advantage
-            'adv_text': (
-                f"Their defensive line has an average speed of only {dl_spd}, well below the threshold where pass rush becomes dangerous. "
-                "Your quarterback will have time to survey the field and work through progressions. "
-                "Longer-developing routes that normally carry risk are now viable calls."
-            ),
-            'adv_rec': "Play-action deep routes, 7-step drops, and sprint-out passes — take full advantage of slow pass rush.",
-            'dan_text': '',
-            'dan_rec': '',
-        })
+        if edge_val >= MISMATCH_THRESHOLD:
+            advantages.append({
+                'label': label,
+                'edge': edge_val,
+                'adv_text': _mismatch_narrative(off_pos, off_stat, off_val, def_pos, def_stat, def_val, edge_val),
+                'adv_rec': _mismatch_rec(off_pos, off_stat, def_pos, edge_val),
+            })
+        elif edge_val <= -MISMATCH_THRESHOLD:
+            dangers.append({
+                'label': label,
+                'edge': edge_val,
+                'dan_text': _danger_narrative(off_pos, off_stat, off_val, def_pos, def_stat, def_val, edge_val),
+                'dan_rec': _danger_rec(off_pos, off_stat, def_pos, edge_val),
+            })
 
-    advantages = sorted(
-        [r for r in results if r['edge'] >= 10],
-        key=lambda x: -x['edge']
-    )[:5]
+    advantages.sort(key=lambda x: -x['edge'])
+    dangers.sort(key=lambda x: x['edge'])
 
-    dangers = sorted(
-        [r for r in results if r['edge'] <= -10],
-        key=lambda x: x['edge']
-    )[:5]
+    return advantages[:8], dangers[:8]
 
-    return advantages, dangers
+
+def compute_passing_targets(offense_r, defense_r):
+    """Compute recommended passing target percentages for TE/WR/RB adding to 100%.
+    Based on mismatch edges — bigger edge = higher target share."""
+    # TE vs LB speed edge
+    te_edge = 0
+    te_spd = _stat(offense_r, 'TE', 'SPD')
+    lb_spd = _stat(defense_r, 'LB', 'SPD')
+    if te_spd is not None and lb_spd is not None:
+        te_edge = te_spd - lb_spd
+
+    # WR vs DB speed + agility edge (average)
+    wr_edge = 0
+    edges = []
+    wr_spd = _stat(offense_r, 'WR', 'SPD')
+    db_spd = _stat(defense_r, 'DB', 'SPD')
+    if wr_spd is not None and db_spd is not None:
+        edges.append(wr_spd - db_spd)
+    wr_a = _stat(offense_r, 'WR', 'A')
+    db_a = _stat(defense_r, 'DB', 'A')
+    if wr_a is not None and db_a is not None:
+        edges.append(wr_a - db_a)
+    if edges:
+        wr_edge = sum(edges) / len(edges)
+
+    # RB vs DB/LB speed edge (open field)
+    rb_edge = 0
+    rb_spd = _stat(offense_r, 'RB', 'SPD')
+    if rb_spd is not None and db_spd is not None:
+        rb_edge = rb_spd - db_spd
+
+    # Convert edges to weights (shift so negative edges still get some share)
+    te_w = max(te_edge + 30, 5)
+    wr_w = max(wr_edge + 30, 5)
+    rb_w = max(rb_edge + 30, 5)
+    total = te_w + wr_w + rb_w
+
+    te_pct = round(te_w / total * 100)
+    wr_pct = round(wr_w / total * 100)
+    rb_pct = 100 - te_pct - wr_pct  # ensure they sum to 100
+
+    return {
+        'wr': {'pct': wr_pct, 'edge': round(wr_edge),
+               'wr_spd': wr_spd, 'db_spd': db_spd, 'wr_a': wr_a, 'db_a': db_a},
+        'te': {'pct': te_pct, 'edge': round(te_edge),
+               'te_spd': te_spd, 'lb_spd': lb_spd},
+        'rb': {'pct': rb_pct, 'edge': round(rb_edge),
+               'rb_spd': rb_spd, 'db_spd': db_spd},
+    }
+
+
+def compute_run_split(offense_r, defense_r):
+    """Compute recommended Outside/Inside run percentage split.
+    Based on RB speed vs LB speed (outside) and OL/RB strength vs DL/LB strength (inside)."""
+    # Outside edge: RB speed vs LB speed
+    outside_edge = 0
+    rb_spd = _stat(offense_r, 'RB', 'SPD')
+    lb_spd = _stat(defense_r, 'LB', 'SPD')
+    if rb_spd is not None and lb_spd is not None:
+        outside_edge = rb_spd - lb_spd
+
+    # Inside edge: average of OL STR vs DL STR, RB STR vs LB STR
+    inside_edges = []
+    ol_str = _stat(offense_r, 'OL', 'STR')
+    dl_str = _stat(defense_r, 'DL', 'STR')
+    if ol_str is not None and dl_str is not None:
+        inside_edges.append(ol_str - dl_str)
+    rb_str = _stat(offense_r, 'RB', 'STR')
+    lb_str = _stat(defense_r, 'LB', 'STR')
+    if rb_str is not None and lb_str is not None:
+        inside_edges.append(rb_str - lb_str)
+    inside_edge = sum(inside_edges) / len(inside_edges) if inside_edges else 0
+
+    # Convert to percentages
+    out_w = max(outside_edge + 30, 5)
+    in_w = max(inside_edge + 30, 5)
+    total = out_w + in_w
+    outside_pct = round(out_w / total * 100)
+    inside_pct = 100 - outside_pct
+
+    return {
+        'outside': {'pct': outside_pct, 'edge': round(outside_edge),
+                     'rb_spd': rb_spd, 'lb_spd': lb_spd},
+        'inside': {'pct': inside_pct, 'edge': round(inside_edge),
+                    'ol_str': ol_str, 'dl_str': dl_str, 'rb_str': rb_str, 'lb_str': lb_str},
+    }
 
 
 def build_game_plan(matchups):
-    """Build the 5-row game plan summary."""
+    """Build the 4-row game plan summary (no QB Protection)."""
     by_key = {m['key']: m for m in matchups}
 
     def avg_edge(*keys):
@@ -549,16 +594,15 @@ def build_game_plan(matchups):
         return round(sum(vals) / len(vals)) if vals else None
 
     rows = [
-        ('Run Outside',    avg_edge('outside_run')),
-        ('Run Inside',     avg_edge('power_run', 'inside_run')),
-        ('Pass Short',     avg_edge('te_mismatch', 'route_run')),
-        ('Pass Deep',      avg_edge('deep_pass')),
-        ('QB Protection',  avg_edge('qb_pressure')),
+        ('Run Outside',    'outside_run', avg_edge('outside_run')),
+        ('Run Inside',     'inside_run',  avg_edge('power_run', 'inside_run')),
+        ('Pass Short',     None,          avg_edge('te_mismatch', 'route_run')),
+        ('Pass Deep',      None,          avg_edge('deep_pass')),
     ]
 
     plan = []
-    for play, e in rows:
-        css, icon, short = _tier(e)
+    for play, key, e in rows:
+        css, icon, short = _tier(e, key=key)
         plan.append({'play': play, 'edge': e, 'tier': css, 'icon': icon, 'short': short})
     return plan
 
@@ -1954,6 +1998,8 @@ def strategy_route():
     game_plan = []
     advantages = []
     dangers = []
+    passing_targets = None
+    run_split = None
 
     if not opponent_team or not your_team:
         error = "Please enter both team names."
@@ -1975,6 +2021,8 @@ def strategy_route():
             advantages, dangers = find_individual_edges(
                 offense_r, defense_r, your_team, opponent_team
             )
+            passing_targets    = compute_passing_targets(offense_r, defense_r)
+            run_split          = compute_run_split(offense_r, defense_r)
 
     return render_template(
         "strategy.html",
@@ -1986,6 +2034,8 @@ def strategy_route():
         game_plan=game_plan,
         advantages=advantages,
         dangers=dangers,
+        passing_targets=passing_targets,
+        run_split=run_split,
         error=error,
     )
 
