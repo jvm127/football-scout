@@ -341,55 +341,6 @@
       color: #64748b;
     }
 
-    /* ── Halftime Advisor Section ── */
-    .halftime-section {
-      margin-top: 48px;
-      border-top: 1px solid #2d3348;
-      padding-top: 36px;
-    }
-
-    .halftime-section .section-title {
-      font-size: 11px;
-      font-weight: 700;
-      color: #f59e0b;
-      text-transform: uppercase;
-      letter-spacing: 0.12em;
-      margin-bottom: 20px;
-    }
-
-    .ht-top-row {
-      display: flex;
-      gap: 16px;
-      flex-wrap: wrap;
-      margin-bottom: 16px;
-    }
-
-    .ht-top-row .field { flex: 1 1 200px; }
-
-    .ht-textareas {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-      margin-bottom: 20px;
-    }
-
-    @media (max-width: 640px) {
-      .ht-textareas { grid-template-columns: 1fr; }
-    }
-
-    .btn-halftime {
-      background: #f59e0b;
-      border: none;
-      color: #0f1117;
-      padding: 10px 24px;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: 700;
-      font-family: inherit;
-      cursor: pointer;
-      transition: background 0.15s;
-    }
-    .btn-halftime:hover { background: #d97706; }
   </style>
 </head>
 <body>
@@ -544,39 +495,6 @@
   </table>
   {% endif %}
 
-  <!-- Halftime Advisor -->
-  {% if matchups %}
-  <div class="halftime-section">
-    <div class="section-title">⏱ Halftime Advisor</div>
-    <form method="POST" action="/halftime">
-      <div class="ht-top-row">
-        <div class="field">
-          <label for="ht_your_team">Your Team</label>
-          <input type="text" id="ht_your_team" name="ht_your_team"
-                 value="{{ your_team }}" placeholder="e.g. Michigan"/>
-        </div>
-        <div class="field">
-          <label for="ht_opp_team">Opponent Team</label>
-          <input type="text" id="ht_opp_team" name="ht_opp_team"
-                 value="{{ opponent_team }}" placeholder="e.g. Minnesota"/>
-        </div>
-      </div>
-      <div class="ht-textareas">
-        <div class="field">
-          <label for="ht_box_score">Box Score &amp; Team Stats — paste halftime data here</label>
-          <textarea id="ht_box_score" name="ht_box_score" rows="12"
-                    placeholder="Total Yards    342    198&#10;Passing Yards   215    142&#10;Rushing Yards   127     56&#10;3rd Down         4/8    2/7&#10;Time of Poss   18:23  11:37&#10;First Downs      18      9&#10;Turnovers         1      2"></textarea>
-        </div>
-        <div class="field">
-          <label for="ht_game_log">Game Log — paste play-by-play here</label>
-          <textarea id="ht_game_log" name="ht_game_log" rows="12"
-                    placeholder="Q1 - Michigan: John Smith rushes right end for 8 yards&#10;Q1 - Michigan: Tom Jones passes short left to Mike Brown for 12 yards&#10;Q1 - Minnesota: Aaron Davis passes deep middle TD to Chris Wilson 24 yards&#10;..."></textarea>
-        </div>
-      </div>
-      <button type="submit" class="btn-halftime">Get Halftime Adjustments</button>
-    </form>
-  </div>
-  {% endif %}
 
 </div>
 </body>
