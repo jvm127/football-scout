@@ -50,8 +50,15 @@
     .video-item {
       display: flex; justify-content: space-between; align-items: center;
       padding: 14px 16px; background: #161926; border-radius: 8px;
-      border: 1px solid #1a1f2e;
+      border: 1px solid #1a1f2e; cursor: default;
     }
+    .drag-handle {
+      cursor: grab; color: #475569; font-size: 18px; padding: 0 10px 0 0;
+      user-select: none; line-height: 1;
+    }
+    .drag-handle:active { cursor: grabbing; }
+    .sortable-ghost { opacity: 0.3; }
+    .sortable-chosen { background: #252a3d; }
     .video-item-info { flex: 1; }
     .video-item-title { font-size: 14px; font-weight: 600; color: #e2e8f0; }
     .video-item-url { font-size: 12px; color: #475569; margin-top: 2px; word-break: break-all; }
@@ -87,9 +94,10 @@
   <div class="card">
     <h2>Existing Videos ({{ videos|length }})</h2>
     {% if videos %}
-    <div class="video-list">
+    <div class="video-list" id="videoList">
       {% for v in videos %}
-      <div class="video-item">
+      <div class="video-item" data-id="{{ v.id }}">
+        <span class="drag-handle">&#10303;</span>
         <div class="video-item-info">
           <div class="video-item-title">{{ v.title }}</div>
           <div class="video-item-url">{{ v.video_url }}</div>
@@ -108,5 +116,28 @@
   </div>
 
 </div>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+<script>
+  var el = document.getElementById('videoList');
+  if (el) {
+    Sortable.create(el, {
+      handle: '.drag-handle',
+      animation: 150,
+      ghostClass: 'sortable-ghost',
+      chosenClass: 'sortable-chosen',
+      onEnd: function() {
+        var order = [];
+        el.querySelectorAll('.video-item').forEach(function(item) {
+          order.push(item.getAttribute('data-id'));
+        });
+        fetch('/admin/reorder', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(order)
+        });
+      }
+    });
+  }
+</script>
 </body>
 </html>

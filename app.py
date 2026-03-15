@@ -70,8 +70,14 @@ def init_db():
         title TEXT NOT NULL,
         description TEXT,
         video_url TEXT NOT NULL,
+        display_order INTEGER DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
+    # Add display_order column if missing (existing databases)
+    try:
+        conn.execute('ALTER TABLE videos ADD COLUMN display_order INTEGER DEFAULT 0')
+    except Exception:
+        pass
     conn.commit()
     conn.close()
 
@@ -2032,7 +2038,7 @@ def halftime_route():
 @subscription_required
 def training():
     conn = get_db()
-    videos = conn.execute('SELECT * FROM videos ORDER BY created_at DESC').fetchall()
+    videos = conn.execute('SELECT * FROM videos ORDER BY display_order ASC, created_at DESC').fetchall()
     conn.close()
     return render_template("training.html", videos=videos)
 
@@ -2046,8 +2052,9 @@ def admin():
         if title and video_url:
             embed_url = to_embed_url(video_url)
             conn = get_db()
-            conn.execute('INSERT INTO videos (title, description, video_url) VALUES (?, ?, ?)',
-                         (title, description, embed_url))
+            max_order = conn.execute('SELECT COALESCE(MAX(display_order), 0) FROM videos').fetchone()[0]
+            conn.execute('INSERT INTO videos (title, description, video_url, display_order) VALUES (?, ?, ?, ?)',
+                         (title, description, embed_url, max_order + 1))
             conn.commit()
             conn.close()
     elif action == "delete" and request.method == "POST":
@@ -2059,9 +2066,21 @@ def admin():
             conn.close()
 
     conn = get_db()
-    videos = conn.execute('SELECT * FROM videos ORDER BY created_at DESC').fetchall()
+    videos = conn.execute('SELECT * FROM videos ORDER BY display_order ASC, created_at DESC').fetchall()
     conn.close()
     return render_template("admin.html", videos=videos)
+
+@app.route("/admin/reorder", methods=["POST"])
+def admin_reorder():
+    from flask import jsonify
+    order = request.get_json()
+    if order and isinstance(order, list):
+        conn = get_db()
+        for i, video_id in enumerate(order):
+            conn.execute('UPDATE videos SET display_order = ? WHERE id = ?', (i, int(video_id)))
+        conn.commit()
+        conn.close()
+    return jsonify(ok=True)
 
 
 if __name__ == '__main__':
