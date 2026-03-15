@@ -1982,6 +1982,11 @@ def strategy_route():
     )
 
 
+@app.route("/halftime-advisor", methods=["GET"])
+@subscription_required
+def halftime_advisor():
+    return render_template("halftime.html", your_team='', opp_team='', box_raw='', gamelog_raw='', report={}, error=None)
+
 @app.route("/halftime", methods=["POST"])
 @subscription_required
 def halftime_route():
