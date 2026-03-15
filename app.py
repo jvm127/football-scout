@@ -2676,5 +2676,5 @@ if __name__ == '__main__':
     print(">>> Registered routes:", flush=True)
     for rule in sorted(app.url_map.iter_rules(), key=lambda r: r.rule):
         print(f">>>   {rule.rule:30s} → {rule.endpoint} [{', '.join(rule.methods - {'OPTIONS', 'HEAD'})}]", flush=True)
-    port = int(os.environ.get('PORT', 5003))
+    port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
