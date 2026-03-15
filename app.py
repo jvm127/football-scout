@@ -220,7 +220,7 @@ OFFENSE_FORMATIONS = {
     'Pro':              {'RB': 1, 'WR': 2, 'TE': 1},
     'Wishbone':         {'RB': 2, 'WR': 1, 'TE': 2},
     'Notre Dame Box':   {'RB': 2, 'WR': 1, 'TE': 2},
-    'Shotgun':          {'RB': 1, 'WR': 3, 'TE': 1},
+    'Shotgun':          {'RB': 0, 'WR': 4, 'TE': 1},
     'Trips':            {'RB': 1, 'WR': 3, 'TE': 1},
 }
 
@@ -249,11 +249,17 @@ def get_formation_matchup_note(off_form, def_form):
     # Wishbone/ND Box (2 TE) vs Nickel/Dime (2 LB)
     if o in ('Wishbone', 'Notre Dame Box') and d in ('Nickel', 'Dime'):
         notes.append(f'Your 2 TEs force them to cover with DBs or give up easy completions underneath — exploit this all game')
-    # Trips/Shotgun (3 WR) vs 4-4 (3 DB)
-    if o in ('Trips', 'Shotgun') and d == '4-4':
+    # Shotgun (4 WR) vs 4-4 (3 DB)
+    if o == 'Shotgun' and d == '4-4':
+        notes.append(f'Your 4 WRs vs their 3 DBs — at least one WR gets a LB in coverage every play, find the mismatch and attack it relentlessly')
+    # Trips (3 WR) vs 4-4 (3 DB)
+    if o == 'Trips' and d == '4-4':
         notes.append(f'One of your WRs will get a LB in coverage every play — identify which LB is slowest and attack him all game')
-    # Trips/Shotgun vs Nickel (5 DB)
-    if o in ('Trips', 'Shotgun') and d == 'Nickel':
+    # Shotgun (4 WR) vs Nickel (5 DB)
+    if o == 'Shotgun' and d == 'Nickel':
+        notes.append(f'Your 4 WRs vs their 5 DBs — they can match up but one DB must cover two zones, find the soft spot')
+    # Trips vs Nickel (5 DB)
+    if o == 'Trips' and d == 'Nickel':
         notes.append(f'They have enough DBs to match your WRs — win with route running, exploit WR AGI vs DB AGI edges')
     # I Formation/Pro vs 5-2 (5 DL)
     if o in ('I Formation', 'Pro') and d == '5-2':
@@ -650,7 +656,8 @@ def compute_passing_targets(offense_r, defense_r, off_form=None, def_form=None,
       TE: TOT vs LB TOT and SPD vs DB SPD
       RB: AGI vs LB AGI, capped at 20% (30% if AGI edge >= +25)
     Players at the same position within 5 points of each other split evenly.
-    Shotgun/Trips: WRs collectively get at least 50%.
+    Shotgun: 4 WR + 1 TE, no RB — WRs get at least 65%.
+    Trips: 3 WR + 1 TE + 1 RB — WRs get at least 50%, RB capped at 20%.
     """
     your_players = your_players or []
 
@@ -785,21 +792,19 @@ def compute_passing_targets(offense_r, defense_r, off_form=None, def_form=None,
         w = max(s['edge'] + 30, 5) * db_te_adj
         all_starters.append({**s, 'weight': w})
 
-    # RB weight — reduced in Shotgun
-    rb_weight_mult = 0.4 if off_form in ('Shotgun',) else 1.0
+    # RB weight — Shotgun has no RB (n_rb=0 so rb_starters is empty)
     for s in rb_starters:
-        w = max(s['edge'] + 30, 5) * rb_weight_mult
+        w = max(s['edge'] + 30, 5)
         all_starters.append({**s, 'weight': w})
 
-    # Shotgun: only include RB as safety valve at 10-15% max
     # Trips: RB capped at 20% max
     # Normal: RB capped at 20%, or 30% if mismatch
+    # Shotgun: no RB in formation, cap irrelevant but set for safety
     if off_form == 'Shotgun':
-        rb_cap = 15
+        rb_cap = 0
     elif off_form == 'Trips':
         rb_cap = 20
     else:
-        # Check if any RB is a mismatch
         any_rb_mismatch = any(s.get('is_mismatch') for s in rb_starters)
         rb_cap = 30 if any_rb_mismatch else 20
 
@@ -825,8 +830,11 @@ def compute_passing_targets(offense_r, defense_r, off_form=None, def_form=None,
     # Cap RB targets
     _cap_rb_and_distribute(targets, rb_cap)
 
-    # Shotgun/Trips: WRs collectively get at least 50%
-    if off_form in ('Shotgun', 'Trips'):
+    # Shotgun: WRs collectively get at least 65%
+    # Trips: WRs collectively get at least 50%
+    if off_form == 'Shotgun':
+        _enforce_wr_floor(targets, 65)
+    elif off_form == 'Trips':
         _enforce_wr_floor(targets, 50)
 
     # Sort by pct descending
@@ -928,10 +936,10 @@ def _compute_passing_targets_fallback(offense_r, defense_r, off_form=None, def_f
         label = f"TE{i+1}" if n_te > 1 else "TE"
         w = max(te_edge + 30, 5) * db_te_adj
         targets.append({'label': label, 'weight': w, 'edge': round(te_edge), 'explain': te_explain, 'css_class': 'pct-bar-te', '_pos': 'TE'})
-    rb_w_mult = 0.4 if off_form == 'Shotgun' else 1.0
+    # n_rb is 0 for Shotgun, so this loop won't add any RB targets
     for i in range(n_rb):
         label = f"RB{i+1}" if n_rb > 1 else "RB"
-        w = max(rb_edge + 30, 5) * rb_w_mult
+        w = max(rb_edge + 30, 5)
         targets.append({'label': label, 'weight': w, 'edge': round(rb_edge), 'explain': rb_explain, 'css_class': 'pct-bar-rb', '_pos': 'RB'})
 
     total_w = sum(t['weight'] for t in targets) or 1
@@ -942,9 +950,11 @@ def _compute_passing_targets_fallback(offense_r, defense_r, off_form=None, def_f
     if total_pct != 100 and targets:
         targets[0]['pct'] += (100 - total_pct)
 
-    rb_cap = 15 if off_form == 'Shotgun' else (20 if off_form == 'Trips' else (30 if rb_is_mismatch else 20))
+    rb_cap = 0 if off_form == 'Shotgun' else (20 if off_form == 'Trips' else (30 if rb_is_mismatch else 20))
     _cap_rb_and_distribute(targets, rb_cap)
-    if off_form in ('Shotgun', 'Trips'):
+    if off_form == 'Shotgun':
+        _enforce_wr_floor(targets, 65)
+    elif off_form == 'Trips':
         _enforce_wr_floor(targets, 50)
 
     targets.sort(key=lambda t: -t['pct'])
@@ -981,6 +991,30 @@ def compute_run_split(offense_r, defense_r, off_form=None, def_form=None):
 
     # Determine split
     warning = ''
+
+    # Shotgun is a pass-first formation — only recommend running with a clear edge
+    if off_form == 'Shotgun':
+        has_clear_edge = (outside_edge >= 15 or ol_str_edge >= 10)
+        if has_clear_edge:
+            warning = f"Shotgun is a pass-first formation, but you have a clear run edge — mix in draws and delayed runs to keep the defense honest."
+            if outside_edge >= 15:
+                outside_pct = 60
+                inside_pct = 40
+            else:
+                outside_pct = 40
+                inside_pct = 60
+        else:
+            warning = f"Shotgun is a pass-first formation with no RB — run only on draws or scrambles, focus on the passing game."
+            outside_pct = 50
+            inside_pct = 50
+        return {
+            'outside': {'pct': outside_pct, 'edge': round(outside_edge),
+                         'rb_spd': rb_spd, 'lb_spd': lb_spd},
+            'inside': {'pct': inside_pct, 'edge': round(inside_edge),
+                        'ol_str': ol_str, 'dl_str': dl_str, 'rb_str': rb_str, 'lb_str': lb_str},
+            'warning': warning,
+        }
+
     if def_form in ('5-2', '4-4') or heavy_box >= 8:
         # Heavy box — warn about inside runs
         warning = f"They have {heavy_box} in the box ({def_form}) — inside runs will be tough. Consider passing or outside runs."
