@@ -1704,16 +1704,11 @@ def build_halftime_report(your_team, opp_team, your_stats, their_stats, plays, b
 
 # ─── Routes ──────────────────────────────────────────────────────────────────
 
-@app.route("/internal", methods=["GET", "POST"])
+@app.route("/internal")
 def internal_access():
-    if request.method == "POST":
-        code = request.form.get("code", "").strip()
-        if code == INTERNAL_PASSWORD:
-            session.permanent = True
-            session['internal_access'] = True
-            return redirect(url_for('index'))
-        return render_template("internal.html", error="Invalid access code.")
-    return render_template("internal.html")
+    session.permanent = True
+    session['internal_access'] = True
+    return redirect(url_for('index'))
 
 @app.route("/")
 def landing():
@@ -2032,15 +2027,6 @@ def training():
 
 @app.route("/admin", methods=["GET", "POST"])
 def admin():
-    if not session.get('admin_access'):
-        if request.method == "POST" and request.form.get("admin_code"):
-            if request.form.get("admin_code").strip() == ADMIN_PASSWORD:
-                session['admin_access'] = True
-            else:
-                return render_template("admin_login.html", error="Invalid admin code.")
-        else:
-            return render_template("admin_login.html")
-
     action = request.form.get("action", "")
     if action == "add" and request.method == "POST":
         title = request.form.get("title", "").strip()
