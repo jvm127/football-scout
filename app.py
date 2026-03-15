@@ -496,8 +496,12 @@ def _tier(edge, key=None):
     return     'avoid',  '❌', 'Avoid'
 
 
-def compute_matchups(offense_r, defense_r):
-    """Return sorted list of the 8 meaningful matchup dicts, best edge first."""
+_RUN_MATCHUP_KEYS = {'run_block', 'power_run', 'outside_run', 'short_yardage'}
+
+
+def compute_matchups(offense_r, defense_r, off_form=None):
+    """Return sorted list of matchup dicts, best edge first.
+    Shotgun: only passing matchups (no RB on the field)."""
 
     def edge(off_pos, off_stat, def_pos, def_stat):
         off = _stat(offense_r, off_pos, off_stat)
@@ -516,6 +520,10 @@ def compute_matchups(offense_r, defense_r):
         ('te_coverage', 'TE Coverage',    'Your TE TOT vs Their LB TOT',   edge('TE', 'TOT', 'LB', 'TOT')),
         ('te_middle',   'TE Over Middle', 'Your TE SPD vs Their DB SPD',   edge('TE', 'SPD', 'DB', 'SPD')),
     ]
+
+    # Shotgun: exclude run matchups entirely — no RB on the field
+    if off_form == 'Shotgun':
+        raw = [(k, l, d, e) for k, l, d, e in raw if k not in _RUN_MATCHUP_KEYS]
 
     matchups = []
     for key, label, desc, e in raw:
@@ -607,14 +615,20 @@ def _danger_rec(off_pos, off_stat, def_pos, edge_val):
     return f"Avoid this matchup — their {def_pos} has a {edge_val} edge over your {off_pos}."
 
 
-def find_individual_edges(offense_r, defense_r):
-    """Flag edges on the 8 meaningful matchups only.
+def find_individual_edges(offense_r, defense_r, off_form=None):
+    """Flag edges on meaningful matchups only.
+    Shotgun: skip run matchups (OL/RB comparisons) — no RB on the field.
     RB SPD vs LB SPD uses +30 threshold; all others use +20.
     Returns (advantages, dangers) using real numbers."""
     advantages = []
     dangers = []
 
+    # In Shotgun, skip run-game comparisons (OL and RB positions)
+    _skip_pos = {'OL', 'RB'} if off_form == 'Shotgun' else set()
+
     for off_pos, off_stat, def_pos, def_stat, label in MISMATCH_COMPARISONS:
+        if off_pos in _skip_pos:
+            continue
         off_val = _stat(offense_r, off_pos, off_stat)
         def_val = _stat(defense_r, def_pos, def_stat)
         if off_val is None or def_val is None:
@@ -992,13 +1006,13 @@ def compute_run_split(offense_r, defense_r, off_form=None, def_form=None):
     # Determine split
     warning = ''
 
-    # Shotgun has no RB on the field — no traditional run game
+    # Shotgun has no RB on the field — no run game section
     if off_form == 'Shotgun':
         return {
             'shotgun_pass_only': True,
-            'warning': 'Shotgun is a pass-first formation with no RB on the field. Running is limited to WR reverses and jet sweeps only. Commit to the passing game in this formation.',
+            'warning': 'Shotgun is a pass-first formation — no RB on the field. Commit to the passing game.',
             'outside': {'pct': 0, 'edge': 0, 'rb_spd': None, 'lb_spd': None},
-            'inside':  {'pct': 0, 'edge': 0, 'ol_str': ol_str, 'dl_str': dl_str, 'rb_str': None, 'lb_str': None},
+            'inside':  {'pct': 0, 'edge': 0, 'ol_str': None, 'dl_str': None, 'rb_str': None, 'lb_str': None},
         }
 
     if def_form in ('5-2', '4-4') or heavy_box >= 8:
@@ -1035,8 +1049,9 @@ def compute_run_split(offense_r, defense_r, off_form=None, def_form=None):
     }
 
 
-def build_game_plan(matchups):
-    """Build the 4-row game plan summary."""
+def build_game_plan(matchups, off_form=None):
+    """Build the game plan summary.
+    Shotgun: only passing rows (no run game — no RB on the field)."""
     by_key = {m['key']: m for m in matchups}
 
     def avg_edge(*keys):
@@ -1044,12 +1059,18 @@ def build_game_plan(matchups):
                 if k in by_key and by_key[k]['edge'] is not None]
         return round(sum(vals) / len(vals)) if vals else None
 
-    rows = [
-        ('Run Outside',    'outside_run', avg_edge('outside_run')),
-        ('Run Inside',     'short_yardage', avg_edge('power_run', 'short_yardage')),
-        ('Pass Short',     None,          avg_edge('te_coverage', 'route_run')),
-        ('Pass Deep',      None,          avg_edge('deep_pass')),
-    ]
+    if off_form == 'Shotgun':
+        rows = [
+            ('Pass Short',     None,          avg_edge('te_coverage', 'route_run')),
+            ('Pass Deep',      None,          avg_edge('deep_pass')),
+        ]
+    else:
+        rows = [
+            ('Run Outside',    'outside_run', avg_edge('outside_run')),
+            ('Run Inside',     'short_yardage', avg_edge('power_run', 'short_yardage')),
+            ('Pass Short',     None,          avg_edge('te_coverage', 'route_run')),
+            ('Pass Deep',      None,          avg_edge('deep_pass')),
+        ]
 
     plan = []
     for play, key, e in rows:
@@ -2455,9 +2476,9 @@ def strategy_route():
         elif not offense_r:
             error = f"Could not parse {your_team} ratings. Check the format."
         else:
-            matchups            = compute_matchups(offense_r, defense_r)
-            game_plan           = build_game_plan(matchups)
-            advantages, dangers = find_individual_edges(offense_r, defense_r)
+            matchups            = compute_matchups(offense_r, defense_r, your_offense)
+            game_plan           = build_game_plan(matchups, your_offense)
+            advantages, dangers = find_individual_edges(offense_r, defense_r, your_offense)
             your_players = parse_players(your_ratings_raw)
             opp_players  = parse_players(opponent_ratings_raw)
             passing_targets     = compute_passing_targets(offense_r, defense_r, your_offense, their_defense, your_players)
@@ -2532,8 +2553,8 @@ def halftime_route():
 
         # Add strategy-based second half recommendations if ratings available
         if offense_r and defense_r:
-            matchups = compute_matchups(offense_r, defense_r)
-            advantages, dangers = find_individual_edges(offense_r, defense_r)
+            matchups = compute_matchups(offense_r, defense_r, your_offense)
+            advantages, dangers = find_individual_edges(offense_r, defense_r, your_offense)
             your_players = parse_players(your_ratings_raw)
             opp_players = parse_players(opp_ratings_raw)
             passing_targets = compute_passing_targets(offense_r, defense_r, your_offense, their_defense, your_players)
