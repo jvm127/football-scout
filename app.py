@@ -186,15 +186,10 @@ RECOMMENDATIONS = {
         'slight': 'Sweeps and tosses have real upside, especially on early downs',
         'avoid': 'Stay away from outside runs — their LBs have the speed to close',
     },
-    'inside_run': {
+    'short_yardage': {
         'major': 'Run between the tackles — your RB wins every collision',
         'slight': 'Mix in inside runs on favorable downs and short yardage',
         'avoid': 'Avoid inside runs — their LBs win the physical matchup',
-    },
-    'open_field': {
-        'major': 'Use screens and draws — your RB is dangerous in space vs their DBs',
-        'slight': 'Checkdowns and RB flats are solid safety valves',
-        'avoid': 'Limit RB routes into the open field — their DBs have the speed advantage',
     },
     'deep_pass': {
         'major': 'Go deep early and often — your WRs will create separation downfield',
@@ -206,12 +201,71 @@ RECOMMENDATIONS = {
         'slight': 'Crossing routes and option routes should create consistent separation',
         'avoid': 'Their DBs can mirror routes — use speed releases and stack concepts',
     },
-    'te_mismatch': {
-        'major': 'Target your TE on seams and crosses — massive speed edge vs their LBs',
+    'te_coverage': {
+        'major': 'Target your TE relentlessly — massive overall edge vs their LBs',
         'slight': 'TE seam routes and drag routes are a reliable check-down option',
         'avoid': 'Their LBs can cover your TE — spread with extra WRs instead',
     },
+    'te_middle': {
+        'major': 'TE over the middle is a free completion — their DBs cannot keep up',
+        'slight': 'TE crossing routes have real upside against their secondary',
+        'avoid': 'Their DBs can match your TE speed — use other options',
+    },
 }
+
+# ─── Formation / Defense personnel ──────────────────────────────────────────
+
+OFFENSE_FORMATIONS = {
+    'I Formation':      {'RB': 1, 'WR': 2, 'TE': 1},
+    'Pro':              {'RB': 1, 'WR': 2, 'TE': 1},
+    'Wishbone':         {'RB': 2, 'WR': 1, 'TE': 2},
+    'Notre Dame Box':   {'RB': 2, 'WR': 1, 'TE': 2},
+    'Shotgun':          {'RB': 1, 'WR': 3, 'TE': 1},
+    'Trips':            {'RB': 1, 'WR': 3, 'TE': 1},
+}
+
+DEFENSE_FORMATIONS = {
+    '3-4':    {'DL': 3, 'LB': 4, 'DB': 4},
+    '4-3':    {'DL': 4, 'LB': 3, 'DB': 4},
+    '4-4':    {'DL': 4, 'LB': 4, 'DB': 3},
+    '5-2':    {'DL': 5, 'LB': 2, 'DB': 4},
+    'Nickel': {'DL': 4, 'LB': 2, 'DB': 5},
+    'Dime':   {'DL': 3, 'LB': 2, 'DB': 6},
+}
+
+
+def get_formation_matchup_note(off_form, def_form):
+    """Return a formation-vs-formation personnel insight or empty string."""
+    if not off_form or not def_form:
+        return ''
+    o = off_form.strip()
+    d = def_form.strip()
+    off_pers = OFFENSE_FORMATIONS.get(o, {})
+    def_pers = DEFENSE_FORMATIONS.get(d, {})
+    if not off_pers or not def_pers:
+        return ''
+
+    notes = []
+    # Wishbone/ND Box (2 TE) vs Nickel/Dime (2 LB)
+    if o in ('Wishbone', 'Notre Dame Box') and d in ('Nickel', 'Dime'):
+        notes.append(f'Your 2 TEs force them to cover with DBs or give up easy completions underneath — exploit this all game')
+    # Trips/Shotgun (3 WR) vs 4-4 (3 DB)
+    if o in ('Trips', 'Shotgun') and d == '4-4':
+        notes.append(f'One of your WRs will get a LB in coverage every play — identify which LB is slowest and attack him all game')
+    # Trips/Shotgun vs Nickel (5 DB)
+    if o in ('Trips', 'Shotgun') and d == 'Nickel':
+        notes.append(f'They have enough DBs to match your WRs — win with route running, exploit WR AGI vs DB AGI edges')
+    # I Formation/Pro vs 5-2 (5 DL)
+    if o in ('I Formation', 'Pro') and d == '5-2':
+        notes.append(f'Their 5 DL will overpower your OL in the run game — consider spreading them out with Shotgun or Trips')
+    # ND Box/Wishbone (2 RB, 2 TE) vs Dime (2 LB)
+    if o in ('Notre Dame Box', 'Wishbone') and d == 'Dime':
+        notes.append(f'Perfect formation vs their pass defense — your RBs and TEs will overpower their 2 LBs, run it early and often')
+    # Wishbone vs 3-4 (4 LB)
+    if o == 'Wishbone' and d == '3-4':
+        notes.append(f'They have 4 LBs to match your run-heavy formation — only run if your RB STR and OL BLK edges are strong')
+
+    return ' | '.join(notes)
 
 
 def parse_ratings(text):
@@ -277,6 +331,137 @@ def parse_ratings(text):
     return ratings
 
 
+def parse_players(text):
+    """Parse individual player names and TOT ratings from raw ratings text.
+    Returns list of {'name': str, 'pos': str, 'tot': int, 'stats': {stat: val}}."""
+    pos_set = set(POSITIONS)
+    lines = [l for l in text.splitlines() if l.strip()]
+
+    header_idx = None
+    pos_col = None
+    name_col = None
+    stat_cols = []
+
+    for i, line in enumerate(lines):
+        tokens = re.split(r'\t', line)
+        if len(tokens) < 3:
+            continue
+        normed = [STAT_MAP.get(t.strip().lower()) for t in tokens]
+        stat_count = sum(1 for n in normed if n)
+        pos_col_candidate = next(
+            (j for j, t in enumerate(tokens) if t.strip().lower() == 'pos'), None
+        )
+        # Look for a name column
+        name_col_candidate = next(
+            (j for j, t in enumerate(tokens) if t.strip().lower() in ('name', 'player')), None
+        )
+        if stat_count >= 3 and pos_col_candidate is not None:
+            header_idx = i
+            pos_col = pos_col_candidate
+            name_col = name_col_candidate
+            stat_cols = [(j, normed[j]) for j in range(len(normed)) if normed[j]]
+            break
+
+    if header_idx is None:
+        return []
+
+    # If no explicit name column, use column 0 if pos_col != 0, else column 1
+    if name_col is None:
+        name_col = 0 if pos_col != 0 else 1
+
+    players = []
+    for line in lines[header_idx + 1:]:
+        tokens = re.split(r'\t', line)
+        if len(tokens) <= max(pos_col, name_col):
+            continue
+        tokens = [t.strip().lstrip('*').strip() for t in tokens]
+        pos = tokens[pos_col].upper()
+        if pos not in pos_set:
+            continue
+        name = tokens[name_col]
+        if not name or name.upper() in pos_set:
+            continue
+        stats = {}
+        for col_j, stat in stat_cols:
+            if col_j < len(tokens):
+                try:
+                    stats[stat] = int(float(tokens[col_j]))
+                except (ValueError, TypeError):
+                    pass
+        tot = stats.get('TOT', 0)
+        players.append({'name': name, 'pos': pos, 'tot': tot, 'stats': stats})
+
+    return players
+
+
+def find_standout_players(your_players, opp_players):
+    """Return standout players dicts for display.
+    Top 2 offensive (RB, WR, TE, QB) and top 2 defensive (DL, LB, DB) by TOT for each team."""
+    off_pos = {'QB', 'RB', 'WR', 'TE'}
+    def_pos = {'DL', 'LB', 'DB'}
+
+    def _top(players, positions, n=2):
+        eligible = [p for p in players if p['pos'] in positions and p['tot'] > 0]
+        eligible.sort(key=lambda x: -x['tot'])
+        return eligible[:n]
+
+    def _off_sentence(p):
+        pos = p['pos']
+        tot = p['tot']
+        stats = p['stats']
+        if pos == 'QB':
+            return f"Elite quarterback with {tot} TOT — can make every throw and extends plays."
+        if pos == 'RB':
+            spd = stats.get('SPD', '?')
+            stren = stats.get('STR', '?')
+            return f"Your most explosive weapon. {spd} speed and {stren} strength make him a mismatch on every play."
+        if pos == 'WR':
+            spd = stats.get('SPD', '?')
+            agi = stats.get('A', '?')
+            return f"Deep threat with {spd} speed and {agi} agility — can beat any DB one-on-one."
+        if pos == 'TE':
+            spd = stats.get('SPD', '?')
+            stren = stats.get('STR', '?')
+            return f"Versatile weapon with {spd} speed and {stren} strength — creates mismatches vs LBs."
+        return f"{tot} TOT — impact player."
+
+    def _def_sentence(p):
+        pos = p['pos']
+        stats = p['stats']
+        if pos == 'DL':
+            stren = stats.get('STR', '?')
+            spd = stats.get('SPD', '?')
+            return f"Dominant presence on the line — {stren} strength and {spd} speed disrupt every play."
+        if pos == 'LB':
+            spd = stats.get('SPD', '?')
+            tkl = stats.get('TKL', '?')
+            return f"Sideline-to-sideline player — {spd} speed and {tkl} tackling shut down the run and passing lanes."
+        if pos == 'DB':
+            spd = stats.get('SPD', '?')
+            agi = stats.get('A', '?')
+            return f"Lockdown coverage — {spd} speed and {agi} agility to shadow any receiver."
+        return f"Impact defender."
+
+    def _opp_def_sentence(p):
+        return _def_sentence(p).rstrip('.') + f" — watch out for {p['name']}, he will be a problem."
+
+    your_off = _top(your_players, off_pos)
+    your_def = _top(your_players, def_pos)
+    opp_off = _top(opp_players, off_pos)
+    opp_def = _top(opp_players, def_pos)
+
+    return {
+        'your_offense': [{'name': p['name'], 'pos': p['pos'], 'tot': p['tot'],
+                          'sentence': _off_sentence(p)} for p in your_off],
+        'your_defense': [{'name': p['name'], 'pos': p['pos'], 'tot': p['tot'],
+                          'sentence': _def_sentence(p)} for p in your_def],
+        'opp_offense':  [{'name': p['name'], 'pos': p['pos'], 'tot': p['tot'],
+                          'sentence': _off_sentence(p)} for p in opp_off],
+        'opp_defense':  [{'name': p['name'], 'pos': p['pos'], 'tot': p['tot'],
+                          'sentence': _opp_def_sentence(p)} for p in opp_def],
+    }
+
+
 def _stat(ratings, pos, stat):
     """Return a stat value or None."""
     return ratings.get(pos, {}).get(stat)
@@ -306,13 +491,7 @@ def _tier(edge, key=None):
 
 
 def compute_matchups(offense_r, defense_r):
-    """Return sorted list of matchup dicts, best edge first.
-
-    offense_r = YOUR team's ratings (OL, RB, WR, TE are what matter)
-    defense_r = OPPONENT team's ratings (DL, LB, DB are what matter)
-    Positive edge = YOUR team has the advantage.
-    Each row is a single stat vs single stat comparison — no composites.
-    """
+    """Return sorted list of the 8 meaningful matchup dicts, best edge first."""
 
     def edge(off_pos, off_stat, def_pos, def_stat):
         off = _stat(offense_r, off_pos, off_stat)
@@ -320,14 +499,16 @@ def compute_matchups(offense_r, defense_r):
         return (off - dfn) if (off is not None and dfn is not None) else None
 
     raw = [
-        ('outside_run', 'Outside Run',   'Your RB Spd vs Their LB Spd',   edge('RB', 'SPD', 'LB', 'SPD')),
-        ('inside_run',  'Inside Run',    'Your RB Str vs Their LB Str',    edge('RB', 'STR', 'LB', 'STR')),
-        ('run_block',   'Run Blocking',  'Your OL Blk vs Their DL Tkl',    edge('OL', 'BLK', 'DL', 'TKL')),
-        ('power_run',   'Power Run',     'Your OL Str vs Their DL Str',    edge('OL', 'STR', 'DL', 'STR')),
-        ('open_field',  'Open Field',    'Your RB Spd vs Their DB Spd',    edge('RB', 'SPD', 'DB', 'SPD')),
-        ('deep_pass',   'Deep Pass',     'Your WR Spd vs Their DB Spd',    edge('WR', 'SPD', 'DB', 'SPD')),
-        ('route_run',   'Route Running', 'Your WR Agi vs Their DB Agi',    edge('WR', 'A',   'DB', 'A')),
-        ('te_mismatch', 'TE Mismatch',   'Your TE Spd vs Their LB Spd',    edge('TE', 'SPD', 'LB', 'SPD')),
+        # RUN GAME
+        ('run_block',    'Run Blocking',  'Your OL BLK vs Their DL TKL',   edge('OL', 'BLK', 'DL', 'TKL')),
+        ('power_run',   'Power Run',      'Your OL STR vs Their DL STR',   edge('OL', 'STR', 'DL', 'STR')),
+        ('outside_run', 'Outside Run',    'Your RB SPD vs Their LB SPD',   edge('RB', 'SPD', 'LB', 'SPD')),
+        ('short_yardage','Short Yardage', 'Your RB STR vs Their LB STR',   edge('RB', 'STR', 'LB', 'STR')),
+        # PASSING GAME
+        ('deep_pass',   'Deep Pass',      'Your WR SPD vs Their DB SPD',   edge('WR', 'SPD', 'DB', 'SPD')),
+        ('route_run',   'Route Running',  'Your WR AGI vs Their DB AGI',   edge('WR', 'A',   'DB', 'A')),
+        ('te_coverage', 'TE Coverage',    'Your TE TOT vs Their LB TOT',   edge('TE', 'TOT', 'LB', 'TOT')),
+        ('te_middle',   'TE Over Middle', 'Your TE SPD vs Their DB SPD',   edge('TE', 'SPD', 'DB', 'SPD')),
     ]
 
     matchups = []
@@ -344,128 +525,85 @@ def compute_matchups(offense_r, defense_r):
     return matchups
 
 
-# ─── Mismatch scanning: every offensive pos vs every defensive pos ───────────
+# ─── Mismatch scanning: only the 8 meaningful comparisons ───────────────────
 
 MISMATCH_COMPARISONS = [
-    # (off_pos, off_stat, def_pos, def_stat, label_template)
-    ('RB', 'SPD', 'LB', 'SPD', 'RB Speed vs LB Speed'),
-    ('RB', 'SPD', 'DB', 'SPD', 'RB Speed vs DB Speed'),
-    ('RB', 'STR', 'LB', 'STR', 'RB Strength vs LB Strength'),
-    ('RB', 'A',   'LB', 'A',   'RB Agility vs LB Agility'),
-    ('RB', 'A',   'DB', 'A',   'RB Agility vs DB Agility'),
-    ('WR', 'SPD', 'DB', 'SPD', 'WR Speed vs DB Speed'),
-    ('WR', 'SPD', 'LB', 'SPD', 'WR Speed vs LB Speed'),
-    ('WR', 'A',   'DB', 'A',   'WR Agility vs DB Agility'),
-    ('WR', 'A',   'LB', 'A',   'WR Agility vs LB Agility'),
-    ('TE', 'SPD', 'LB', 'SPD', 'TE Speed vs LB Speed'),
-    ('TE', 'SPD', 'DB', 'SPD', 'TE Speed vs DB Speed'),
-    ('TE', 'STR', 'LB', 'STR', 'TE Strength vs LB Strength'),
-    ('TE', 'A',   'LB', 'A',   'TE Agility vs LB Agility'),
     ('OL', 'BLK', 'DL', 'TKL', 'OL Blocking vs DL Tackling'),
     ('OL', 'STR', 'DL', 'STR', 'OL Strength vs DL Strength'),
-    ('OL', 'A',   'DL', 'A',   'OL Agility vs DL Agility'),
-    ('RB', 'STR', 'DL', 'STR', 'RB Strength vs DL Strength'),
-    ('RB', 'SPD', 'DL', 'SPD', 'RB Speed vs DL Speed'),
-    ('WR', 'STR', 'DB', 'STR', 'WR Strength vs DB Strength'),
-    ('TE', 'STR', 'DL', 'STR', 'TE Strength vs DL Strength'),
+    ('RB', 'SPD', 'LB', 'SPD', 'RB Speed vs LB Speed'),
+    ('RB', 'STR', 'LB', 'STR', 'RB Strength vs LB Strength'),
+    ('WR', 'SPD', 'DB', 'SPD', 'WR Speed vs DB Speed'),
+    ('WR', 'A',   'DB', 'A',   'WR Agility vs DB Agility'),
+    ('TE', 'TOT', 'LB', 'TOT', 'TE Overall vs LB Overall'),
+    ('TE', 'SPD', 'DB', 'SPD', 'TE Speed vs DB Speed'),
 ]
 
-MISMATCH_THRESHOLD = 20  # flag edges of +20 or more
+MISMATCH_THRESHOLD = 20
 
 
 def _mismatch_narrative(off_pos, off_stat, off_val, def_pos, def_stat, def_val, edge_val):
-    """Generate a specific narrative using real numbers from parsed ratings."""
-    stat_names = {'SPD': 'speed', 'STR': 'strength', 'A': 'agility', 'BLK': 'blocking', 'TKL': 'tackling'}
-    off_stat_name = stat_names.get(off_stat, off_stat)
-    def_stat_name = stat_names.get(def_stat, def_stat)
-
+    stat_names = {'SPD': 'speed', 'STR': 'strength', 'A': 'agility', 'BLK': 'blocking', 'TKL': 'tackling', 'TOT': 'overall'}
+    off_name = stat_names.get(off_stat, off_stat)
+    def_name = stat_names.get(def_stat, def_stat)
     return (
-        f"Your {off_pos} {off_stat_name} ({off_val}) vs their {def_pos} {def_stat_name} ({def_val}) "
-        f"creates a +{edge_val} mismatch. "
-        f"This is a significant edge that should be exploited in your game plan."
+        f"Your {off_pos} {off_name} ({off_val}) vs their {def_pos} {def_name} ({def_val}) "
+        f"creates a +{edge_val} mismatch. This is a significant edge — exploit it every series."
     )
 
 
 def _mismatch_rec(off_pos, off_stat, def_pos, edge_val):
-    """Generate a specific recommendation based on the mismatch type."""
-    if off_pos == 'RB' and off_stat == 'SPD' and def_pos == 'LB':
-        return f"Toss sweeps and outside zone — your RB has a +{edge_val} speed edge on their LBs."
-    if off_pos == 'RB' and off_stat == 'SPD' and def_pos == 'DB':
-        return f"Draw plays, screens, and swing passes — your RB outruns their DBs by +{edge_val}."
-    if off_pos == 'RB' and off_stat == 'SPD' and def_pos == 'DL':
-        return f"Stretch runs and outside zone — your RB outruns their DL by +{edge_val}."
-    if off_pos == 'RB' and off_stat == 'STR' and def_pos == 'LB':
-        return f"Power runs inside — your RB is +{edge_val} stronger than their LBs."
-    if off_pos == 'RB' and off_stat == 'STR' and def_pos == 'DL':
-        return f"Inside zone and gap schemes — your RB can break through their DL tackles (+{edge_val})."
-    if off_pos == 'RB' and off_stat == 'A':
-        return f"Counters, traps, and cutback runs — your RB agility edge is +{edge_val} vs their {def_pos}."
-    if off_pos == 'WR' and off_stat == 'SPD' and def_pos == 'DB':
-        return f"Go routes and post routes — your WRs burn their DBs with a +{edge_val} speed edge."
-    if off_pos == 'WR' and off_stat == 'SPD' and def_pos == 'LB':
-        return f"WR routes over the middle — your WRs are +{edge_val} faster than their LBs in coverage."
-    if off_pos == 'WR' and off_stat == 'A' and def_pos == 'DB':
-        return f"Crossing routes and option routes — your WRs have a +{edge_val} agility edge at the break."
-    if off_pos == 'WR' and off_stat == 'A' and def_pos == 'LB':
-        return f"Slot WR routes vs linebackers — +{edge_val} agility mismatch in the intermediate zones."
-    if off_pos == 'WR' and off_stat == 'STR':
-        return f"Contested catches and physical routes — your WRs are +{edge_val} stronger than their DBs."
-    if off_pos == 'TE' and off_stat == 'SPD' and def_pos == 'LB':
-        return f"TE seam routes and crosses — your TE is +{edge_val} faster than their LBs."
-    if off_pos == 'TE' and off_stat == 'SPD' and def_pos == 'DB':
-        return f"TE routes into deep zones — your TE has a +{edge_val} speed edge over their DBs."
-    if off_pos == 'TE' and off_stat == 'STR':
-        return f"TE blocking on power runs and short routes in traffic — +{edge_val} strength edge vs their {def_pos}."
-    if off_pos == 'TE' and off_stat == 'A':
-        return f"TE option routes and release moves — +{edge_val} agility edge vs their {def_pos}."
     if off_pos == 'OL' and off_stat == 'BLK':
         return f"Commit to the run — your OL blocking edge is +{edge_val} over their DL tackling."
     if off_pos == 'OL' and off_stat == 'STR':
         return f"Power runs and goal line plays — your OL is +{edge_val} stronger than their DL."
-    if off_pos == 'OL' and off_stat == 'A':
-        return f"Outside zone and pulling schemes — your OL agility is +{edge_val} over their DL."
+    if off_pos == 'RB' and off_stat == 'SPD':
+        return f"Toss sweeps and outside zone — your RB has a +{edge_val} speed edge on their LBs."
+    if off_pos == 'RB' and off_stat == 'STR':
+        return f"Power runs inside — your RB is +{edge_val} stronger than their LBs."
+    if off_pos == 'WR' and off_stat == 'SPD':
+        return f"Go routes and post routes — your WRs burn their DBs with a +{edge_val} speed edge."
+    if off_pos == 'WR' and off_stat == 'A':
+        return f"Crossing routes and option routes — your WRs have a +{edge_val} agility edge at the break."
+    if off_pos == 'TE' and off_stat == 'TOT':
+        return f"Target your TE relentlessly — +{edge_val} overall edge vs their LBs in coverage."
+    if off_pos == 'TE' and off_stat == 'SPD':
+        return f"TE crossing routes over the middle — your TE has a +{edge_val} speed edge over their DBs."
     return f"Exploit this +{edge_val} edge with {off_pos} vs their {def_pos}."
 
 
 def _danger_narrative(off_pos, off_stat, off_val, def_pos, def_stat, def_val, edge_val):
-    """Generate a danger narrative using real numbers."""
-    stat_names = {'SPD': 'speed', 'STR': 'strength', 'A': 'agility', 'BLK': 'blocking', 'TKL': 'tackling'}
-    off_stat_name = stat_names.get(off_stat, off_stat)
-    def_stat_name = stat_names.get(def_stat, def_stat)
-
+    stat_names = {'SPD': 'speed', 'STR': 'strength', 'A': 'agility', 'BLK': 'blocking', 'TKL': 'tackling', 'TOT': 'overall'}
+    off_name = stat_names.get(off_stat, off_stat)
+    def_name = stat_names.get(def_stat, def_stat)
     return (
-        f"Their {def_pos} {def_stat_name} ({def_val}) vs your {off_pos} {off_stat_name} ({off_val}) "
-        f"gives them a {edge_val} advantage. "
-        f"Avoid situations where this matchup is isolated."
+        f"Their {def_pos} {def_name} ({def_val}) vs your {off_pos} {off_name} ({off_val}) "
+        f"gives them a {edge_val} advantage. Avoid isolating this matchup."
     )
 
 
 def _danger_rec(off_pos, off_stat, def_pos, edge_val):
-    """Generate a danger zone recommendation."""
-    if off_pos == 'RB' and off_stat == 'SPD' and def_pos == 'LB':
-        return f"Avoid outside runs — their LBs have a {edge_val} speed edge over your RBs."
-    if off_pos == 'RB' and off_stat == 'SPD' and def_pos == 'DB':
-        return f"Limit RB in open field — their DBs are {edge_val} faster than your RBs."
-    if off_pos == 'RB' and off_stat == 'STR':
-        return f"No power runs — their {def_pos} is {edge_val} stronger than your RBs."
-    if off_pos == 'WR' and off_stat == 'SPD':
-        return f"No deep shots — their {def_pos} has a {edge_val} speed edge over your WRs."
-    if off_pos == 'WR' and off_stat == 'A':
-        return f"Avoid intermediate routes — their {def_pos} mirrors your WRs ({edge_val} agility edge)."
-    if off_pos == 'TE' and off_stat == 'SPD':
-        return f"Don't route your TE vs their {def_pos} — {edge_val} speed disadvantage."
-    if off_pos == 'TE' and off_stat == 'STR':
-        return f"Keep TE in protection — their {def_pos} is {edge_val} stronger."
     if off_pos == 'OL' and off_stat == 'BLK':
         return f"Limit run plays — their DL tackling is {edge_val} better than your OL blocking."
     if off_pos == 'OL' and off_stat == 'STR':
         return f"Avoid power runs — their DL is {edge_val} stronger than your OL."
+    if off_pos == 'RB' and off_stat == 'SPD':
+        return f"Avoid outside runs — their LBs have a {edge_val} speed edge over your RBs."
+    if off_pos == 'RB' and off_stat == 'STR':
+        return f"No power runs inside — their LBs are {edge_val} stronger than your RBs."
+    if off_pos == 'WR' and off_stat == 'SPD':
+        return f"No deep shots — their DBs have a {edge_val} speed edge over your WRs."
+    if off_pos == 'WR' and off_stat == 'A':
+        return f"Avoid intermediate routes — their DBs mirror your WRs ({edge_val} agility edge)."
+    if off_pos == 'TE' and off_stat == 'TOT':
+        return f"Don't rely on TE vs their LBs — they have a {edge_val} overall edge."
+    if off_pos == 'TE' and off_stat == 'SPD':
+        return f"Don't route your TE vs their DBs — {edge_val} speed disadvantage."
     return f"Avoid this matchup — their {def_pos} has a {edge_val} edge over your {off_pos}."
 
 
-def find_individual_edges(offense_r, defense_r, your_team, opponent_team):
-    """Scan every offensive vs defensive position. Flag +20 edges as mismatches.
-    Returns (advantages, dangers) using real numbers from parsed ratings."""
+def find_individual_edges(offense_r, defense_r):
+    """Flag +20 edges on the 8 meaningful matchups only.
+    Returns (advantages, dangers) using real numbers."""
     advantages = []
     dangers = []
 
@@ -493,71 +631,104 @@ def find_individual_edges(offense_r, defense_r, your_team, opponent_team):
 
     advantages.sort(key=lambda x: -x['edge'])
     dangers.sort(key=lambda x: x['edge'])
-
     return advantages[:8], dangers[:8]
 
 
-def compute_passing_targets(offense_r, defense_r):
-    """Compute recommended passing target percentages for TE/WR/RB adding to 100%.
-    Based on mismatch edges — bigger edge = higher target share."""
-    # TE vs LB speed edge
-    te_edge = 0
+def compute_passing_targets(offense_r, defense_r, off_form=None, def_form=None):
+    """Compute passing target percentages for TE/WR/RB adding to 100%.
+    Weighted by formation personnel and defensive coverage."""
+    # TE edge: TE TOT vs LB TOT + TE SPD vs DB SPD
+    te_edges = []
+    te_tot = _stat(offense_r, 'TE', 'TOT')
+    lb_tot = _stat(defense_r, 'LB', 'TOT')
+    if te_tot is not None and lb_tot is not None:
+        te_edges.append(te_tot - lb_tot)
     te_spd = _stat(offense_r, 'TE', 'SPD')
-    lb_spd = _stat(defense_r, 'LB', 'SPD')
-    if te_spd is not None and lb_spd is not None:
-        te_edge = te_spd - lb_spd
-
-    # WR vs DB speed + agility edge (average)
-    wr_edge = 0
-    edges = []
-    wr_spd = _stat(offense_r, 'WR', 'SPD')
     db_spd = _stat(defense_r, 'DB', 'SPD')
+    if te_spd is not None and db_spd is not None:
+        te_edges.append(te_spd - db_spd)
+    te_edge = sum(te_edges) / len(te_edges) if te_edges else 0
+
+    # WR edge: WR SPD vs DB SPD + WR AGI vs DB AGI
+    wr_edges = []
+    wr_spd = _stat(offense_r, 'WR', 'SPD')
     if wr_spd is not None and db_spd is not None:
-        edges.append(wr_spd - db_spd)
+        wr_edges.append(wr_spd - db_spd)
     wr_a = _stat(offense_r, 'WR', 'A')
     db_a = _stat(defense_r, 'DB', 'A')
     if wr_a is not None and db_a is not None:
-        edges.append(wr_a - db_a)
-    if edges:
-        wr_edge = sum(edges) / len(edges)
+        wr_edges.append(wr_a - db_a)
+    wr_edge = sum(wr_edges) / len(wr_edges) if wr_edges else 0
 
-    # RB vs DB/LB speed edge (open field)
+    # RB edge: RB TOT vs LB TOT (checkdown value)
     rb_edge = 0
-    rb_spd = _stat(offense_r, 'RB', 'SPD')
-    if rb_spd is not None and db_spd is not None:
-        rb_edge = rb_spd - db_spd
+    rb_tot = _stat(offense_r, 'RB', 'TOT')
+    if rb_tot is not None and lb_tot is not None:
+        rb_edge = rb_tot - lb_tot
 
-    # Convert edges to weights (shift so negative edges still get some share)
+    # Base weights from edges
     te_w = max(te_edge + 30, 5)
     wr_w = max(wr_edge + 30, 5)
     rb_w = max(rb_edge + 30, 5)
-    total = te_w + wr_w + rb_w
 
+    # Formation adjustments
+    off_pers = OFFENSE_FORMATIONS.get(off_form, {}) if off_form else {}
+    def_pers = DEFENSE_FORMATIONS.get(def_form, {}) if def_form else {}
+    num_db = def_pers.get('DB', 4)
+
+    if off_form in ('Wishbone', 'Notre Dame Box'):
+        te_w *= 1.4  # 2 TEs on field
+        rb_w *= 1.3  # 2 RBs on field
+    elif off_form in ('Shotgun', 'Trips'):
+        wr_w *= 1.4  # 3 WRs on field
+
+    # More DBs = tighter WR coverage → favor TE/RB
+    if num_db >= 5:
+        wr_w *= 0.85
+        te_w *= 1.15
+        rb_w *= 1.1
+    elif num_db <= 3:
+        wr_w *= 1.2
+
+    total = te_w + wr_w + rb_w
     te_pct = round(te_w / total * 100)
     wr_pct = round(wr_w / total * 100)
-    rb_pct = 100 - te_pct - wr_pct  # ensure they sum to 100
+    rb_pct = 100 - te_pct - wr_pct
+
+    # Build explanations with real numbers
+    te_explain = ''
+    if te_tot is not None and lb_tot is not None:
+        te_explain = f"TE TOT {te_tot} vs LB TOT {lb_tot} ({'+' if te_edge >= 0 else ''}{round(te_edge)})"
+    wr_explain = ''
+    if wr_spd is not None and db_spd is not None:
+        wr_explain = f"WR SPD {wr_spd} vs DB SPD {db_spd} ({'+' if wr_edge >= 0 else ''}{round(wr_edge)})"
+    rb_explain = ''
+    if rb_tot is not None and lb_tot is not None:
+        rb_explain = f"RB TOT {rb_tot} vs LB TOT {lb_tot} ({'+' if rb_edge >= 0 else ''}{round(rb_edge)}) — checkdown value"
 
     return {
-        'wr': {'pct': wr_pct, 'edge': round(wr_edge),
-               'wr_spd': wr_spd, 'db_spd': db_spd, 'wr_a': wr_a, 'db_a': db_a},
-        'te': {'pct': te_pct, 'edge': round(te_edge),
-               'te_spd': te_spd, 'lb_spd': lb_spd},
-        'rb': {'pct': rb_pct, 'edge': round(rb_edge),
-               'rb_spd': rb_spd, 'db_spd': db_spd},
+        'wr': {'pct': wr_pct, 'edge': round(wr_edge), 'explain': wr_explain},
+        'te': {'pct': te_pct, 'edge': round(te_edge), 'explain': te_explain},
+        'rb': {'pct': rb_pct, 'edge': round(rb_edge), 'explain': rb_explain},
     }
 
 
-def compute_run_split(offense_r, defense_r):
-    """Compute recommended Outside/Inside run percentage split.
-    Based on RB speed vs LB speed (outside) and OL/RB strength vs DL/LB strength (inside)."""
-    # Outside edge: RB speed vs LB speed
+def compute_run_split(offense_r, defense_r, off_form=None, def_form=None):
+    """Compute Outside/Inside run percentage split factoring in defense."""
+    def_pers = DEFENSE_FORMATIONS.get(def_form, {}) if def_form else {}
+    num_dl = def_pers.get('DL', 4)
+    num_lb = def_pers.get('LB', 3)
+    num_db = def_pers.get('DB', 4)
+    heavy_box = num_dl + num_lb  # DL + LB in the box
+
+    # Outside edge: RB SPD vs LB SPD
     outside_edge = 0
     rb_spd = _stat(offense_r, 'RB', 'SPD')
     lb_spd = _stat(defense_r, 'LB', 'SPD')
     if rb_spd is not None and lb_spd is not None:
         outside_edge = rb_spd - lb_spd
 
-    # Inside edge: average of OL STR vs DL STR, RB STR vs LB STR
+    # Inside edge: OL STR vs DL STR + RB STR vs LB STR
     inside_edges = []
     ol_str = _stat(offense_r, 'OL', 'STR')
     dl_str = _stat(defense_r, 'DL', 'STR')
@@ -567,25 +738,47 @@ def compute_run_split(offense_r, defense_r):
     lb_str = _stat(defense_r, 'LB', 'STR')
     if rb_str is not None and lb_str is not None:
         inside_edges.append(rb_str - lb_str)
-    inside_edge = sum(inside_edges) / len(inside_edges) if inside_edges else 0
+    inside_edge = round(sum(inside_edges) / len(inside_edges)) if inside_edges else 0
+    ol_str_edge = (ol_str - dl_str) if (ol_str is not None and dl_str is not None) else 0
 
-    # Convert to percentages
-    out_w = max(outside_edge + 30, 5)
-    in_w = max(inside_edge + 30, 5)
-    total = out_w + in_w
-    outside_pct = round(out_w / total * 100)
-    inside_pct = 100 - outside_pct
+    # Determine split
+    warning = ''
+    if def_form in ('5-2', '4-4') or heavy_box >= 8:
+        # Heavy box — warn about inside runs
+        warning = f"They have {heavy_box} in the box ({def_form}) — inside runs will be tough. Consider passing or outside runs."
+        outside_pct = 65
+        inside_pct = 35
+    elif def_form in ('Nickel', 'Dime') or num_db >= 5:
+        # Light box — strongly recommend running
+        warning = f"They are in a pass defense ({def_form}, only {heavy_box} in the box) — run the ball, they cannot stop it."
+        outside_pct = 50
+        inside_pct = 50
+    else:
+        # Standard — balance based on edges
+        if outside_edge >= 15 and ol_str_edge >= 10:
+            outside_pct = 55
+            inside_pct = 45
+        elif outside_edge >= 15:
+            outside_pct = 60
+            inside_pct = 40
+        elif ol_str_edge >= 10:
+            outside_pct = 40
+            inside_pct = 60
+        else:
+            outside_pct = 50
+            inside_pct = 50
 
     return {
         'outside': {'pct': outside_pct, 'edge': round(outside_edge),
                      'rb_spd': rb_spd, 'lb_spd': lb_spd},
         'inside': {'pct': inside_pct, 'edge': round(inside_edge),
                     'ol_str': ol_str, 'dl_str': dl_str, 'rb_str': rb_str, 'lb_str': lb_str},
+        'warning': warning,
     }
 
 
 def build_game_plan(matchups):
-    """Build the 4-row game plan summary (no QB Protection)."""
+    """Build the 4-row game plan summary."""
     by_key = {m['key']: m for m in matchups}
 
     def avg_edge(*keys):
@@ -595,8 +788,8 @@ def build_game_plan(matchups):
 
     rows = [
         ('Run Outside',    'outside_run', avg_edge('outside_run')),
-        ('Run Inside',     'inside_run',  avg_edge('power_run', 'inside_run')),
-        ('Pass Short',     None,          avg_edge('te_mismatch', 'route_run')),
+        ('Run Inside',     'short_yardage', avg_edge('power_run', 'short_yardage')),
+        ('Pass Short',     None,          avg_edge('te_coverage', 'route_run')),
         ('Pass Deep',      None,          avg_edge('deep_pass')),
     ]
 
@@ -1992,6 +2185,8 @@ def strategy_route():
     your_team            = request.form.get("your_team", "").strip()
     opponent_ratings_raw = request.form.get("opponent_ratings", "").strip()
     your_ratings_raw     = request.form.get("your_ratings", "").strip()
+    your_offense         = request.form.get("your_offense", "").strip()
+    their_defense        = request.form.get("their_defense", "").strip()
 
     error = None
     matchups = []
@@ -2000,14 +2195,14 @@ def strategy_route():
     dangers = []
     passing_targets = None
     run_split = None
+    formation_note = ''
+    standouts = None
 
     if not opponent_team or not your_team:
         error = "Please enter both team names."
     elif not opponent_ratings_raw or not your_ratings_raw:
         error = "Please paste ratings for both teams."
     else:
-        # Your Team  = OFFENSE (OL, RB, WR, TE)
-        # Opponent   = DEFENSE (DL, LB, DB)
         offense_r = parse_ratings(your_ratings_raw)
         defense_r = parse_ratings(opponent_ratings_raw)
 
@@ -2016,13 +2211,16 @@ def strategy_route():
         elif not offense_r:
             error = f"Could not parse {your_team} ratings. Check the format."
         else:
-            matchups           = compute_matchups(offense_r, defense_r)
-            game_plan          = build_game_plan(matchups)
-            advantages, dangers = find_individual_edges(
-                offense_r, defense_r, your_team, opponent_team
-            )
-            passing_targets    = compute_passing_targets(offense_r, defense_r)
-            run_split          = compute_run_split(offense_r, defense_r)
+            matchups            = compute_matchups(offense_r, defense_r)
+            game_plan           = build_game_plan(matchups)
+            advantages, dangers = find_individual_edges(offense_r, defense_r)
+            passing_targets     = compute_passing_targets(offense_r, defense_r, your_offense, their_defense)
+            run_split           = compute_run_split(offense_r, defense_r, your_offense, their_defense)
+            formation_note      = get_formation_matchup_note(your_offense, their_defense)
+
+            your_players = parse_players(your_ratings_raw)
+            opp_players  = parse_players(opponent_ratings_raw)
+            standouts    = find_standout_players(your_players, opp_players)
 
     return render_template(
         "strategy.html",
@@ -2030,12 +2228,16 @@ def strategy_route():
         your_team=your_team,
         opponent_ratings_raw=opponent_ratings_raw,
         your_ratings_raw=your_ratings_raw,
+        your_offense=your_offense,
+        their_defense=their_defense,
         matchups=matchups,
         game_plan=game_plan,
         advantages=advantages,
         dangers=dangers,
         passing_targets=passing_targets,
         run_split=run_split,
+        formation_note=formation_note,
+        standouts=standouts,
         error=error,
     )
 
@@ -2044,7 +2246,9 @@ def strategy_route():
 @subscription_required
 def halftime_advisor():
     return render_template("halftime.html", your_team='', opp_team='', box_raw='', gamelog_raw='',
-                           your_ratings_raw='', opp_ratings_raw='', report={}, error=None)
+                           your_ratings_raw='', opp_ratings_raw='',
+                           your_offense='', their_defense='',
+                           report={}, error=None)
 
 @app.route("/halftime", methods=["POST"])
 @subscription_required
@@ -2052,9 +2256,11 @@ def halftime_route():
     your_team        = request.form.get("ht_your_team",    "").strip()
     opp_team         = request.form.get("ht_opp_team",     "").strip()
     box_raw          = request.form.get("ht_box_score",    "").strip()
-    gamelog_raw      = request.form.get("ht_game_log",     "").strip()
+    gamelog_raw       = request.form.get("ht_game_log",     "").strip()
     your_ratings_raw = request.form.get("ht_your_ratings", "").strip()
     opp_ratings_raw  = request.form.get("ht_opp_ratings",  "").strip()
+    your_offense     = request.form.get("ht_your_offense", "").strip()
+    their_defense    = request.form.get("ht_their_defense","").strip()
 
     try:
         print(f"\n>>> HALFTIME game_log first 100 chars: {gamelog_raw[:100]!r}", flush=True)
@@ -2073,13 +2279,83 @@ def halftime_route():
     else:
         your_stats, their_stats, box_players = parse_box_score(box_raw, your_team, opp_team)
         plays = parse_game_log(gamelog_raw, your_team, opp_team)
+
+        # Parse ratings for strategy integration
+        offense_r = parse_ratings(your_ratings_raw) if your_ratings_raw else {}
+        defense_r = parse_ratings(opp_ratings_raw) if opp_ratings_raw else {}
+
+        # Build base halftime report
         report = build_halftime_report(your_team, opp_team, your_stats, their_stats, plays, box_players)
+
+        # Add strategy-based second half recommendations if ratings available
+        if offense_r and defense_r:
+            matchups = compute_matchups(offense_r, defense_r)
+            advantages, dangers = find_individual_edges(offense_r, defense_r)
+            passing_targets = compute_passing_targets(offense_r, defense_r, your_offense, their_defense)
+            run_split_data = compute_run_split(offense_r, defense_r, your_offense, their_defense)
+            formation_note = get_formation_matchup_note(your_offense, their_defense)
+
+            your_players = parse_players(your_ratings_raw)
+            opp_players = parse_players(opp_ratings_raw)
+            standouts = find_standout_players(your_players, opp_players)
+
+            # Inject strategy bullets into report
+            strat_bullets = []
+
+            if formation_note:
+                strat_bullets.append(f"▶ FORMATION: {formation_note}")
+
+            if their_defense in ('Nickel', 'Dime'):
+                strat_bullets.append(f"▶ They are in {their_defense} — run the ball more in the second half, they cannot stop it with {DEFENSE_FORMATIONS[their_defense]['DL']+DEFENSE_FORMATIONS[their_defense]['LB']} in the box")
+            if your_offense in ('Wishbone', 'Notre Dame Box'):
+                strat_bullets.append(f"▶ Your run-heavy {your_offense} formation should stay aggressive — 2 RBs and 2 TEs overpower their front")
+
+            # Passing targets with percentages
+            pt = passing_targets
+            strat_bullets.append(
+                f"▶ PASSING TARGETS: WR {pt['wr']['pct']}% / TE {pt['te']['pct']}% / RB {pt['rb']['pct']}%"
+            )
+            if pt['wr']['explain']:
+                strat_bullets.append(f"   {pt['wr']['explain']}")
+            if pt['te']['explain']:
+                strat_bullets.append(f"   {pt['te']['explain']}")
+
+            # Run split
+            rs = run_split_data
+            strat_bullets.append(
+                f"▶ RUN SPLIT: Outside {rs['outside']['pct']}% / Inside {rs['inside']['pct']}%"
+            )
+            if rs['warning']:
+                strat_bullets.append(f"   {rs['warning']}")
+
+            # Top advantages to exploit
+            for adv in advantages[:2]:
+                strat_bullets.append(f"▶ EXPLOIT: {adv['adv_rec']}")
+
+            # Danger zones
+            for dan in dangers[:2]:
+                strat_bullets.append(f"▶ DANGER: {dan['dan_rec']}")
+
+            # Standout opponent defenders to watch
+            if standouts:
+                for d in standouts.get('opp_defense', []):
+                    strat_bullets.append(f"▶ WATCH: {d['name']} ({d['pos']}) — {d['tot']} TOT, he will be a problem in the second half")
+
+                # Your standout offensive players to target more
+                for o in standouts.get('your_offense', [])[:1]:
+                    strat_bullets.append(f"▶ TARGET: Get {o['name']} ({o['pos']}, {o['tot']} TOT) more touches in the second half")
+
+            report['strategy_bullets'] = strat_bullets
+            report['matchups'] = matchups
+            report['advantages'] = advantages
+            report['dangers'] = dangers
 
     return render_template(
         "halftime.html",
         your_team=your_team, opp_team=opp_team,
         box_raw=box_raw, gamelog_raw=gamelog_raw,
         your_ratings_raw=your_ratings_raw, opp_ratings_raw=opp_ratings_raw,
+        your_offense=your_offense, their_defense=their_defense,
         report=report, error=error,
     )
 

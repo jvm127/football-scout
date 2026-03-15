@@ -77,7 +77,7 @@
       letter-spacing: 0.07em;
     }
 
-    input[type="text"] {
+    input[type="text"], select {
       background: #0f1117;
       border: 1px solid #2d3348;
       color: #e2e8f0;
@@ -89,7 +89,7 @@
       width: 100%;
       transition: border-color 0.15s;
     }
-    input[type="text"]:focus { border-color: #4f6ef7; }
+    input[type="text"]:focus, select:focus { border-color: #4f6ef7; }
     input[type="text"]::placeholder { color: #475569; }
 
     textarea {
@@ -161,6 +161,53 @@
       margin-top: 36px;
     }
     .section-label:first-of-type { margin-top: 0; }
+
+    /* ── Formation Note ── */
+    .formation-note {
+      background: #1a1f2e;
+      border: 1px solid #f59e0b;
+      border-radius: 10px;
+      padding: 14px 18px;
+      font-size: 14px;
+      color: #fcd34d;
+      line-height: 1.6;
+      margin-bottom: 28px;
+    }
+
+    /* ── Standout Players ── */
+    .standout-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 12px;
+    }
+    @media (max-width: 640px) { .standout-grid { grid-template-columns: 1fr; } }
+
+    .standout-col {
+      background: #1e2130;
+      border: 1px solid #2d3348;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .standout-col-header {
+      padding: 10px 16px;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      border-bottom: 1px solid #2d3348;
+    }
+    .standout-col-header.yours { background: #13221a; color: #22c55e; border-top: 3px solid #22c55e; }
+    .standout-col-header.theirs { background: #1e1313; color: #ef4444; border-top: 3px solid #ef4444; }
+    .standout-sub { background: #161926; padding: 6px 16px; font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.1em; border-bottom: 1px solid #1a1f2e; }
+    .standout-card {
+      padding: 12px 16px;
+      border-bottom: 1px solid #1a1f2e;
+    }
+    .standout-card:last-child { border-bottom: none; }
+    .standout-name { font-size: 14px; font-weight: 700; color: #e2e8f0; }
+    .standout-tot { font-size: 12px; color: #f59e0b; font-weight: 600; margin-left: 6px; }
+    .standout-note { font-size: 12px; color: #94a3b8; line-height: 1.5; margin-top: 4px; }
 
     /* ── Biggest Advantages / Dangers ── */
     .highlights-list {
@@ -400,6 +447,13 @@
       margin-top: -4px;
     }
 
+    .run-warning {
+      font-size: 13px;
+      color: #fcd34d;
+      padding: 10px 0 4px;
+      font-weight: 600;
+    }
+
   </style>
 </head>
 <body>
@@ -424,6 +478,15 @@
                    value="{{ opponent_team }}"/>
           </div>
           <div class="field">
+            <label for="their_defense">Their Defense</label>
+            <select id="their_defense" name="their_defense">
+              <option value="">-- Select --</option>
+              {% for d in ['3-4','4-3','4-4','5-2','Nickel','Dime'] %}
+              <option value="{{ d }}" {% if their_defense == d %}selected{% endif %}>{{ d }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="field">
             <label for="opponent_ratings">Opponent Team Ratings</label>
             <textarea id="opponent_ratings" name="opponent_ratings" rows="10">{{ opponent_ratings_raw }}</textarea>
           </div>
@@ -433,6 +496,15 @@
             <label for="your_team">Your Team</label>
             <input type="text" id="your_team" name="your_team"
                    value="{{ your_team }}"/>
+          </div>
+          <div class="field">
+            <label for="your_offense">Your Offense</label>
+            <select id="your_offense" name="your_offense">
+              <option value="">-- Select --</option>
+              {% for o in ['I Formation','Pro','Wishbone','Notre Dame Box','Shotgun','Trips'] %}
+              <option value="{{ o }}" {% if your_offense == o %}selected{% endif %}>{{ o }}</option>
+              {% endfor %}
+            </select>
           </div>
           <div class="field">
             <label for="your_ratings">Your Team Ratings</label>
@@ -453,11 +525,67 @@
   {% if matchups %}
   <div class="results-header">
     <h2>{{ your_team }} vs {{ opponent_team }}</h2>
-    <div class="meta">Matchup analysis — {{ matchups | selectattr('edge') | list | length }} of {{ matchups | length }} matchups with data</div>
+    <div class="meta">
+      Matchup analysis{% if your_offense %} — {{ your_offense }}{% endif %}{% if their_defense %} vs {{ their_defense }}{% endif %}
+    </div>
   </div>
 
+  <!-- Formation Matchup Note -->
+  {% if formation_note %}
+  <div class="formation-note">{{ formation_note }}</div>
+  {% endif %}
+
+  <!-- Standout Players -->
+  {% if standouts %}
+  <div class="section-label">Standout Players</div>
+  <div class="standout-grid">
+    <div class="standout-col">
+      <div class="standout-col-header yours">{{ your_team }}</div>
+      {% if standouts.your_offense %}
+      <div class="standout-sub">Offense</div>
+      {% for p in standouts.your_offense %}
+      <div class="standout-card">
+        <div><span class="standout-name">{{ p.name }}</span> ({{ p.pos }})<span class="standout-tot">{{ p.tot }} TOT</span></div>
+        <div class="standout-note">{{ p.sentence }}</div>
+      </div>
+      {% endfor %}
+      {% endif %}
+      {% if standouts.your_defense %}
+      <div class="standout-sub">Defense</div>
+      {% for p in standouts.your_defense %}
+      <div class="standout-card">
+        <div><span class="standout-name">{{ p.name }}</span> ({{ p.pos }})<span class="standout-tot">{{ p.tot }} TOT</span></div>
+        <div class="standout-note">{{ p.sentence }}</div>
+      </div>
+      {% endfor %}
+      {% endif %}
+    </div>
+    <div class="standout-col">
+      <div class="standout-col-header theirs">{{ opponent_team }}</div>
+      {% if standouts.opp_offense %}
+      <div class="standout-sub">Offense</div>
+      {% for p in standouts.opp_offense %}
+      <div class="standout-card">
+        <div><span class="standout-name">{{ p.name }}</span> ({{ p.pos }})<span class="standout-tot">{{ p.tot }} TOT</span></div>
+        <div class="standout-note">{{ p.sentence }}</div>
+      </div>
+      {% endfor %}
+      {% endif %}
+      {% if standouts.opp_defense %}
+      <div class="standout-sub">Defense</div>
+      {% for p in standouts.opp_defense %}
+      <div class="standout-card">
+        <div><span class="standout-name">{{ p.name }}</span> ({{ p.pos }})<span class="standout-tot">{{ p.tot }} TOT</span></div>
+        <div class="standout-note">{{ p.sentence }}</div>
+      </div>
+      {% endfor %}
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
   <!-- Biggest Mismatches (Your Advantages) -->
-  <div class="section-label">🟢 Your Mismatches (+20 or more)</div>
+  <div class="section-label">Your Mismatches (+20 or more)</div>
   {% if advantages %}
   <div class="highlights-list">
     {% for item in advantages %}
@@ -468,16 +596,16 @@
         <span class="highlight-edge">+{{ item.edge }}</span>
       </div>
       <div class="highlight-body">{{ item.adv_text }}</div>
-      <span class="highlight-rec">▶ {{ item.adv_rec }}</span>
+      <span class="highlight-rec">{{ item.adv_rec }}</span>
     </div>
     {% endfor %}
   </div>
   {% else %}
-  <p class="no-highlights">No mismatches of +20 or greater found in your favor.</p>
+  <p class="no-highlights">No mismatches of +20 or greater found on the 8 key matchups.</p>
   {% endif %}
 
   <!-- Danger Zones (Their Advantages) -->
-  <div class="section-label">🔴 Danger Zones (Their Mismatches)</div>
+  <div class="section-label">Danger Zones (Their Mismatches)</div>
   {% if dangers %}
   <div class="highlights-list">
     {% for item in dangers %}
@@ -488,17 +616,17 @@
         <span class="highlight-edge">{{ item.edge }}</span>
       </div>
       <div class="highlight-body">{{ item.dan_text }}</div>
-      <span class="highlight-rec">▶ {{ item.dan_rec }}</span>
+      <span class="highlight-rec">{{ item.dan_rec }}</span>
     </div>
     {% endfor %}
   </div>
   {% else %}
-  <p class="no-highlights">No danger zones — they don't hold a -20 or greater edge anywhere.</p>
+  <p class="no-highlights">No danger zones — they don't hold a -20 or greater edge on any key matchup.</p>
   {% endif %}
 
   <!-- Passing Target Percentages -->
   {% if passing_targets %}
-  <div class="section-label">🎯 Passing Targets</div>
+  <div class="section-label">Passing Targets</div>
   <div class="pct-split-card">
     <div class="pct-row">
       <div class="pct-label">WR</div>
@@ -506,12 +634,7 @@
         <div class="pct-bar pct-bar-wr" style="width: {{ passing_targets.wr.pct }}%"></div>
       </div>
       <div class="pct-value">{{ passing_targets.wr.pct }}%</div>
-      <div class="pct-detail">
-        {% if passing_targets.wr.wr_spd is not none and passing_targets.wr.db_spd is not none %}
-          WR Spd {{ passing_targets.wr.wr_spd }} vs DB Spd {{ passing_targets.wr.db_spd }}
-          ({% if passing_targets.wr.edge > 0 %}+{% endif %}{{ passing_targets.wr.edge }})
-        {% endif %}
-      </div>
+      <div class="pct-detail">{{ passing_targets.wr.explain }}</div>
     </div>
     <div class="pct-row">
       <div class="pct-label">TE</div>
@@ -519,12 +642,7 @@
         <div class="pct-bar pct-bar-te" style="width: {{ passing_targets.te.pct }}%"></div>
       </div>
       <div class="pct-value">{{ passing_targets.te.pct }}%</div>
-      <div class="pct-detail">
-        {% if passing_targets.te.te_spd is not none and passing_targets.te.lb_spd is not none %}
-          TE Spd {{ passing_targets.te.te_spd }} vs LB Spd {{ passing_targets.te.lb_spd }}
-          ({% if passing_targets.te.edge > 0 %}+{% endif %}{{ passing_targets.te.edge }})
-        {% endif %}
-      </div>
+      <div class="pct-detail">{{ passing_targets.te.explain }}</div>
     </div>
     <div class="pct-row">
       <div class="pct-label">RB</div>
@@ -532,20 +650,18 @@
         <div class="pct-bar pct-bar-rb" style="width: {{ passing_targets.rb.pct }}%"></div>
       </div>
       <div class="pct-value">{{ passing_targets.rb.pct }}%</div>
-      <div class="pct-detail">
-        {% if passing_targets.rb.rb_spd is not none and passing_targets.rb.db_spd is not none %}
-          RB Spd {{ passing_targets.rb.rb_spd }} vs DB Spd {{ passing_targets.rb.db_spd }}
-          ({% if passing_targets.rb.edge > 0 %}+{% endif %}{{ passing_targets.rb.edge }})
-        {% endif %}
-      </div>
+      <div class="pct-detail">{{ passing_targets.rb.explain }}</div>
     </div>
   </div>
   {% endif %}
 
   <!-- Run Game Split -->
   {% if run_split %}
-  <div class="section-label">🏈 Run Game Split</div>
+  <div class="section-label">Run Game Split</div>
   <div class="pct-split-card">
+    {% if run_split.warning %}
+    <div class="run-warning">{{ run_split.warning }}</div>
+    {% endif %}
     <div class="pct-row">
       <div class="pct-label">Outside</div>
       <div class="pct-bar-wrap">
@@ -554,7 +670,7 @@
       <div class="pct-value">{{ run_split.outside.pct }}%</div>
       <div class="pct-detail">
         {% if run_split.outside.rb_spd is not none and run_split.outside.lb_spd is not none %}
-          RB Spd {{ run_split.outside.rb_spd }} vs LB Spd {{ run_split.outside.lb_spd }}
+          RB SPD {{ run_split.outside.rb_spd }} vs LB SPD {{ run_split.outside.lb_spd }}
           ({% if run_split.outside.edge > 0 %}+{% endif %}{{ run_split.outside.edge }})
         {% endif %}
       </div>
@@ -567,7 +683,7 @@
       <div class="pct-value">{{ run_split.inside.pct }}%</div>
       <div class="pct-detail">
         {% if run_split.inside.ol_str is not none and run_split.inside.dl_str is not none %}
-          OL Str {{ run_split.inside.ol_str }} vs DL Str {{ run_split.inside.dl_str }}
+          OL STR {{ run_split.inside.ol_str }} vs DL STR {{ run_split.inside.dl_str }}
           ({% if run_split.inside.edge > 0 %}+{% endif %}{{ run_split.inside.edge }})
         {% endif %}
       </div>

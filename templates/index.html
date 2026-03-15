@@ -683,6 +683,18 @@
                    value="{{ team or '' }}"/>
           </div>
           <div class="field">
+            <label for="their_defense">Their Defense</label>
+            <select id="their_defense" name="their_defense" style="background:#0f1117;border:1px solid #2d3348;color:#e2e8f0;padding:10px 14px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;width:100%;">
+              <option value="">-- Select --</option>
+              <option value="3-4">3-4</option>
+              <option value="4-3">4-3</option>
+              <option value="4-4">4-4</option>
+              <option value="5-2">5-2</option>
+              <option value="Nickel">Nickel</option>
+              <option value="Dime">Dime</option>
+            </select>
+          </div>
+          <div class="field">
             <label for="opponent_ratings">Opponent Team Ratings — paste raw ratings data here</label>
             <textarea id="opponent_ratings" name="opponent_ratings" rows="10"
                       placeholder="Pos&#9;A&#9;Spd&#9;Str&#9;Blk&#9;Tkl&#9;Tot&#10;QB&#9;72&#9;68&#9;55&#9;40&#9;45&#9;85&#10;RB&#9;85&#9;88&#9;75&#9;60&#9;50&#9;90&#10;..."></textarea>
@@ -693,6 +705,18 @@
             <label for="your_team">Your Team</label>
             <input type="text" id="your_team" name="your_team"
                    placeholder="e.g. Michigan"/>
+          </div>
+          <div class="field">
+            <label for="your_offense">Your Offense</label>
+            <select id="your_offense" name="your_offense" style="background:#0f1117;border:1px solid #2d3348;color:#e2e8f0;padding:10px 14px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;width:100%;">
+              <option value="">-- Select --</option>
+              <option value="I Formation">I Formation</option>
+              <option value="Pro">Pro</option>
+              <option value="Wishbone">Wishbone</option>
+              <option value="Notre Dame Box">Notre Dame Box</option>
+              <option value="Shotgun">Shotgun</option>
+              <option value="Trips">Trips</option>
+            </select>
           </div>
           <div class="field">
             <label for="your_ratings">Your Team Ratings — paste raw ratings data here</label>

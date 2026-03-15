@@ -282,6 +282,24 @@
           <label>Opponent Team</label>
           <input type="text" name="ht_opp_team" value="{{ opp_team }}"/>
         </div>
+        <div class="field">
+          <label>Your Offense</label>
+          <select name="ht_your_offense" style="background:#0f1117;border:1px solid #2d3348;color:#e2e8f0;padding:10px 14px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;width:100%;">
+            <option value="">-- Select --</option>
+            {% for o in ['I Formation','Pro','Wishbone','Notre Dame Box','Shotgun','Trips'] %}
+            <option value="{{ o }}" {% if your_offense == o %}selected{% endif %}>{{ o }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label>Their Defense</label>
+          <select name="ht_their_defense" style="background:#0f1117;border:1px solid #2d3348;color:#e2e8f0;padding:10px 14px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;width:100%;">
+            <option value="">-- Select --</option>
+            {% for d in ['3-4','4-3','4-4','5-2','Nickel','Dime'] %}
+            <option value="{{ d }}" {% if their_defense == d %}selected{% endif %}>{{ d }}</option>
+            {% endfor %}
+          </select>
+        </div>
       </div>
       <div class="ht-textareas">
         <div class="field">
@@ -376,6 +394,19 @@
       {% endfor %}
     </ul>
   </div>
+
+  <!-- Strategy-Based Second Half Plan -->
+  {% if report.strategy_bullets %}
+  <div class="section-label">Ratings-Based Second Half Adjustments</div>
+  <div class="adj-card">
+    <div class="adj-card-header yours">📊 {{ your_team }} — Based on Team Ratings</div>
+    <ul>
+      {% for bullet in report.strategy_bullets %}
+      <li>{{ bullet }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
 
   {% endif %}
 
