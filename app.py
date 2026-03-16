@@ -2906,83 +2906,100 @@ Opponent Team Ratings:
             error = f"AI analysis failed: {str(e)}"
 
     # Parse halftime score from box score text
-    # WIS box score format: "Team  Q1  Q2  Q3  Q4  Total" or similar
-    # We want Q1 + Q2 only (halftime), not the full game total
+    # WIS box score format is VERTICAL — team name on one line, then Q1, Q2, etc. on
+    # separate lines below it:
+    #   Stony Brook (18-0)
+    #   3
+    #   10
+    #   13
+    #   #1
+    #   Northern Iowa (18-0)
+    #   7
+    #   7
+    #   14
+    # Halftime = Q1 + Q2 (first two number-only lines after each team name)
+    # Records in parentheses like (18-0) must be ignored.
     your_score = None
     opp_score = None
     if box_raw and your_team and opp_team:
         lines = box_raw.splitlines()
         your_team_lower = your_team.lower().strip()
         opp_team_lower = opp_team.lower().strip()
-
-        # Build search terms: full name + individual words (3+ chars) for fuzzy matching
         your_words = [w for w in your_team_lower.split() if len(w) >= 3]
         opp_words = [w for w in opp_team_lower.split() if len(w) >= 3]
 
-        print(f">>> SCORE PARSER: Looking for '{your_team}' and '{opp_team}' in box score", flush=True)
-        print(f">>> SCORE PARSER: your_words={your_words}, opp_words={opp_words}", flush=True)
+        print(f">>> SCORE PARSER: Looking for '{your_team}' and '{opp_team}'", flush=True)
 
-        # Find lines containing each team name and extract numbers
-        your_nums = None
-        opp_nums = None
-        # Track lines with numbers for fallback (first two lines with 4+ numbers)
-        score_lines = []
+        def _match_team(line_lower, team_lower, words):
+            """Check if a line matches a team name, ignoring parenthetical records."""
+            # Strip out (record) before matching so "(18-0)" doesn't interfere
+            clean = re.sub(r'\([^)]*\)', '', line_lower).strip()
+            if not clean:
+                return False
+            return team_lower in line_lower or any(w in clean for w in words)
+
+        def _collect_scores_after(lines, start_idx):
+            """Collect number-only lines after a team name line. Returns list of ints."""
+            scores = []
+            for j in range(start_idx + 1, len(lines)):
+                stripped = lines[j].strip()
+                # Skip blank lines
+                if not stripped:
+                    continue
+                # A line that is purely a number (quarter score or total)
+                if re.match(r'^\d+$', stripped):
+                    scores.append(int(stripped))
+                else:
+                    # Non-number line = next team or other data, stop collecting
+                    break
+            return scores
+
+        your_quarters = None
+        opp_quarters = None
 
         for i, line in enumerate(lines):
             line_lower = line.lower().strip()
             if not line_lower:
                 continue
-            # Extract all numbers from this line
-            nums = re.findall(r'\b(\d+)\b', line)
-            if len(nums) < 2:
-                continue
 
-            print(f">>> SCORE PARSER: Line {i}: {line.strip()!r} -> nums={nums}", flush=True)
+            if _match_team(line_lower, your_team_lower, your_words) and your_quarters is None:
+                your_quarters = _collect_scores_after(lines, i)
+                print(f">>> SCORE PARSER: Matched YOUR team at line {i}: {line.strip()!r} -> quarters={your_quarters}", flush=True)
+            elif _match_team(line_lower, opp_team_lower, opp_words) and opp_quarters is None:
+                opp_quarters = _collect_scores_after(lines, i)
+                print(f">>> SCORE PARSER: Matched OPP team at line {i}: {line.strip()!r} -> quarters={opp_quarters}", flush=True)
 
-            # Check if this line matches your team (full name or any word)
-            is_your = your_team_lower in line_lower or any(w in line_lower for w in your_words)
-            is_opp = opp_team_lower in line_lower or any(w in line_lower for w in opp_words)
+        # Fallback: find the first two lines that look like team names (contain letters)
+        # followed by number-only lines
+        if not your_quarters or not opp_quarters:
+            print(f">>> SCORE PARSER: Name match incomplete, trying positional fallback", flush=True)
+            team_blocks = []
+            i = 0
+            while i < len(lines):
+                stripped = lines[i].strip()
+                # A team-name line has letters and is not purely a number
+                if stripped and not re.match(r'^\d+$', stripped) and re.search(r'[a-zA-Z]', stripped):
+                    scores = _collect_scores_after(lines, i)
+                    if len(scores) >= 2:
+                        team_blocks.append((stripped, scores))
+                        print(f">>> SCORE PARSER: Fallback block: {stripped!r} -> {scores}", flush=True)
+                        i += len(scores)  # skip past the score lines
+                i += 1
+            if len(team_blocks) >= 2:
+                if not your_quarters:
+                    your_quarters = team_blocks[0][1]
+                if not opp_quarters:
+                    opp_quarters = team_blocks[1][1]
 
-            if is_your and not your_nums:
-                your_nums = [int(n) for n in nums]
-                print(f">>> SCORE PARSER: Matched YOUR team: {your_nums}", flush=True)
-            elif is_opp and not opp_nums:
-                opp_nums = [int(n) for n in nums]
-                print(f">>> SCORE PARSER: Matched OPP team: {opp_nums}", flush=True)
-            elif len(nums) >= 4:
-                score_lines.append([int(n) for n in nums])
-
-        # Fallback: if we couldn't match team names but found exactly 2 score-like lines
-        if (not your_nums or not opp_nums) and len(score_lines) >= 2:
-            print(f">>> SCORE PARSER: Name match failed, using fallback score lines", flush=True)
-            if not your_nums:
-                your_nums = score_lines[0]
-            if not opp_nums:
-                opp_nums = score_lines[1] if len(score_lines) > 1 else None
-
-        # If we found quarter-by-quarter data (4+ numbers = Q1,Q2,Q3,Q4,Total or Q1,Q2,Q3,Q4)
-        # Sum only Q1 + Q2 for halftime score
-        if your_nums and opp_nums:
-            if len(your_nums) >= 4:
-                # Q1 + Q2 (first two numbers are quarter scores)
-                your_score = your_nums[0] + your_nums[1]
-            elif len(your_nums) == 1:
-                your_score = your_nums[0]
-            else:
-                # 2-3 numbers — could be "Q1 Q2 Total" or just scores; use last as total
-                your_score = your_nums[-1]
-
-            if len(opp_nums) >= 4:
-                opp_score = opp_nums[0] + opp_nums[1]
-            elif len(opp_nums) == 1:
-                opp_score = opp_nums[0]
-            else:
-                opp_score = opp_nums[-1]
-
-            print(f">>> HALFTIME SCORE: {your_team} {your_score} (from {your_nums}) - "
-                  f"{opp_team} {opp_score} (from {opp_nums})", flush=True)
+        # Halftime = Q1 + Q2 (first two numbers collected)
+        if your_quarters and len(your_quarters) >= 2 and opp_quarters and len(opp_quarters) >= 2:
+            your_score = your_quarters[0] + your_quarters[1]
+            opp_score = opp_quarters[0] + opp_quarters[1]
+            print(f">>> HALFTIME SCORE: {your_team} {your_score} (Q1={your_quarters[0]}, Q2={your_quarters[1]}) - "
+                  f"{opp_team} {opp_score} (Q1={opp_quarters[0]}, Q2={opp_quarters[1]})", flush=True)
         else:
-            print(f">>> SCORE PARSER: Could not find scores. your_nums={your_nums}, opp_nums={opp_nums}", flush=True)
+            print(f">>> SCORE PARSER: Could not find enough quarter data. "
+                  f"your_quarters={your_quarters}, opp_quarters={opp_quarters}", flush=True)
 
     return render_template(
         "halftime.html",
