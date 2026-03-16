@@ -183,6 +183,29 @@
     }
     .gameplan-bullet strong { color: #ffffff; }
 
+    .scoreboard {
+      display: flex; align-items: center; justify-content: center;
+      gap: 24px; margin-bottom: 28px;
+      background: #161926; border: 1px solid #2d3348; border-radius: 12px;
+      padding: 24px 32px;
+    }
+    .score-team {
+      text-align: center; flex: 1;
+    }
+    .score-team-name {
+      font-size: 13px; font-weight: 700; color: #94a3b8;
+      text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px;
+    }
+    .score-team-pts {
+      font-size: 48px; font-weight: 800; color: #ffffff; line-height: 1;
+    }
+    .score-team.winning .score-team-pts { color: #22c55e; }
+    .score-team.losing .score-team-pts { color: #ef4444; }
+    .score-team.tied .score-team-pts { color: #f59e0b; }
+    .score-divider {
+      font-size: 28px; font-weight: 700; color: #475569; padding: 0 8px;
+    }
+
     .spinner-wrap {
       display: none;
       align-items: center;
@@ -300,6 +323,20 @@
     <h2>{{ your_team }} vs {{ opp_team }}</h2>
     <div class="meta">AI halftime analysis</div>
   </div>
+
+  {% if your_score is not none and opp_score is not none %}
+  <div class="scoreboard">
+    <div class="score-team {% if your_score > opp_score %}winning{% elif your_score < opp_score %}losing{% else %}tied{% endif %}">
+      <div class="score-team-name">{{ your_team }}</div>
+      <div class="score-team-pts">{{ your_score }}</div>
+    </div>
+    <div class="score-divider">—</div>
+    <div class="score-team {% if opp_score > your_score %}winning{% elif opp_score < your_score %}losing{% else %}tied{% endif %}">
+      <div class="score-team-name">{{ opp_team }}</div>
+      <div class="score-team-pts">{{ opp_score }}</div>
+    </div>
+  </div>
+  {% endif %}
 
   <div class="result-card">
     <h2>Halftime Analysis</h2>

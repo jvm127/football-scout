@@ -2800,6 +2800,7 @@ CRITICAL RULES:
 - NO MIXING POSITION ANALYSIS — when analyzing an RB, use only RB stats and matchups. When analyzing a TE, use only TE stats and matchups. Do not bring in one position's ratings to support another position's recommendation. Keep each position analysis clean and separate.
 - MATH MUST BE CORRECT — before writing any comparison, verify which number is higher. If YOUR stat is 88 and THEIR stat is 84, that is a +4 advantage FOR YOU — do not say they overpower you. Never say a stat "overpowers" or "significantly overpowers" unless the edge is +15 or more. Double check every single comparison before writing.
 - DO NOT CONTRADICT THE DATA — if the passing game is working well (high completion %, good yardage), do not recommend abandoning it. If inside runs average 3.0+ ypc, that is decent — do not say to abandon them. Only recommend stopping something if the numbers clearly show it is failing (below 3.0 ypc for runs, below 50% completion for passes). Every recommendation must be logically consistent with the actual first half stats.
+- SCORE ACCURACY — always state the score correctly. If Team A has 13 points and Team B has 14 points, then Team A is LOSING by 1 point and Team B is WINNING by 1 point. The team with MORE points is winning. The team with FEWER points is losing. Double check who is winning before writing the summary. Never say a team "leads" when their score is lower than the opponent's.
 
 ANALYSIS RULES:
 - Read the game log carefully and identify actual play patterns — what run directions worked, what pass routes converted, which players performed
@@ -2887,6 +2888,33 @@ Opponent Team Ratings:
             traceback.print_exc()
             error = f"AI analysis failed: {str(e)}"
 
+    # Parse score from box score text for scoreboard display
+    your_score = None
+    opp_score = None
+    if box_raw and your_team and opp_team:
+        for line in box_raw.splitlines():
+            line_stripped = line.strip()
+            # Try patterns like "Team Name    13" or "Team Name\t13" or "Team Name: 13"
+            # Match team name followed by a number
+            if your_team.lower() in line_stripped.lower():
+                score_match = re.findall(r'(\d+)\s*$', line_stripped)
+                if score_match:
+                    your_score = int(score_match[-1])
+            if opp_team.lower() in line_stripped.lower():
+                score_match = re.findall(r'(\d+)\s*$', line_stripped)
+                if score_match:
+                    opp_score = int(score_match[-1])
+        # Also try pattern: "Team1 13, Team2 14" or "Team1 13 - Team2 14" on one line
+        if your_score is None or opp_score is None:
+            for line in box_raw.splitlines():
+                m = re.search(r'(\d+)\s*[-–—,]\s*(\d+)', line)
+                if m and (your_team.lower() in line.lower() or opp_team.lower() in line.lower()):
+                    your_score = int(m.group(1))
+                    opp_score = int(m.group(2))
+                    break
+        if your_score is not None and opp_score is not None:
+            print(f">>> HALFTIME SCORE: {your_team} {your_score} - {opp_team} {opp_score}", flush=True)
+
     return render_template(
         "halftime.html",
         your_team=your_team, opp_team=opp_team,
@@ -2894,6 +2922,7 @@ Opponent Team Ratings:
         your_ratings_raw=your_ratings_raw, opp_ratings_raw=opp_ratings_raw,
         your_offense=your_offense, their_defense=their_defense,
         ai_result=ai_result, error=error,
+        your_score=your_score, opp_score=opp_score,
     )
 
 
