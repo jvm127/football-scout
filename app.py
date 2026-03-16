@@ -2782,13 +2782,21 @@ Duke, Wyoming, Texas Christian, Eastern Michigan, Houston
 def parse_recruiting_players(raw_text):
     """Parse tab-separated recruiting board data into list of player dicts.
 
-    Flexibly detects columns by header names. Returns list of dicts with keys:
+    Handles two formats:
+    1. All data in columns (including a Considering column)
+    2. Schools/considering on separate non-tab lines after each player row
+
+    Also scans every column for numeric distance-like values if no explicit
+    Distance header is found.
+
+    Returns list of dicts with keys:
     name, pos, distance (float or None), gpa (str), work_ethic (str),
     ovr (str), considering (list of school strings), raw_line (original text),
     and all stat values found.
     """
-    lines = [l for l in raw_text.splitlines() if l.strip()]
-    if not lines:
+    all_lines = raw_text.splitlines()
+    lines_stripped = [l for l in all_lines if l.strip()]
+    if not lines_stripped:
         return []
 
     # ── Find the header row ──
@@ -2814,8 +2822,9 @@ def parse_recruiting_players(raw_text):
 
     header_idx = None
     col_map = {}  # col_index -> field_name
+    header_tab_count = 0
 
-    for i, line in enumerate(lines):
+    for i, line in enumerate(lines_stripped):
         tokens = re.split(r'\t', line)
         if len(tokens) < 3:
             continue
@@ -2831,11 +2840,24 @@ def parse_recruiting_players(raw_text):
         if has_identity and has_stat:
             header_idx = i
             col_map = temp_map
+            header_tab_count = len(tokens)
             break
 
     if header_idx is None:
-        # No header found — return raw text to Claude as-is
+        print(">>> PARSE: No header row detected!", flush=True)
         return []
+
+    print(f">>> PARSE: Header found at line {header_idx}: {lines_stripped[header_idx]!r}", flush=True)
+    print(f">>> PARSE: Column map: {col_map}", flush=True)
+    fields_found = set(col_map.values())
+    has_distance_col = 'distance' in fields_found
+    has_considering_col = 'considering' in fields_found
+    print(f">>> PARSE: has_distance_col={has_distance_col}, has_considering_col={has_considering_col}", flush=True)
+
+    # Show raw tokens for first 2 data rows
+    for dbg_i, dbg_line in enumerate(lines_stripped[header_idx + 1:header_idx + 4]):
+        dbg_tokens = re.split(r'\t', dbg_line)
+        print(f">>> PARSE: Row {dbg_i+1} ({len(dbg_tokens)} cols): {dbg_line[:120]!r}", flush=True)
 
     # Determine name and pos columns with fallbacks
     name_cols = [j for j, f in col_map.items() if f == 'name']
@@ -2846,61 +2868,88 @@ def parse_recruiting_players(raw_text):
     if name_col is None:
         name_col = 0 if pos_col != 0 else 1
 
+    # ── Parse data rows, handling schools on separate lines ──
     players = []
-    for line in lines[header_idx + 1:]:
+    data_lines = lines_stripped[header_idx + 1:]
+
+    for line in data_lines:
         tokens = re.split(r'\t', line)
-        tokens = [t.strip().lstrip('*').strip() for t in tokens]
-        if len(tokens) < 3:
-            continue
+        num_tabs = len(tokens)
 
-        name = tokens[name_col] if name_col < len(tokens) else ''
-        if not name:
-            continue
+        # Is this a "data row" (has tabs like the header) or a "school line" (few/no tabs)?
+        if num_tabs >= max(3, header_tab_count - 3):
+            # This is a player data row
+            tokens = [t.strip().lstrip('*').strip() for t in tokens]
 
-        pos = ''
-        if pos_col is not None and pos_col < len(tokens):
-            pos = tokens[pos_col].upper()
-
-        player = {
-            'name': name,
-            'pos': pos,
-            'distance': None,
-            'gpa': '',
-            'work_ethic': '',
-            'ovr': '',
-            'considering': [],
-            'stats': {},
-            'raw_line': line,
-        }
-
-        for j, field in col_map.items():
-            if j >= len(tokens):
+            name = tokens[name_col] if name_col < len(tokens) else ''
+            if not name:
                 continue
-            val = tokens[j]
-            if field == 'distance':
-                # Extract numeric distance
-                num = re.sub(r'[^0-9.]', '', val)
-                try:
-                    player['distance'] = float(num) if num else None
-                except ValueError:
-                    player['distance'] = None
-            elif field == 'gpa':
-                player['gpa'] = val
-            elif field == 'work_ethic':
-                player['work_ethic'] = val
-            elif field == 'ovr':
-                player['ovr'] = val
-            elif field == 'considering':
-                # Schools may be comma or slash separated
-                schools = re.split(r'[,/;]', val)
-                player['considering'] = [s.strip() for s in schools if s.strip()]
-            elif field in ('T', 'STR', 'A', 'SPD', 'E', 'GI', 'H', 'BLK', 'TKL'):
-                try:
-                    player['stats'][field] = int(float(val))
-                except (ValueError, TypeError):
-                    pass
 
-        players.append(player)
+            pos = ''
+            if pos_col is not None and pos_col < len(tokens):
+                pos = tokens[pos_col].upper()
+
+            player = {
+                'name': name,
+                'pos': pos,
+                'distance': None,
+                'gpa': '',
+                'work_ethic': '',
+                'ovr': '',
+                'considering': [],
+                'stats': {},
+                'raw_line': line,
+            }
+
+            for j, field in col_map.items():
+                if j >= len(tokens):
+                    continue
+                val = tokens[j]
+                if field == 'distance':
+                    num = re.sub(r'[^0-9.]', '', val)
+                    try:
+                        player['distance'] = float(num) if num else None
+                    except ValueError:
+                        player['distance'] = None
+                elif field == 'gpa':
+                    player['gpa'] = val
+                elif field == 'work_ethic':
+                    player['work_ethic'] = val
+                elif field == 'ovr':
+                    player['ovr'] = val
+                elif field == 'considering':
+                    schools = re.split(r'[,/;]', val)
+                    player['considering'] = [s.strip() for s in schools if s.strip()]
+                elif field in ('T', 'STR', 'A', 'SPD', 'E', 'GI', 'H', 'BLK', 'TKL'):
+                    try:
+                        player['stats'][field] = int(float(val))
+                    except (ValueError, TypeError):
+                        pass
+
+            # If no distance column in header, scan all unmapped numeric columns for distance-like values
+            if not has_distance_col and player['distance'] is None:
+                for j in range(len(tokens)):
+                    if j in col_map:
+                        continue  # skip mapped columns
+                    val = tokens[j].strip()
+                    # Look for a value that looks like miles (number, possibly with "mi" or "miles")
+                    m = re.match(r'^(\d+(?:\.\d+)?)\s*(?:mi(?:les?)?)?$', val, re.IGNORECASE)
+                    if m:
+                        dist_val = float(m.group(1))
+                        # Plausible distance range (1–5000 miles), and not a stat-like small number
+                        if 10 < dist_val < 5000:
+                            player['distance'] = dist_val
+                            break
+
+            players.append(player)
+        else:
+            # This is likely a "schools/considering" line — attach to the last player
+            if players:
+                school_text = line.strip()
+                if school_text:
+                    schools = re.split(r'[,/;]', school_text)
+                    new_schools = [s.strip() for s in schools if s.strip()]
+                    players[-1]['considering'].extend(new_schools)
 
     return players
 
@@ -2915,11 +2964,12 @@ def filter_recruiting_players(players, division, position):
 
     # ── Division-specific filtering ──
     if division == 'Division 1':
-        # Exclude missing distance
-        players = [p for p in players if p['distance'] is not None]
-        # Split into within 360 and beyond
-        primary = [p for p in players if p['distance'] <= 360]
-        beyond = [p for p in players if p['distance'] > 360]
+        # Division 1: distance filtering ONLY — NO school exclusions whatsoever
+        # Players with known distance: split into within 360 and beyond
+        has_dist = [p for p in players if p['distance'] is not None]
+        no_dist = [p for p in players if p['distance'] is None]
+        primary = [p for p in has_dist if p['distance'] <= 360] + no_dist
+        beyond = [p for p in has_dist if p['distance'] > 360]
         beyond.sort(key=lambda p: p['distance'])
         # Auto-expand if fewer than 10
         extended = []
@@ -2929,18 +2979,18 @@ def filter_recruiting_players(players, division, position):
         return primary, extended
 
     elif division == 'Division 1-AA':
-        # Exclude missing distance
-        players = [p for p in players if p['distance'] is not None]
-        # School exclusion check
+        # School exclusion check (D1-AA only)
         def passes_school_check(p):
             for school in p.get('considering', []):
                 if school.strip().lower() in D1AA_EXCLUDED_SCHOOLS:
                     return False
             return True
         players = [p for p in players if passes_school_check(p)]
-        # Split into within 360 and beyond
-        primary = [p for p in players if p['distance'] <= 360]
-        beyond = [p for p in players if p['distance'] > 360]
+        # Distance filtering — players with unknown distance go to primary
+        has_dist = [p for p in players if p['distance'] is not None]
+        no_dist = [p for p in players if p['distance'] is None]
+        primary = [p for p in has_dist if p['distance'] <= 360] + no_dist
+        beyond = [p for p in has_dist if p['distance'] > 360]
         beyond.sort(key=lambda p: p['distance'])
         # Auto-expand if fewer than 10
         extended = []
@@ -2957,11 +3007,11 @@ def filter_recruiting_players(players, division, position):
                 return True
             return all(s.strip().lower() in ('undecided', '') for s in considering)
         players = [p for p in players if is_undecided(p)]
-        # Exclude missing distance
-        players = [p for p in players if p['distance'] is not None]
-        # Split into within 800 and beyond
-        primary = [p for p in players if p['distance'] <= 800]
-        beyond = [p for p in players if p['distance'] > 800]
+        # Distance filtering — players with unknown distance go to primary
+        has_dist = [p for p in players if p['distance'] is not None]
+        no_dist = [p for p in players if p['distance'] is None]
+        primary = [p for p in has_dist if p['distance'] <= 800] + no_dist
+        beyond = [p for p in has_dist if p['distance'] > 800]
         beyond.sort(key=lambda p: p['distance'])
         # Auto-expand if fewer than 10
         extended = []
@@ -3016,6 +3066,37 @@ def recruiting_analyze():
     # ── Step 1: Parse player data ──
     players = parse_recruiting_players(player_data)
     print(f">>> RECRUITING: Parsed {len(players)} players from input", flush=True)
+    print(f">>> RECRUITING: Division={division}, Position={position}", flush=True)
+    print(f">>> RECRUITING: Raw input first 500 chars: {player_data[:500]!r}", flush=True)
+
+    # Debug: show first 3 parsed players
+    for idx, p in enumerate(players[:3]):
+        print(f">>> PLAYER {idx+1}: name={p['name']!r}, pos={p['pos']!r}, "
+              f"distance={p['distance']!r}, considering={p['considering']!r}", flush=True)
+
+    # Debug: show exclusion list sample
+    sorted_excl = sorted(list(D1AA_EXCLUDED_SCHOOLS))[:10]
+    print(f">>> EXCLUSION LIST (first 10 of {len(D1AA_EXCLUDED_SCHOOLS)}): {sorted_excl}", flush=True)
+
+    # Debug: test school check on first 3 players for D1-AA
+    if division == 'Division 1-AA':
+        for idx, p in enumerate(players[:3]):
+            schools = p.get('considering', [])
+            has_distance = p['distance'] is not None
+            failed_school = None
+            for school in schools:
+                if school.strip().lower() in D1AA_EXCLUDED_SCHOOLS:
+                    failed_school = school
+                    break
+            if not has_distance:
+                reason = "FAIL: missing distance"
+            elif failed_school:
+                reason = f"FAIL: school match '{failed_school}' (lowered: '{failed_school.strip().lower()}')"
+            elif p['distance'] > 360:
+                reason = f"PASS but beyond 360 (distance={p['distance']})"
+            else:
+                reason = "PASS"
+            print(f">>> FILTER CHECK player {idx+1} ({p['name']!r}): {reason}", flush=True)
 
     if not players:
         # Could not parse structured data — send raw text to Claude with filtering instructions
