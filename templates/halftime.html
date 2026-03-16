@@ -119,126 +119,46 @@
     }
     .results-header .meta { font-size: 13px; color: #64748b; margin-top: 4px; }
 
-    /* ── Section label ── */
-    .section-label {
-      font-size: 11px; font-weight: 700; color: #f59e0b;
-      text-transform: uppercase; letter-spacing: 0.12em;
-      margin-bottom: 14px; margin-top: 36px;
-    }
-    .section-label:first-of-type { margin-top: 0; }
-
-    /* ── Summary card ── */
-    .summary-card {
-      background: #1e2130;
-      border: 1px solid #2d3348;
-      border-left: 4px solid #f59e0b;
-      border-radius: 12px;
-      padding: 20px 24px;
-      font-size: 15px;
-      line-height: 1.7;
-      color: #cbd5e1;
-    }
-
-    /* ── Adjustment cards ── */
-    .adj-card {
+    /* ── AI Result ── */
+    .result-card {
       background: #1e2130;
       border: 1px solid #2d3348;
       border-radius: 12px;
-      overflow: hidden;
+      padding: 28px 32px;
+      margin-top: 28px;
     }
-
-    .adj-card-header {
-      background: #252a3d;
-      border-bottom: 1px solid #2d3348;
-      padding: 12px 20px;
-      font-size: 13px;
-      font-weight: 700;
-      color: #e2e8f0;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .adj-card-header.yours { border-top: 3px solid #22c55e; }
-    .adj-card ul {
-      list-style: none;
-      padding: 0;
-    }
-    .adj-card ul li {
-      padding: 13px 20px;
-      border-bottom: 1px solid #1a1f2e;
-      font-size: 13px;
-      color: #94a3b8;
-      line-height: 1.6;
-      display: flex;
-      gap: 10px;
-    }
-    .adj-card ul li:last-child { border-bottom: none; }
-    .adj-card ul li::before {
-      content: none;
-    }
-
-    /* ── Top Performers ── */
-    .perf-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 20px;
-    }
-    @media (max-width: 640px) { .perf-grid { grid-template-columns: 1fr; } }
-
-    .perf-col-header {
-      background: #252a3d;
-      border-bottom: 1px solid #2d3348;
-      padding: 10px 16px;
-      font-size: 12px;
-      font-weight: 700;
-      color: #e2e8f0;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-    }
-    .perf-col-header.yours { border-top: 3px solid #22c55e; }
-    .perf-col-header.theirs { border-top: 3px solid #ef4444; }
-
-    .perf-column {
-      background: #1e2130;
-      border: 1px solid #2d3348;
-      border-radius: 12px;
-      overflow: hidden;
-    }
-
-    .perf-card {
-      padding: 14px 16px;
-      border-bottom: 1px solid #1a1f2e;
-    }
-    .perf-card:last-child { border-bottom: none; }
-
-    .perf-name {
+    .result-card h2 {
       font-size: 14px;
       font-weight: 600;
-      color: #e2e8f0;
-      margin-bottom: 4px;
-    }
-    .perf-stats {
-      font-size: 12px;
       color: #f59e0b;
-      font-family: 'Courier New', monospace;
-      margin-bottom: 4px;
-    }
-    .perf-note {
-      font-size: 12px;
-      color: #94a3b8;
-      line-height: 1.5;
-      font-style: italic;
-    }
-    .perf-subheader {
-      background: #161926;
-      padding: 6px 16px;
-      font-size: 10px;
-      font-weight: 700;
-      color: #64748b;
       text-transform: uppercase;
-      letter-spacing: 0.1em;
-      border-bottom: 1px solid #1a1f2e;
+      letter-spacing: 0.07em;
+      margin-bottom: 16px;
     }
+    .result-body {
+      font-size: 14px;
+      color: #e2e8f0;
+      line-height: 1.7;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+
+    .spinner-wrap {
+      display: none;
+      align-items: center;
+      gap: 12px;
+      margin-top: 20px;
+    }
+    .spinner-wrap.visible { display: flex; }
+    .spinner {
+      width: 24px; height: 24px;
+      border: 3px solid #2d3348;
+      border-top-color: #f59e0b;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner-text { font-size: 13px; color: #94a3b8; }
   </style>
 </head>
 <body>
@@ -327,7 +247,7 @@
           <textarea name="ht_opp_ratings" rows="8" placeholder="Pos&#9;A&#9;Spd&#9;Str&#9;Blk&#9;Tkl&#9;Tot&#10;QB&#9;72&#9;68&#9;55&#9;40&#9;45&#9;85&#10;RB&#9;85&#9;88&#9;75&#9;60&#9;50&#9;90&#10;...">{{ opp_ratings_raw }}</textarea>
         </div>
       </div>
-      <button type="submit" class="btn-halftime">Get Halftime Adjustments</button>
+      <button type="submit" class="btn-halftime" id="submitBtn">Get Halftime Adjustments</button>
     </form>
   </div>
 
@@ -335,89 +255,32 @@
   <div class="error-banner">{{ error }}</div>
   {% endif %}
 
-  {% if report %}
+  {% if ai_result %}
   <div class="results-header">
     <h2>{{ your_team }} vs {{ opp_team }}</h2>
-    <div class="meta">Halftime adjustments report</div>
+    <div class="meta">AI halftime analysis</div>
   </div>
 
-  <!-- Section 1: First Half Summary -->
-  <div class="section-label">First Half Summary</div>
-  <div class="summary-card">{{ report.summary }}</div>
-
-  <!-- Top Performers -->
-  {% if report.your_performers or report.their_performers %}
-  <div class="section-label">Top Performers — First Half</div>
-  <div class="perf-grid">
-    <div class="perf-column">
-      <div class="perf-col-header yours">{{ your_team }}</div>
-      {% for p in report.your_performers %}
-      {% if loop.index0 == 0 and p.side == 'offense' %}
-      <div class="perf-subheader">OFFENSE</div>
-      {% endif %}
-      {% if p.side == 'defense' and (loop.index0 == 0 or report.your_performers[loop.index0 - 1].side == 'offense') %}
-      <div class="perf-subheader">DEFENSE</div>
-      {% endif %}
-      <div class="perf-card">
-        <div class="perf-name">{{ p.tag }}</div>
-        <div class="perf-stats">{{ p.statline }}</div>
-        <div class="perf-note">{{ p.note }}</div>
-      </div>
-      {% endfor %}
-      {% if not report.your_performers %}
-      <div class="perf-card"><div class="perf-note">No qualifying performers found.</div></div>
-      {% endif %}
-    </div>
-    <div class="perf-column">
-      <div class="perf-col-header theirs">{{ opp_team }}</div>
-      {% for p in report.their_performers %}
-      {% if loop.index0 == 0 and p.side == 'offense' %}
-      <div class="perf-subheader">OFFENSE</div>
-      {% endif %}
-      {% if p.side == 'defense' and (loop.index0 == 0 or report.their_performers[loop.index0 - 1].side == 'offense') %}
-      <div class="perf-subheader">DEFENSE</div>
-      {% endif %}
-      <div class="perf-card">
-        <div class="perf-name">{{ p.tag }}</div>
-        <div class="perf-stats">{{ p.statline }}</div>
-        <div class="perf-note">{{ p.note }}</div>
-      </div>
-      {% endfor %}
-      {% if not report.their_performers %}
-      <div class="perf-card"><div class="perf-note">No qualifying performers found.</div></div>
-      {% endif %}
-    </div>
+  <div class="result-card">
+    <h2>Halftime Analysis</h2>
+    <div class="result-body">{{ ai_result }}</div>
   </div>
-  {% endif %}
-
-  <!-- Section 2: What To Do To Win -->
-  <div class="section-label">What {{ your_team }} Needs To Do To Win The Second Half</div>
-  <div class="adj-card">
-    <div class="adj-card-header yours">🟢 {{ your_team }} — Second Half Game Plan</div>
-    <ul>
-      {% for bullet in report.win_bullets %}
-      <li>{{ bullet }}</li>
-      {% endfor %}
-    </ul>
-  </div>
-
-  <!-- Strategy-Based Second Half Plan -->
-  {% if report.strategy_bullets %}
-  <div class="section-label">Ratings-Based Second Half Adjustments</div>
-  <div class="adj-card">
-    <div class="adj-card-header yours">📊 {{ your_team }} — Based on Team Ratings</div>
-    <ul>
-      {% for bullet in report.strategy_bullets %}
-      <li>{{ bullet }}</li>
-      {% endfor %}
-    </ul>
-  </div>
-  {% endif %}
-
   {% endif %}
 
 </div>
 <script>
+  document.querySelector('form[action="/halftime"]').addEventListener('submit', function() {
+    var btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.textContent = 'Analyzing...';
+    btn.style.background = '#2d3348';
+    btn.style.color = '#64748b';
+    btn.style.cursor = 'not-allowed';
+    var spinner = document.createElement('div');
+    spinner.className = 'spinner-wrap visible';
+    spinner.innerHTML = '<div class="spinner"></div><span class="spinner-text">Analyzing — this may take a moment...</span>';
+    btn.parentNode.insertBefore(spinner, btn.nextSibling);
+  });
   document.addEventListener('click', function(e) {
     var menu = document.getElementById('mobileMenu');
     var hamburger = document.querySelector('.hamburger');

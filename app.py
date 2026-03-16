@@ -2544,37 +2544,80 @@ def strategy_route():
     their_defense        = request.form.get("their_defense", "").strip()
 
     error = None
-    matchups = []
-    game_plan = []
-    advantages = []
-    dangers = []
-    passing_targets = None
-    run_split = None
-    formation_note = ''
-    standouts = None
+    ai_result = None
 
     if not opponent_team or not your_team:
         error = "Please enter both team names."
     elif not opponent_ratings_raw or not your_ratings_raw:
         error = "Please paste ratings for both teams."
     else:
-        offense_r = parse_ratings(your_ratings_raw)
-        defense_r = parse_ratings(opponent_ratings_raw)
+        strategy_system_prompt = """You are an expert WhatIfSports sim football analyst. Analyze the matchup between two teams and provide a detailed game plan.
+You will receive:
 
-        if not defense_r:
-            error = f"Could not parse {opponent_team} ratings. Check the format."
-        elif not offense_r:
-            error = f"Could not parse {your_team} ratings. Check the format."
-        else:
-            matchups            = compute_matchups(offense_r, defense_r, your_offense)
-            game_plan           = build_game_plan(matchups, your_offense)
-            advantages, dangers = find_individual_edges(offense_r, defense_r, your_offense)
-            your_players = parse_players(your_ratings_raw)
-            opp_players  = parse_players(opponent_ratings_raw)
-            passing_targets     = compute_passing_targets(offense_r, defense_r, your_offense, their_defense, your_players)
-            run_split           = compute_run_split(offense_r, defense_r, your_offense, their_defense)
-            formation_note      = get_formation_matchup_note(your_offense, their_defense)
-            standouts    = find_standout_players(your_players, opp_players)
+Your team name and offense formation
+Opponent team name and defense formation
+Raw player ratings for both teams
+
+FORMATION PERSONNEL:
+I Formation: 1 RB, 2 WR, 1 TE
+Pro: 1 RB, 2 WR, 1 TE
+Wishbone: 1 FB, 2 RB, 1 TE, 1 WR
+Notre Dame Box: 2 RB, 1 WR, 2 TE
+Shotgun: 4 WR, 1 TE (no RB — do not include RB in passing targets or run game)
+Trips: 1 RB, 3 WR, 1 TE
+DEFENSE PERSONNEL:
+3-4: 3 DL, 4 LB, 4 DB
+4-3: 4 DL, 3 LB, 4 DB
+4-4: 4 DL, 4 LB, 3 DB
+5-2: 5 DL, 2 LB, 4 DB
+Nickel: 4 DL, 2 LB, 5 DB
+Dime: 3 DL, 2 LB, 6 DB
+ONLY USE THESE MEANINGFUL MATCHUPS:
+
+YOUR OL BLK vs THEIR DL TKL — run blocking edge
+YOUR OL STR vs THEIR DL STR — power run edge
+YOUR RB SPD vs THEIR LB SPD — outside run edge (only flag if +15 or more)
+YOUR RB STR vs THEIR LB STR — short yardage edge
+YOUR WR SPD vs THEIR DB SPD — deep passing edge
+YOUR WR AGI vs THEIR DB AGI — route running edge
+YOUR TE TOT vs THEIR LB TOT — TE coverage mismatch
+YOUR TE SPD vs THEIR DB SPD — TE over the middle
+NEVER compare RB vs DL, WR vs LB, RB SPD vs DB SPD, or include QB protection.
+
+OUTPUT SECTIONS IN ORDER:
+
+STANDOUT PLAYERS — parse individual player names and TOT ratings from the raw data
+Your team: top 2 offensive players by TOT, top 2 defensive players by TOT with one sentence each
+Opponent: same format, add 'Watch out for [name]' for their defensive standouts
+FORMATION MATCHUP — analyze your offense vs their defense personnel. Call out specific mismatches like '3 WRs vs only 3 DBs means one WR gets a LB in coverage'
+BIGGEST ADVANTAGES — list only edges of +20 or more using the 8 meaningful matchups. Write specific sim football advice with actual numbers.
+DANGER ZONES — opponent edges of +20 or more. Give specific advice to neutralize.
+RUN GAME PLAN — recommend inside vs outside percentage based on matchups and defense. For Shotgun say passing only — no RB on field. Factor in defense: Nickel/Dime = run more, 5-2/4-4 = spread them out.
+PASSING TARGETS — show recommended target percentages for each player on the field based on the formation. Use individual player names and stats. WRs get at least 50% in Shotgun/Trips. RB capped at 20% max (30% only if RB AGI vs LB AGI edge is +25 or more). Show reasoning with actual TOT numbers.
+GAME PLAN SUMMARY — 3-4 bullet points summarizing the most important things to do. Specific and actionable, no generic advice."""
+
+        user_message = f"""Your Team: {your_team}
+Your Offense: {your_offense}
+Opponent Team: {opponent_team}
+Their Defense: {their_defense}
+
+Your Team Ratings:
+{your_ratings_raw}
+
+Opponent Team Ratings:
+{opponent_ratings_raw}"""
+
+        try:
+            client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+            response = client.messages.create(
+                model="claude-sonnet-4-20250514",
+                max_tokens=2000,
+                system=strategy_system_prompt,
+                messages=[{"role": "user", "content": user_message}],
+            )
+            ai_result = response.content[0].text
+        except Exception as e:
+            error = f"AI analysis failed: {str(e)}"
 
     return render_template(
         "strategy.html",
@@ -2584,14 +2627,7 @@ def strategy_route():
         your_ratings_raw=your_ratings_raw,
         your_offense=your_offense,
         their_defense=their_defense,
-        matchups=matchups,
-        game_plan=game_plan,
-        advantages=advantages,
-        dangers=dangers,
-        passing_targets=passing_targets,
-        run_split=run_split,
-        formation_note=formation_note,
-        standouts=standouts,
+        ai_result=ai_result,
         error=error,
     )
 
@@ -2616,94 +2652,88 @@ def halftime_route():
     your_offense     = request.form.get("ht_your_offense", "").strip()
     their_defense    = request.form.get("ht_their_defense","").strip()
 
-    try:
-        print(f"\n>>> HALFTIME game_log first 100 chars: {gamelog_raw[:100]!r}", flush=True)
-    except BrokenPipeError:
-        pass
-    with open("/tmp/football_debug.txt", "w") as fh:
-        fh.write(f"box_score full:\n{box_raw}\n\n{'='*70}\n\ngame_log first 500:\n{gamelog_raw[:500]}\n")
-
     error   = None
-    report  = {}
+    ai_result = None
 
     if not your_team or not opp_team:
         error = "Please enter both team names."
     elif not box_raw and not gamelog_raw:
         error = "Please paste at least a box score or game log."
     else:
-        your_stats, their_stats, box_players = parse_box_score(box_raw, your_team, opp_team)
-        plays = parse_game_log(gamelog_raw, your_team, opp_team)
+        halftime_system_prompt = """You are an expert WhatIfSports sim football halftime analyst. You will receive first half game data and team ratings and provide a detailed second half game plan.
+You will receive:
 
-        # Parse ratings for strategy integration
-        offense_r = parse_ratings(your_ratings_raw) if your_ratings_raw else {}
-        defense_r = parse_ratings(opp_ratings_raw) if opp_ratings_raw else {}
+Team names, offensive formation, defensive formation
+Box score and team stats
+Full play-by-play game log
+Player ratings for both teams
 
-        # Build base halftime report
-        report = build_halftime_report(your_team, opp_team, your_stats, their_stats, plays, box_players)
+FORMATION PERSONNEL:
+I Formation: 1 RB, 2 WR, 1 TE
+Pro: 1 RB, 2 WR, 1 TE
+Wishbone: 1 FB, 2 RB, 1 TE, 1 WR
+Notre Dame Box: 2 RB, 1 WR, 2 TE
+Shotgun: 4 WR, 1 TE (no RB — do not include RB in passing targets or run game)
+Trips: 1 RB, 3 WR, 1 TE
+DEFENSE PERSONNEL:
+3-4: 3 DL, 4 LB, 4 DB
+4-3: 4 DL, 3 LB, 4 DB
+4-4: 4 DL, 4 LB, 3 DB
+5-2: 5 DL, 2 LB, 4 DB
+Nickel: 4 DL, 2 LB, 5 DB
+Dime: 3 DL, 2 LB, 6 DB
+ANALYSIS RULES:
 
-        # Add strategy-based second half recommendations if ratings available
-        if offense_r and defense_r:
-            matchups = compute_matchups(offense_r, defense_r, your_offense)
-            advantages, dangers = find_individual_edges(offense_r, defense_r, your_offense)
-            your_players = parse_players(your_ratings_raw)
-            opp_players = parse_players(opp_ratings_raw)
-            passing_targets = compute_passing_targets(offense_r, defense_r, your_offense, their_defense, your_players)
-            run_split_data = compute_run_split(offense_r, defense_r, your_offense, their_defense)
-            formation_note = get_formation_matchup_note(your_offense, their_defense)
-            standouts = find_standout_players(your_players, opp_players)
+Read the game log carefully and identify actual play patterns — what run directions worked, what pass routes converted, which players performed
+Use the ratings to identify matchup advantages
+Combine what actually happened in the first half WITH the ratings to give the most accurate second half plan
+Only use these 8 meaningful matchups: OL BLK vs DL TKL, OL STR vs DL STR, RB SPD vs LB SPD (only if +15 or more), RB STR vs LB STR, WR SPD vs DB SPD, WR AGI vs DB AGI, TE TOT vs LB TOT, TE SPD vs DB SPD
+Never compare RB vs DL, WR vs LB, or include QB protection
+For Shotgun: no RB on field, passing only
+If Nickel or Dime defense: recommend running more
+Never include motivational filler — every recommendation must be specific and backed by data
 
-            # Inject strategy bullets into report
-            strat_bullets = []
+OUTPUT SECTIONS IN ORDER:
 
-            if formation_note:
-                strat_bullets.append(f"▶ FORMATION: {formation_note}")
+FIRST HALF SUMMARY — 6-8 sentences written like a color commentator. Include current score, what worked and what did not for each team with specific stats and player names with position and team in parentheses. End with what the game is hinging on.
+TOP PERFORMERS — FIRST HALF — top 2 offensive and top 2 defensive players for each team based on actual stats from the game log. Show stat lines. Two columns side by side.
+SECOND HALF GAME PLAN — for the user's team only. 5-7 specific actionable bullet points. Each must reference actual first half data or ratings. Include:
 
-            if their_defense in ('Nickel', 'Dime'):
-                strat_bullets.append(f"▶ They are in {their_defense} — run the ball more in the second half, they cannot stop it with {DEFENSE_FORMATIONS[their_defense]['DL']+DEFENSE_FORMATIONS[their_defense]['LB']} in the box")
-            if your_offense == 'Wishbone':
-                strat_bullets.append(f"▶ Your Wishbone with FB and 2 RBs is a run-first formation — use FB for inside power, RBs for outside speed, keep the defense guessing")
-            elif your_offense == 'Notre Dame Box':
-                strat_bullets.append(f"▶ Your run-heavy Notre Dame Box formation should stay aggressive — 2 RBs and 2 TEs overpower their front")
+Best run direction (outside vs inside) with actual ypc from game log
+Best passing target with catches and yards from game log
+Formation vs defense exploitation based on personnel
+Which players to target more based on first half performance AND ratings matchup
+Score situation urgency if losing by 2+ scores
+Never include generic advice. Every bullet must have a specific reason."""
 
-            # Passing targets with percentages
-            pt_parts = [f"{t['label']} {t['pct']}%" for t in passing_targets]
-            strat_bullets.append(f"▶ PASSING TARGETS: {' / '.join(pt_parts)}")
-            for t in passing_targets[:2]:
-                if t.get('explain'):
-                    strat_bullets.append(f"   {t['explain']}")
+        user_message = f"""Your Team: {your_team}
+Your Offense: {your_offense}
+Opponent Team: {opp_team}
+Their Defense: {their_defense}
 
-            # Run split
-            rs = run_split_data
-            if rs.get('shotgun_pass_only'):
-                strat_bullets.append(f"▶ RUN GAME: {rs['warning']}")
-            else:
-                strat_bullets.append(
-                    f"▶ RUN SPLIT: Outside {rs['outside']['pct']}% / Inside {rs['inside']['pct']}%"
-                )
-                if rs['warning']:
-                    strat_bullets.append(f"   {rs['warning']}")
+Box Score & Team Stats:
+{box_raw}
 
-            # Top advantages to exploit
-            for adv in advantages[:2]:
-                strat_bullets.append(f"▶ EXPLOIT: {adv['adv_rec']}")
+Game Log:
+{gamelog_raw}
 
-            # Danger zones
-            for dan in dangers[:2]:
-                strat_bullets.append(f"▶ DANGER: {dan['dan_rec']}")
+Your Team Ratings:
+{your_ratings_raw}
 
-            # Standout opponent defenders to watch
-            if standouts:
-                for d in standouts.get('opp_defense', []):
-                    strat_bullets.append(f"▶ WATCH: {d['name']} ({d['pos']}) — {d['tot']} TOT, he will be a problem in the second half")
+Opponent Team Ratings:
+{opp_ratings_raw}"""
 
-                # Your standout offensive players to target more
-                for o in standouts.get('your_offense', [])[:1]:
-                    strat_bullets.append(f"▶ TARGET: Get {o['name']} ({o['pos']}, {o['tot']} TOT) more touches in the second half")
-
-            report['strategy_bullets'] = strat_bullets
-            report['matchups'] = matchups
-            report['advantages'] = advantages
-            report['dangers'] = dangers
+        try:
+            client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+            response = client.messages.create(
+                model="claude-sonnet-4-20250514",
+                max_tokens=2000,
+                system=halftime_system_prompt,
+                messages=[{"role": "user", "content": user_message}],
+            )
+            ai_result = response.content[0].text
+        except Exception as e:
+            error = f"AI analysis failed: {str(e)}"
 
     return render_template(
         "halftime.html",
@@ -2711,7 +2741,7 @@ def halftime_route():
         box_raw=box_raw, gamelog_raw=gamelog_raw,
         your_ratings_raw=your_ratings_raw, opp_ratings_raw=opp_ratings_raw,
         your_offense=your_offense, their_defense=their_defense,
-        report=report, error=error,
+        ai_result=ai_result, error=error,
     )
 
 

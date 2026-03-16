@@ -162,300 +162,46 @@
     }
     .section-label:first-of-type { margin-top: 0; }
 
-    /* ── Formation Note ── */
-    .formation-note {
-      background: #1a1f2e;
-      border: 1px solid #f59e0b;
-      border-radius: 10px;
-      padding: 14px 18px;
+    /* ── AI Result ── */
+    .result-card {
+      background: #1e2130;
+      border: 1px solid #2d3348;
+      border-radius: 12px;
+      padding: 28px 32px;
+      margin-top: 28px;
+    }
+    .result-card h2 {
       font-size: 14px;
-      color: #fcd34d;
-      line-height: 1.6;
-      margin-bottom: 28px;
-    }
-
-    /* ── Standout Players ── */
-    .standout-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-      margin-bottom: 12px;
-    }
-    @media (max-width: 640px) { .standout-grid { grid-template-columns: 1fr; } }
-
-    .standout-col {
-      background: #1e2130;
-      border: 1px solid #2d3348;
-      border-radius: 12px;
-      overflow: hidden;
-    }
-    .standout-col-header {
-      padding: 10px 16px;
-      font-size: 12px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      border-bottom: 1px solid #2d3348;
-    }
-    .standout-col-header.yours { background: #13221a; color: #22c55e; border-top: 3px solid #22c55e; }
-    .standout-col-header.theirs { background: #1e1313; color: #ef4444; border-top: 3px solid #ef4444; }
-    .standout-sub { background: #161926; padding: 6px 16px; font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.1em; border-bottom: 1px solid #1a1f2e; }
-    .standout-card {
-      padding: 12px 16px;
-      border-bottom: 1px solid #1a1f2e;
-    }
-    .standout-card:last-child { border-bottom: none; }
-    .standout-name { font-size: 14px; font-weight: 700; color: #e2e8f0; }
-    .standout-tot { font-size: 12px; color: #f59e0b; font-weight: 600; margin-left: 6px; }
-    .standout-note { font-size: 12px; color: #94a3b8; line-height: 1.5; margin-top: 4px; }
-
-    /* ── Biggest Advantages / Dangers ── */
-    .highlights-list {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      margin-bottom: 12px;
-    }
-
-    .highlight-card {
-      border-radius: 10px;
-      padding: 18px 20px;
-      border-left: 4px solid;
-    }
-
-    .highlight-card.adv {
-      background: #0f1f16;
-      border-color: #22c55e;
-    }
-
-    .highlight-card.dan {
-      background: #1a0f0f;
-      border-color: #ef4444;
-    }
-
-    .highlight-header {
-      display: flex;
-      align-items: baseline;
-      gap: 10px;
-      margin-bottom: 8px;
-    }
-
-    .highlight-rank {
-      font-size: 13px;
-      font-weight: 700;
-    }
-    .adv .highlight-rank { color: #22c55e; }
-    .dan .highlight-rank { color: #ef4444; }
-
-    .highlight-label {
-      font-size: 15px;
-      font-weight: 700;
-      color: #e2e8f0;
-      flex: 1;
-    }
-
-    .highlight-edge {
-      font-size: 15px;
-      font-weight: 700;
-      font-variant-numeric: tabular-nums;
-    }
-    .adv .highlight-edge { color: #22c55e; }
-    .dan .highlight-edge { color: #ef4444; }
-
-    .highlight-body {
-      font-size: 13px;
-      color: #94a3b8;
-      line-height: 1.6;
-      margin-bottom: 8px;
-    }
-
-    .highlight-rec {
-      font-size: 13px;
       font-weight: 600;
-      padding: 6px 10px;
-      border-radius: 6px;
-      display: inline-block;
-    }
-    .adv .highlight-rec { background: #14532d40; color: #86efac; }
-    .dan .highlight-rec { background: #450a0a40; color: #fca5a5; }
-
-    .no-highlights {
-      font-size: 13px;
-      color: #475569;
-      font-style: italic;
-      padding: 12px 0;
-    }
-
-    /* ── Matchup list ── */
-    .matchup-list {
-      background: #1e2130;
-      border: 1px solid #2d3348;
-      border-radius: 12px;
-      overflow: hidden;
-      margin-bottom: 12px;
-    }
-
-    .matchup-row {
-      display: grid;
-      grid-template-columns: 28px 160px 1fr auto;
-      align-items: start;
-      padding: 14px 20px;
-      border-bottom: 1px solid #1a1f2e;
-      gap: 14px;
-    }
-    .matchup-row:last-child { border-bottom: none; }
-
-    .matchup-row.tier-major  { background: #13221a; border-left: 3px solid #22c55e; }
-    .matchup-row.tier-slight { background: #1e1f13; border-left: 3px solid #eab308; }
-    .matchup-row.tier-even   { }
-    .matchup-row.tier-avoid  { background: #1e1313; border-left: 3px solid #ef4444; }
-    .matchup-row.tier-unknown { opacity: 0.5; }
-
-    .m-icon { font-size: 16px; line-height: 1; padding-top: 1px; }
-
-    .m-label { font-size: 14px; font-weight: 600; color: #e2e8f0; }
-    .m-desc  { font-size: 11px; color: #475569; margin-top: 2px; }
-
-    .m-rec { font-size: 13px; color: #94a3b8; line-height: 1.4; }
-    .tier-major  .m-rec { color: #86efac; }
-    .tier-avoid  .m-rec { color: #fca5a5; }
-
-    .m-edge {
-      font-size: 17px;
-      font-weight: 700;
-      font-variant-numeric: tabular-nums;
-      white-space: nowrap;
-      text-align: right;
-      padding-top: 1px;
-    }
-    .tier-major  .m-edge { color: #22c55e; }
-    .tier-slight .m-edge { color: #eab308; }
-    .tier-even   .m-edge { color: #64748b; }
-    .tier-avoid  .m-edge { color: #ef4444; }
-    .tier-unknown .m-edge { color: #475569; }
-
-    /* ── Game Plan Table ── */
-    .game-plan-table {
-      width: 100%;
-      border-collapse: collapse;
-      background: #1e2130;
-      border: 1px solid #2d3348;
-      border-radius: 12px;
-      overflow: hidden;
-    }
-
-    .game-plan-table th {
-      background: #252a3d;
-      font-size: 11px;
-      font-weight: 600;
-      color: #64748b;
+      color: #4f6ef7;
       text-transform: uppercase;
       letter-spacing: 0.07em;
-      padding: 12px 20px;
-      text-align: left;
-      border-bottom: 1px solid #2d3348;
+      margin-bottom: 16px;
     }
-
-    .game-plan-table td {
-      padding: 13px 20px;
-      border-bottom: 1px solid #1a1f2e;
+    .result-body {
       font-size: 14px;
-    }
-    .game-plan-table tr:last-child td { border-bottom: none; }
-
-    .gp-play { font-weight: 600; color: #e2e8f0; }
-
-    .gp-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 12px;
-      font-weight: 600;
-      padding: 3px 10px;
-      border-radius: 20px;
-      white-space: nowrap;
-    }
-    .badge-major  { background: #14532d; color: #86efac; }
-    .badge-slight { background: #422006; color: #fcd34d; }
-    .badge-even   { background: #1e293b; color: #94a3b8; }
-    .badge-avoid  { background: #450a0a; color: #fca5a5; }
-    .badge-unknown { background: #1e293b; color: #475569; }
-
-    .gp-edge {
-      font-size: 13px;
-      font-weight: 600;
-      font-variant-numeric: tabular-nums;
-      color: #64748b;
+      color: #e2e8f0;
+      line-height: 1.7;
+      white-space: pre-wrap;
+      word-wrap: break-word;
     }
 
-    /* ── Percentage Split Cards ── */
-    .pct-split-card {
-      background: #1e2130;
-      border: 1px solid #2d3348;
-      border-radius: 12px;
-      padding: 20px 24px;
-      margin-bottom: 12px;
-    }
-
-    .pct-row {
-      display: grid;
-      grid-template-columns: minmax(120px, auto) 1fr 52px;
+    .spinner-wrap {
+      display: none;
       align-items: center;
       gap: 12px;
-      padding: 10px 0;
-      border-bottom: 1px solid #1a1f2e;
+      margin-top: 20px;
     }
-    .pct-row:last-child { border-bottom: none; }
-
-    .pct-label {
-      font-size: 13px;
-      font-weight: 700;
-      color: #e2e8f0;
-      white-space: nowrap;
+    .spinner-wrap.visible { display: flex; }
+    .spinner {
+      width: 24px; height: 24px;
+      border: 3px solid #2d3348;
+      border-top-color: #4f6ef7;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
     }
-
-    .pct-bar-wrap {
-      height: 22px;
-      background: #0f1117;
-      border-radius: 6px;
-      overflow: hidden;
-    }
-
-    .pct-bar {
-      height: 100%;
-      border-radius: 6px;
-      transition: width 0.3s ease;
-    }
-
-    .pct-bar-wr      { background: #4f6ef7; }
-    .pct-bar-te      { background: #f59e0b; }
-    .pct-bar-rb      { background: #22c55e; }
-    .pct-bar-fb      { background: #a855f7; }
-    .pct-bar-outside { background: #8b5cf6; }
-    .pct-bar-inside  { background: #ec4899; }
-
-    .pct-value {
-      font-size: 15px;
-      font-weight: 700;
-      color: #e2e8f0;
-      text-align: right;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .pct-detail {
-      grid-column: 1 / 4;
-      font-size: 11px;
-      color: #64748b;
-      margin-top: -4px;
-      padding-left: 4px;
-    }
-
-    .run-warning {
-      font-size: 13px;
-      color: #fcd34d;
-      padding: 10px 0 4px;
-      font-weight: 600;
-    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner-text { font-size: 13px; color: #94a3b8; }
 
   </style>
 </head>
@@ -514,7 +260,7 @@
           </div>
         </div>
       </div>
-      <button type="submit" class="btn-submit">Generate Strategy</button>
+      <button type="submit" class="btn-submit" id="submitBtn">Generate Strategy</button>
     </form>
   </div>
 
@@ -523,225 +269,35 @@
   <div class="error-banner">{{ error }}</div>
   {% endif %}
 
-  <!-- Results -->
-  {% if matchups %}
+  <!-- AI Results -->
+  {% if ai_result %}
   <div class="results-header">
     <h2>{{ your_team }} vs {{ opponent_team }}</h2>
     <div class="meta">
-      Matchup analysis{% if your_offense %} — {{ your_offense }}{% endif %}{% if their_defense %} vs {{ their_defense }}{% endif %}
+      AI strategy analysis{% if your_offense %} — {{ your_offense }}{% endif %}{% if their_defense %} vs {{ their_defense }}{% endif %}
     </div>
   </div>
 
-  <!-- Formation Matchup Note -->
-  {% if formation_note %}
-  <div class="formation-note">{{ formation_note }}</div>
-  {% endif %}
-
-  <!-- Standout Players -->
-  {% if standouts %}
-  <div class="section-label">Standout Players</div>
-  <div class="standout-grid">
-    <div class="standout-col">
-      <div class="standout-col-header yours">{{ your_team }}</div>
-      {% if standouts.your_offense %}
-      <div class="standout-sub">Offense</div>
-      {% for p in standouts.your_offense %}
-      <div class="standout-card">
-        <div><span class="standout-name">{{ p.name }}</span> ({{ p.pos }})<span class="standout-tot">{{ p.tot }} TOT</span></div>
-        <div class="standout-note">{{ p.sentence }}</div>
-      </div>
-      {% endfor %}
-      {% endif %}
-      {% if standouts.your_defense %}
-      <div class="standout-sub">Defense</div>
-      {% for p in standouts.your_defense %}
-      <div class="standout-card">
-        <div><span class="standout-name">{{ p.name }}</span> ({{ p.pos }})<span class="standout-tot">{{ p.tot }} TOT</span></div>
-        <div class="standout-note">{{ p.sentence }}</div>
-      </div>
-      {% endfor %}
-      {% endif %}
-    </div>
-    <div class="standout-col">
-      <div class="standout-col-header theirs">{{ opponent_team }}</div>
-      {% if standouts.opp_offense %}
-      <div class="standout-sub">Offense</div>
-      {% for p in standouts.opp_offense %}
-      <div class="standout-card">
-        <div><span class="standout-name">{{ p.name }}</span> ({{ p.pos }})<span class="standout-tot">{{ p.tot }} TOT</span></div>
-        <div class="standout-note">{{ p.sentence }}</div>
-      </div>
-      {% endfor %}
-      {% endif %}
-      {% if standouts.opp_defense %}
-      <div class="standout-sub">Defense</div>
-      {% for p in standouts.opp_defense %}
-      <div class="standout-card">
-        <div><span class="standout-name">{{ p.name }}</span> ({{ p.pos }})<span class="standout-tot">{{ p.tot }} TOT</span></div>
-        <div class="standout-note">{{ p.sentence }}</div>
-      </div>
-      {% endfor %}
-      {% endif %}
-    </div>
+  <div class="result-card">
+    <h2>Strategy Analysis</h2>
+    <div class="result-body">{{ ai_result }}</div>
   </div>
   {% endif %}
-
-  <!-- Biggest Mismatches (Your Advantages) -->
-  <div class="section-label">Your Mismatches (+20 or more)</div>
-  {% if advantages %}
-  <div class="highlights-list">
-    {% for item in advantages %}
-    <div class="highlight-card adv">
-      <div class="highlight-header">
-        <span class="highlight-rank">#{{ loop.index }}</span>
-        <span class="highlight-label">{{ item.label }}</span>
-        <span class="highlight-edge">+{{ item.edge }}</span>
-      </div>
-      <div class="highlight-body">{{ item.adv_text }}</div>
-      <span class="highlight-rec">{{ item.adv_rec }}</span>
-    </div>
-    {% endfor %}
-  </div>
-  {% else %}
-  <p class="no-highlights">No mismatches of +20 or greater found on the 8 key matchups.</p>
-  {% endif %}
-
-  <!-- Danger Zones (Their Advantages) -->
-  <div class="section-label">Danger Zones (Their Mismatches)</div>
-  {% if dangers %}
-  <div class="highlights-list">
-    {% for item in dangers %}
-    <div class="highlight-card dan">
-      <div class="highlight-header">
-        <span class="highlight-rank">#{{ loop.index }}</span>
-        <span class="highlight-label">{{ item.label }}</span>
-        <span class="highlight-edge">{{ item.edge }}</span>
-      </div>
-      <div class="highlight-body">{{ item.dan_text }}</div>
-      <span class="highlight-rec">{{ item.dan_rec }}</span>
-    </div>
-    {% endfor %}
-  </div>
-  {% else %}
-  <p class="no-highlights">No danger zones — they don't hold a -20 or greater edge on any key matchup.</p>
-  {% endif %}
-
-  <!-- Passing Target Percentages -->
-  {% if passing_targets %}
-  <div class="section-label">Passing Targets{% if your_offense %} — {{ your_offense }}{% endif %}</div>
-  <div class="pct-split-card">
-    {% for t in passing_targets %}
-    <div class="pct-row">
-      <div class="pct-label">{{ t.label }}</div>
-      <div class="pct-bar-wrap">
-        <div class="pct-bar {{ t.css_class }}" style="width: {{ t.pct }}%"></div>
-      </div>
-      <div class="pct-value">{{ t.pct }}%</div>
-      <div class="pct-detail">{{ t.explain }}</div>
-    </div>
-    {% endfor %}
-  </div>
-  {% endif %}
-
-  <!-- Run Game Split -->
-  {% if run_split %}
-  <div class="section-label">Run Game{% if your_offense %} — {{ your_offense }}{% endif %}</div>
-  <div class="pct-split-card">
-    {% if run_split.shotgun_pass_only %}
-    <div class="run-warning">{{ run_split.warning }}</div>
-    {% else %}
-    {% if run_split.warning %}
-    <div class="run-warning">{{ run_split.warning }}</div>
-    {% endif %}
-    <div class="pct-row">
-      <div class="pct-label">Outside</div>
-      <div class="pct-bar-wrap">
-        <div class="pct-bar pct-bar-outside" style="width: {{ run_split.outside.pct }}%"></div>
-      </div>
-      <div class="pct-value">{{ run_split.outside.pct }}%</div>
-      <div class="pct-detail">
-        {% if run_split.outside.rb_spd is not none and run_split.outside.lb_spd is not none %}
-          RB SPD {{ run_split.outside.rb_spd }} vs LB SPD {{ run_split.outside.lb_spd }}
-          ({% if run_split.outside.edge > 0 %}+{% endif %}{{ run_split.outside.edge }})
-        {% endif %}
-      </div>
-    </div>
-    <div class="pct-row">
-      <div class="pct-label">Inside</div>
-      <div class="pct-bar-wrap">
-        <div class="pct-bar pct-bar-inside" style="width: {{ run_split.inside.pct }}%"></div>
-      </div>
-      <div class="pct-value">{{ run_split.inside.pct }}%</div>
-      <div class="pct-detail">
-        {% if run_split.inside.ol_str is not none and run_split.inside.dl_str is not none %}
-          OL STR {{ run_split.inside.ol_str }} vs DL STR {{ run_split.inside.dl_str }}
-          ({% if run_split.inside.edge > 0 %}+{% endif %}{{ run_split.inside.edge }})
-        {% endif %}
-      </div>
-    </div>
-    {% endif %}
-  </div>
-  {% endif %}
-
-  <!-- Matchup Edges -->
-  <div class="section-label">Matchup Edges</div>
-  <div class="matchup-list">
-    {% for m in matchups %}
-    <div class="matchup-row tier-{{ m.tier }}">
-      <div class="m-icon">{{ m.icon }}</div>
-      <div>
-        <div class="m-label">{{ m.label }}</div>
-        <div class="m-desc">{{ m.desc }}</div>
-      </div>
-      <div class="m-rec">
-        {% if m.tier == 'major' or m.tier == 'avoid' %}
-          {{ m.rec }}
-        {% else %}
-          {{ m.short }}
-        {% endif %}
-      </div>
-      <div class="m-edge">
-        {% if m.edge is not none %}
-          {% if m.edge > 0 %}+{% endif %}{{ m.edge }}
-        {% else %}
-          —
-        {% endif %}
-      </div>
-    </div>
-    {% endfor %}
-  </div>
-
-  <!-- Game Plan Summary -->
-  <div class="section-label">Game Plan Summary</div>
-  <table class="game-plan-table">
-    <thead>
-      <tr>
-        <th>Play Type</th>
-        <th>Recommendation</th>
-        <th>Edge</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for row in game_plan %}
-      <tr>
-        <td class="gp-play">{{ row.play }}</td>
-        <td>
-          <span class="gp-badge badge-{{ row.tier }}">
-            {{ row.icon }} {{ row.short }}
-          </span>
-        </td>
-        <td class="gp-edge">
-          {% if row.edge is not none %}
-            {% if row.edge > 0 %}+{% endif %}{{ row.edge }}
-          {% else %}—{% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  {% endif %}
-
 
 </div>
+<script>
+  document.querySelector('form[action="/strategy"]').addEventListener('submit', function() {
+    var btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.textContent = 'Analyzing...';
+    btn.style.background = '#2d3348';
+    btn.style.color = '#64748b';
+    btn.style.cursor = 'not-allowed';
+    var spinner = document.createElement('div');
+    spinner.className = 'spinner-wrap visible';
+    spinner.innerHTML = '<div class="spinner"></div><span class="spinner-text">Analyzing — this may take a moment...</span>';
+    btn.parentNode.insertBefore(spinner, btn.nextSibling);
+  });
+</script>
 </body>
 </html>
