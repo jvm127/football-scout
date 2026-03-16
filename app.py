@@ -3286,6 +3286,14 @@ def parse_recruiting_players(raw_text):
             header_idx = i
             col_map = temp_map
             header_tab_count = len(tokens)
+            # If the header has a leading empty/whitespace token (WIS adds a
+            # blank column before "Pos"), strip it by shifting all col_map
+            # indices down by 1. This keeps the col_map aligned with data rows
+            # after their WIS prefix ("Watch Recruit") is also stripped.
+            if tokens[0].strip() == '' and 0 not in temp_map:
+                col_map = {j - 1: f for j, f in temp_map.items()}
+                header_tab_count -= 1
+                print(f">>> PARSE: Header had leading empty token — shifted col_map by -1", flush=True)
             break
 
     if header_idx is None:
