@@ -434,9 +434,23 @@
   function exportCSV() {
     if (!_lastResultData || !_lastResultData.sections) return;
     var sortKey = document.getElementById('sortSelect').value;
-    var ATTRS = ['A','SPD','STR','E','GI','H','BLK','TKL','T'];
+    var posGroup = document.getElementById('position').value;
+
+    // Collect all unique attribute keys across every player
+    var attrKeysSet = {};
+    _lastResultData.sections.forEach(function(section) {
+      (section.tiers || []).forEach(function(tier) {
+        (tier.players || []).forEach(function(p) {
+          if (p.attributes) {
+            Object.keys(p.attributes).forEach(function(k) { attrKeysSet[k] = true; });
+          }
+        });
+      });
+    });
+    var attrKeys = Object.keys(attrKeysSet).sort();
+
     var header = ['Rank','Name','Position','Tier','Distance','OVR','GPA','Work Ethic']
-      .concat(ATTRS).concat(['Strengths','Red Flags','Section']);
+      .concat(attrKeys).concat(['Strengths','Red Flags','Section']);
     var rows = [header.join(',')];
 
     _lastResultData.sections.forEach(function(section) {
@@ -448,14 +462,14 @@
           var row = [
             csvEscape(p.rank),
             csvEscape(p.name),
-            csvEscape(p.position || ''),
+            csvEscape(posGroup),
             csvEscape(tier.name),
             csvEscape(fmtDist(p.distance)),
             csvEscape(p.ovr),
             csvEscape(p.gpa),
             csvEscape(p.work_ethic)
           ];
-          ATTRS.forEach(function(a) { row.push(csvEscape(attrs[a] != null ? attrs[a] : '')); });
+          attrKeys.forEach(function(a) { row.push(csvEscape(attrs[a] != null ? attrs[a] : '')); });
           row.push(csvEscape((p.strengths || []).join('; ')));
           row.push(csvEscape((p.red_flags || []).join('; ')));
           row.push(csvEscape(section.header));
@@ -671,6 +685,13 @@
       if (parsedResult) {
         stampOriginalOrder(parsedResult);
         _lastResultData = parsedResult;
+        // Debug: log first player's full data object
+        if (parsedResult.sections && parsedResult.sections[0] && parsedResult.sections[0].tiers) {
+          var firstTier = parsedResult.sections[0].tiers[0];
+          if (firstTier && firstTier.players && firstTier.players[0]) {
+            console.log('First player full data object:', JSON.stringify(firstTier.players[0], null, 2));
+          }
+        }
         renderResults(parsedResult);
         document.getElementById('sortBar').classList.add('visible');
       }
