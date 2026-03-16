@@ -5,6 +5,7 @@ from flask_mail import Mail, Message
 from werkzeug.security import generate_password_hash, check_password_hash
 from itsdangerous import URLSafeTimedSerializer
 from dotenv import load_dotenv
+import anthropic
 import requests
 import stripe
 import sqlite3
@@ -2712,6 +2713,83 @@ def halftime_route():
         your_offense=your_offense, their_defense=their_defense,
         report=report, error=error,
     )
+
+
+@app.route("/recruiting")
+@subscription_required
+def recruiting():
+    return render_template("recruiting.html")
+
+@app.route("/recruiting/analyze", methods=["POST"])
+@subscription_required
+def recruiting_analyze():
+    from flask import jsonify
+    data = request.get_json()
+    division = data.get("division", "")
+    position = data.get("position", "")
+    player_data = data.get("player_data", "")
+
+    if not player_data.strip():
+        return jsonify(error="No player data provided."), 400
+
+    system_prompt = """You are a football player evaluation engine. Your ONLY job is to evaluate and rank football players provided by the user using predefined rules.
+ATTRIBUTE DEFINITIONS:
+T=Technique, STR=Strength, A=Athleticism, SPD=Speed, E=Elusiveness, GI=Game Instinct, H=Hands, BLK=Blocking, TKL=Tackling, GPA=Grade Point Average, WE=Work Ethic, OVR=Overall Rating (never modify)
+CORE ATTRIBUTES BY POSITION:
+QB: T, STR, A, E, GI
+RB: E, SPD, A, GI, H
+WR: H, SPD, A, E, GI
+TE: A, STR, BLK, H, GI, SPD, E
+OL: BLK, STR, A, GI
+DL: A, STR, TKL, GI, SPD
+LB: TKL, GI, STR, A, SPD
+DB: GI, SPD, A, TKL, H, STR
+K: T, STR, GI, A, H
+P: T, STR, GI, A, H
+SPECIALIST STRENGTH MINIMUMS:
+Division 1: STR >= 55
+Division 1-AA: STR >= 50
+Division 2 and 3: No minimum
+Exclude specialists below minimum.
+DIVISION 1-AA SCHOOL EXCLUSIONS — exclude any player considering these schools: Michigan, Arizona State, Iowa, USC, Virginia, Penn State, Florida, Indiana, DePaul, Syracuse, Texas, Purdue, Alabama, LSU, Florida State, Minnesota, Nebraska, Southern Methodist, Vanderbilt, Clemson, Georgia, Notre Dame, Oklahoma, Tennessee, Miami (FL), Boston College, South Carolina, Washington, Missouri, Northwestern, UCLA, California, Colorado State, Iowa State, Temple, Colorado, Kansas, West Virginia, Cincinnati, Ohio State, Toledo, Montana, Air Force, Baylor, Navy, Washington State, Texas A&M, Texas Tech, Army, Akron, Ole Miss, Stanford, Buffalo, Boise State, Tulane, Kent State, BYU, Kentucky, Auburn, Alabama Birmingham, Oklahoma State, North Texas, Hawaii, Pittsburgh, Utah State, Northern Illinois, San Diego State, New Mexico State, Arkansas, Louisiana Tech, Kansas State, Oregon, Idaho, Mississippi State, Fresno State, North Carolina, Wake Forest, South Florida, Georgia Tech, Central Michigan, Oregon State, Michigan State, Tulsa, NC State, Wisconsin, Ohio, Marshall, East Carolina, Rice, Memphis, Louisville, Utah, Connecticut, Arizona, Bowling Green, Ball State, Southern Mississippi, Illinois, Central Florida, Louisiana Lafayette, Marquette, Rutgers, Miami (OH), Troy State, Arkansas State, UNLV, New Mexico, San Jose State, Virginia Tech, UTEP, Middle Tennessee, Nevada, Western Michigan, Maryland, Louisiana Monroe, Duke, Wyoming, Texas Christian, Eastern Michigan, Houston
+DIVISION 2 AND 3 — only include players who are Undecided.
+DISTANCE RULES:
+Division 1 and 1-AA: 360 miles or less
+Division 2 and 3: 800 miles or less
+Missing distance = exclude
+INSUFFICIENT RESULTS — if fewer than 10 players qualify say so and ask if the user wants to expand beyond distance limits.
+OVERALL RATING RULE — OVR comes from the data only, never calculate or adjust. If missing show N/A.
+RANKING — rank players by position attributes primarily but consider the whole player. Use WE (Work Ethic) then GPA as tiebreakers.
+OUTPUT FORMAT — group players into tiers:
+Tier 1 — Elite
+Tier 2 — High-Level
+Tier 3 — Solid
+Tier 4 — Depth / Development
+For each player show:
+Name — Rank: X
+Distance: ___ miles
+Overall Rating (OVR): ___
+GPA: ___
+Work Ethic: ___
+CORE ATTRIBUTES (only the ones for their position)
+Strengths: bullet points
+Red Flags: bullet points
+After all results end with exactly: What position group would you like to evaluate next?"""
+
+    user_message = f"Division: {division}\nPosition Group: {position}\n\nPlayer Data:\n{player_data}"
+
+    try:
+        client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+        response = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=4096,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_message}],
+        )
+        result_text = response.content[0].text
+        return jsonify(result=result_text)
+    except Exception as e:
+        return jsonify(error=str(e)), 500
 
 
 @app.route("/training")

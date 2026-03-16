@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Recruiting Evaluator — Football Scout</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0f1117;
+      color: #e2e8f0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      min-height: 100vh;
+      padding: 32px 24px;
+    }
+    .container { max-width: 900px; margin: 0 auto; }
+
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 20px; margin-bottom: 40px; padding-bottom: 24px;
+      border-bottom: 1px solid #2d3348; position: relative;
+    }
+    .header-left { display: flex; align-items: center; gap: 20px; }
+    .nav-links { display: flex; gap: 10px; }
+    .nav-link {
+      font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none;
+      padding: 8px 16px; border: 1px solid #2d3348; border-radius: 8px;
+    }
+    .nav-link:hover { color: #e2e8f0; border-color: #4f6ef7; }
+
+    .hamburger {
+      display: none; background: none; border: 1px solid #2d3348; color: #e2e8f0;
+      font-size: 22px; padding: 6px 10px; border-radius: 8px; cursor: pointer;
+      line-height: 1;
+    }
+    .mobile-menu {
+      display: none; position: absolute; top: 100%; right: 0; z-index: 100;
+      background: #1e2130; border: 1px solid #2d3348; border-radius: 12px;
+      padding: 8px 0; min-width: 180px; margin-top: 8px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.4);
+    }
+    .mobile-menu.open { display: flex; flex-direction: column; }
+    .mobile-menu a {
+      font-size: 14px; font-weight: 600; color: #94a3b8; text-decoration: none;
+      padding: 12px 20px; border-bottom: 1px solid #2d3348;
+    }
+    .mobile-menu a:last-child { border-bottom: none; }
+    .mobile-menu a:hover { color: #e2e8f0; background: #252a3d; }
+
+    @media (max-width: 640px) {
+      .nav-links { display: none; }
+      .hamburger { display: block; }
+    }
+
+    .page-title { font-size: 24px; font-weight: 700; color: #e2e8f0; margin-bottom: 8px; }
+    .page-subtitle { font-size: 14px; color: #64748b; margin-bottom: 36px; }
+
+    .eval-card {
+      background: #1e2130; border: 1px solid #2d3348; border-radius: 12px;
+      padding: 28px 32px; margin-bottom: 28px;
+    }
+    .eval-card h2 {
+      font-size: 14px; font-weight: 600; color: #94a3b8;
+      text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 20px;
+    }
+
+    .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; }
+    .field label {
+      font-size: 11px; font-weight: 600; color: #64748b;
+      text-transform: uppercase; letter-spacing: 0.07em;
+    }
+    select, textarea {
+      background: #0f1117; border: 1px solid #2d3348; color: #e2e8f0;
+      padding: 10px 14px; border-radius: 8px; font-size: 14px;
+      font-family: inherit; outline: none; width: 100%;
+    }
+    select {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2394a3b8' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px;
+    }
+    select:focus, textarea:focus { border-color: #4f6ef7; }
+    textarea { resize: vertical; min-height: 200px; line-height: 1.5; }
+    textarea::placeholder { color: #334155; }
+
+    .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 640px) { .row-2 { grid-template-columns: 1fr; } }
+
+    .btn-evaluate {
+      background: #4f6ef7; color: #fff; border: none;
+      padding: 12px 32px; border-radius: 8px; font-size: 14px;
+      font-weight: 600; font-family: inherit; cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-evaluate:hover { background: #3b57e8; }
+    .btn-evaluate:disabled { background: #2d3348; color: #64748b; cursor: not-allowed; }
+
+    .spinner-wrap {
+      display: none; align-items: center; gap: 12px; margin-top: 20px;
+    }
+    .spinner-wrap.visible { display: flex; }
+    .spinner {
+      width: 24px; height: 24px; border: 3px solid #2d3348;
+      border-top-color: #4f6ef7; border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner-text { font-size: 13px; color: #94a3b8; }
+
+    .result-card {
+      display: none; background: #1e2130; border: 1px solid #2d3348;
+      border-radius: 12px; padding: 28px 32px; margin-top: 28px;
+    }
+    .result-card.visible { display: block; }
+    .result-card h2 {
+      font-size: 14px; font-weight: 600; color: #f59e0b;
+      text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 16px;
+    }
+    .result-body {
+      font-size: 14px; color: #e2e8f0; line-height: 1.7;
+      white-space: pre-wrap; word-wrap: break-word;
+    }
+    .result-error {
+      background: #2d1b1b; border: 1px solid #7f1d1d; color: #fca5a5;
+      padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-top: 20px;
+      display: none;
+    }
+    .result-error.visible { display: block; }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="header-left">
+      <img src="https://assets.cdn.filesafe.space/hT14gzW082yuiAZaRY8l/media/69b751fdad02763a460b988c.png" alt="WhatIfSports" style="height: 81px; width: auto;"/>
+    </div>
+    <div class="nav-links">
+      <a href="https://www.thenextguess.com/" target="_blank" rel="noopener" class="nav-link">The Next Guess</a>
+      <a href="https://www.whatifsports.com/gd/office/" target="_blank" rel="noopener" class="nav-link">WIS Office</a>
+      <a href="/scout" class="nav-link">Scout</a>
+      <a href="/halftime-advisor" class="nav-link">Halftime</a>
+      <a href="/recruiting" class="nav-link">Recruiting</a>
+      <a href="/training" class="nav-link">Training</a>
+      <a href="/account" class="nav-link">My Account</a>
+      <a href="/logout" class="nav-link">Log Out</a>
+    </div>
+    <button class="hamburger" onclick="document.getElementById('mobileMenu').classList.toggle('open')">&#9776;</button>
+    <div class="mobile-menu" id="mobileMenu">
+      <a href="https://www.thenextguess.com/" target="_blank" rel="noopener">The Next Guess</a>
+      <a href="https://www.whatifsports.com/gd/office/" target="_blank" rel="noopener">WIS Office</a>
+      <a href="/scout">Scout</a>
+      <a href="/halftime-advisor">Halftime</a>
+      <a href="/recruiting">Recruiting</a>
+      <a href="/training">Training</a>
+      <a href="/account">My Account</a>
+      <a href="/logout">Log Out</a>
+    </div>
+  </header>
+
+  <h2 class="page-title">Recruiting Evaluator</h2>
+  <p class="page-subtitle">Paste player data and get AI-powered evaluations ranked by position attributes.</p>
+
+  <div class="eval-card">
+    <h2>Player Evaluation</h2>
+    <div class="row-2">
+      <div class="field">
+        <label for="division">Division</label>
+        <select id="division">
+          <option value="Division 1">Division 1</option>
+          <option value="Division 1-AA">Division 1-AA</option>
+          <option value="Division 2">Division 2</option>
+          <option value="Division 3">Division 3</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="position">Position Group</label>
+        <select id="position">
+          <option value="QB">QB</option>
+          <option value="RB">RB</option>
+          <option value="WR">WR</option>
+          <option value="TE">TE</option>
+          <option value="OL">OL</option>
+          <option value="DL">DL</option>
+          <option value="LB">LB</option>
+          <option value="DB">DB</option>
+          <option value="K">K</option>
+          <option value="P">P</option>
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label for="playerData">Paste Player Data Here</label>
+      <textarea id="playerData" placeholder="Paste the player data from your recruiting board..."></textarea>
+    </div>
+    <button class="btn-evaluate" id="evaluateBtn" onclick="evaluatePlayers()">Evaluate Players</button>
+    <div class="spinner-wrap" id="spinnerWrap">
+      <div class="spinner"></div>
+      <span class="spinner-text">Evaluating players — this may take a moment...</span>
+    </div>
+    <div class="result-error" id="errorMsg"></div>
+  </div>
+
+  <div class="result-card" id="resultCard">
+    <h2>Evaluation Results</h2>
+    <div class="result-body" id="resultBody"></div>
+  </div>
+
+</div>
+
+<script>
+  async function evaluatePlayers() {
+    const division  = document.getElementById('division').value;
+    const position  = document.getElementById('position').value;
+    const playerData = document.getElementById('playerData').value.trim();
+    const btn       = document.getElementById('evaluateBtn');
+    const spinner   = document.getElementById('spinnerWrap');
+    const errorEl   = document.getElementById('errorMsg');
+    const resultCard = document.getElementById('resultCard');
+    const resultBody = document.getElementById('resultBody');
+
+    if (!playerData) {
+      errorEl.textContent = 'Please paste player data before evaluating.';
+      errorEl.classList.add('visible');
+      return;
+    }
+
+    errorEl.classList.remove('visible');
+    resultCard.classList.remove('visible');
+    btn.disabled = true;
+    spinner.classList.add('visible');
+
+    try {
+      const resp = await fetch('/recruiting/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ division, position, player_data: playerData }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
+
+      resultBody.textContent = data.result;
+      resultCard.classList.add('visible');
+    } catch (e) {
+      errorEl.textContent = `Error: ${e.message}`;
+      errorEl.classList.add('visible');
+    } finally {
+      btn.disabled = false;
+      spinner.classList.remove('visible');
+    }
+  }
+
+  document.addEventListener('click', function(e) {
+    var menu = document.getElementById('mobileMenu');
+    var hamburger = document.querySelector('.hamburger');
+    if (menu && !menu.contains(e.target) && !hamburger.contains(e.target)) {
+      menu.classList.remove('open');
+    }
+  });
+</script>
+</body>
+</html>
