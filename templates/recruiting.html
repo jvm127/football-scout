@@ -436,18 +436,21 @@
     var sortKey = document.getElementById('sortSelect').value;
     var posGroup = document.getElementById('position').value;
 
-    // Collect all unique attribute keys across every player
-    var attrKeysSet = {};
+    // Fixed stat columns in the user's requested order, plus any extras found in data
+    var STAT_ORDER = ['A','SPD','STR','E','GI','H','BLK','TKL','T','D','ST'];
+    var extraKeys = {};
     _lastResultData.sections.forEach(function(section) {
       (section.tiers || []).forEach(function(tier) {
         (tier.players || []).forEach(function(p) {
           if (p.attributes) {
-            Object.keys(p.attributes).forEach(function(k) { attrKeysSet[k] = true; });
+            Object.keys(p.attributes).forEach(function(k) {
+              if (STAT_ORDER.indexOf(k) === -1) extraKeys[k] = true;
+            });
           }
         });
       });
     });
-    var attrKeys = Object.keys(attrKeysSet).sort();
+    var attrKeys = STAT_ORDER.concat(Object.keys(extraKeys).sort());
 
     var header = ['Rank','Name','Position','Tier','Distance','OVR','GPA','Work Ethic']
       .concat(attrKeys).concat(['Strengths','Red Flags','Section']);

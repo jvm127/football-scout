@@ -3268,7 +3268,7 @@ SECTION RULES:
 - If there are EXTENDED RANGE players, create two sections: first with header based on the distance limit, second with "Extended Range — Beyond X Miles".
 - If no extended range players, use a single section with header "Results".
 - Only include tiers that have players. If no players qualify for a tier, omit it.
-- attributes object should only contain the core attributes for that position.
+- attributes object should contain ALL stats provided in the player data (A, SPD, STR, E, GI, H, BLK, TKL, T, D, ST, and any others present). Include every stat, not just core attributes.
 - End the JSON and nothing else — do not add any text after the closing brace."""
 
     # Build user message with pre-filtered players
