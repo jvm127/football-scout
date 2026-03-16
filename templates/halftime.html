@@ -369,8 +369,19 @@
     btn.style.cursor = 'not-allowed';
     var spinner = document.createElement('div');
     spinner.className = 'spinner-wrap visible';
-    spinner.innerHTML = '<div class="spinner"></div><span class="spinner-text">Analyzing — this may take a moment...</span>';
+    spinner.innerHTML = '<div class="spinner"></div><span class="spinner-text" id="spinnerText">Analyzing first half stats...</span>';
     btn.parentNode.insertBefore(spinner, btn.nextSibling);
+    var messages = [
+      'Analyzing first half stats...',
+      'Identifying key matchups...',
+      'Building your second half game plan...'
+    ];
+    var idx = 0;
+    setInterval(function() {
+      idx = (idx + 1) % messages.length;
+      var el = document.getElementById('spinnerText');
+      if (el) el.textContent = messages[idx];
+    }, 3000);
   });
   document.addEventListener('click', function(e) {
     var menu = document.getElementById('mobileMenu');

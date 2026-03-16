@@ -2907,7 +2907,7 @@ Opponent Team Ratings:
             client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
             response = client.messages.create(
                 model="claude-sonnet-4-20250514",
-                max_tokens=2000,
+                max_tokens=1500,
                 system=halftime_system_prompt,
                 messages=[{"role": "user", "content": user_message}],
             )
@@ -2942,8 +2942,13 @@ Opponent Team Ratings:
             error = f"AI analysis failed: {str(e)}"
 
     # Parse halftime score from box score text
-    # WIS box score format is VERTICAL — team name on one line, then Q1, Q2, etc. on
-    # separate lines below it:
+    # WIS box score can come in multiple formats:
+    #
+    # FORMAT 1 — jammed single line (no separators):
+    #   "Stony Brook (18-0)31013#1Northern Iowa (18-0)7714"
+    #   Pattern: TeamName (Record)Q1 Q2 Q3 Q4 Total ... TeamName (Record)Q1 Q2 ...
+    #
+    # FORMAT 2 — vertical (each value on its own line):
     #   Stony Brook (18-0)
     #   3
     #   10
@@ -2953,89 +2958,171 @@ Opponent Team Ratings:
     #   7
     #   7
     #   14
-    # Halftime = Q1 + Q2 (first two number-only lines after each team name)
-    # Records in parentheses like (18-0) must be ignored.
+    #
+    # FORMAT 3 — pipe/tab separated:
+    #   Stony Brook (18-0) | 3 | 10 | 13
+    #
+    # Halftime = Q1 + Q2 (first two score numbers after each team).
+    # Records in parentheses like (18-0) are always ignored.
     your_score = None
     opp_score = None
     if box_raw and your_team and opp_team:
-        lines = box_raw.splitlines()
+        print(f">>> SCORE PARSER: Looking for '{your_team}' and '{opp_team}'", flush=True)
+        print(f">>> SCORE PARSER: First 200 chars of box_raw: {box_raw[:200]!r}", flush=True)
+
+        def _split_jammed_digits(digits_str):
+            """Split a jammed digit string like '31013' into individual scores [3, 10, 13].
+            Scores are 0-99. Uses backtracking to find the best split where the last
+            number equals the sum of the previous ones (total = Q1+Q2+...)."""
+            results = []
+            def _bt(pos, current):
+                if pos == len(digits_str):
+                    if len(current) >= 2:
+                        results.append(list(current))
+                    return
+                # Try 2-digit first
+                if pos + 2 <= len(digits_str):
+                    two = digits_str[pos:pos+2]
+                    if two[0] != '0':
+                        current.append(int(two))
+                        _bt(pos + 2, current)
+                        current.pop()
+                # Try 1-digit
+                if pos + 1 <= len(digits_str):
+                    current.append(int(digits_str[pos]))
+                    _bt(pos + 1, current)
+                    current.pop()
+            _bt(0, [])
+            # Prefer splits where last number = sum of others (it's the game total)
+            best = None
+            for r in results:
+                if len(r) >= 3 and r[-1] == sum(r[:-1]):
+                    if best is None or len(r) > len(best):
+                        best = r
+            if not best:
+                for r in sorted(results, key=lambda x: -len(x)):
+                    if 2 <= len(r) <= 5:
+                        best = r
+                        break
+            return best
+
+        def _parse_jammed_scores(text, team1, team2):
+            """Parse scores from jammed format like 'Team1 (W-L)31013#1Team2 (W-L)7714'.
+            Returns (team1_quarters, team2_quarters) or (None, None)."""
+            t1_quarters = None
+            t2_quarters = None
+
+            for team, label in [(team1, 'YOUR'), (team2, 'OPP')]:
+                escaped = re.escape(team)
+                # Match: TeamName + optional (record) + jammed digits
+                m = re.search(escaped + r'\s*(?:\([^)]*\))?\s*(\d+)', text, re.IGNORECASE)
+                if m:
+                    digit_blob = m.group(1)
+                    # The digit blob might extend further — grab all consecutive digits from this position
+                    rest = text[m.start(1):]
+                    # Take digits up until we hit a letter or #
+                    full_digits = re.match(r'(\d+)', rest)
+                    if full_digits:
+                        digit_blob = full_digits.group(1)
+                    quarters = _split_jammed_digits(digit_blob)
+                    print(f">>> SCORE PARSER JAMMED: {label} team '{team}' -> blob='{digit_blob}', split={quarters}", flush=True)
+                    if label == 'YOUR':
+                        t1_quarters = quarters
+                    else:
+                        t2_quarters = quarters
+
+            return t1_quarters, t2_quarters
+
+        def _parse_vertical_scores(lines, team_lower, words):
+            """Parse scores from vertical format — team name line followed by number-only lines."""
+            for i, line in enumerate(lines):
+                line_lower = line.lower().strip()
+                if not line_lower:
+                    continue
+                # Strip records to match team name
+                clean = re.sub(r'\([^)]*\)', '', line_lower).strip()
+                if not clean:
+                    continue
+                if team_lower in line_lower or any(w in clean for w in words):
+                    # Check if this line ALSO has score numbers jammed onto it
+                    # e.g. "Stony Brook (18-0)31013" — digits right after )
+                    after_record = re.sub(r'^.*\)', '', line.strip())
+                    jammed_nums = re.findall(r'\d+', after_record)
+                    if jammed_nums:
+                        return None  # jammed format, not vertical — let other parser handle
+                    # Collect number-only lines below
+                    scores = []
+                    for j in range(i + 1, len(lines)):
+                        stripped = lines[j].strip()
+                        if not stripped:
+                            continue
+                        if re.match(r'^\d+$', stripped):
+                            scores.append(int(stripped))
+                        else:
+                            break
+                    if len(scores) >= 2:
+                        return scores
+            return None
+
+        def _parse_separated_scores(line, team_lower, words):
+            """Parse scores from pipe/tab separated format on a single line."""
+            line_lower = line.lower()
+            clean = re.sub(r'\([^)]*\)', '', line_lower)
+            if team_lower in line_lower or any(w in clean for w in words):
+                # Remove team name and record, get remaining numbers
+                cleaned = re.sub(r'\([^)]*\)', '', line)
+                nums = re.findall(r'\d+', cleaned)
+                # First number after team name should be Q1
+                if len(nums) >= 2:
+                    return [int(n) for n in nums]
+            return None
+
         your_team_lower = your_team.lower().strip()
         opp_team_lower = opp_team.lower().strip()
         your_words = [w for w in your_team_lower.split() if len(w) >= 3]
         opp_words = [w for w in opp_team_lower.split() if len(w) >= 3]
 
-        print(f">>> SCORE PARSER: Looking for '{your_team}' and '{opp_team}'", flush=True)
-
-        def _match_team(line_lower, team_lower, words):
-            """Check if a line matches a team name, ignoring parenthetical records."""
-            # Strip out (record) before matching so "(18-0)" doesn't interfere
-            clean = re.sub(r'\([^)]*\)', '', line_lower).strip()
-            if not clean:
-                return False
-            return team_lower in line_lower or any(w in clean for w in words)
-
-        def _collect_scores_after(lines, start_idx):
-            """Collect number-only lines after a team name line. Returns list of ints."""
-            scores = []
-            for j in range(start_idx + 1, len(lines)):
-                stripped = lines[j].strip()
-                # Skip blank lines
-                if not stripped:
-                    continue
-                # A line that is purely a number (quarter score or total)
-                if re.match(r'^\d+$', stripped):
-                    scores.append(int(stripped))
-                else:
-                    # Non-number line = next team or other data, stop collecting
-                    break
-            return scores
-
         your_quarters = None
         opp_quarters = None
+        lines = box_raw.splitlines()
 
-        for i, line in enumerate(lines):
-            line_lower = line.lower().strip()
-            if not line_lower:
-                continue
+        # Strategy 1: Try jammed single-line format first
+        # Join all lines and look for the jammed pattern
+        joined = ' '.join(l.strip() for l in lines if l.strip())
+        # Check if it looks jammed: team name followed immediately by digits after )
+        if re.search(r'\)\s*\d', joined):
+            print(f">>> SCORE PARSER: Trying jammed format parser", flush=True)
+            your_quarters, opp_quarters = _parse_jammed_scores(joined, your_team, opp_team)
 
-            if _match_team(line_lower, your_team_lower, your_words) and your_quarters is None:
-                your_quarters = _collect_scores_after(lines, i)
-                print(f">>> SCORE PARSER: Matched YOUR team at line {i}: {line.strip()!r} -> quarters={your_quarters}", flush=True)
-            elif _match_team(line_lower, opp_team_lower, opp_words) and opp_quarters is None:
-                opp_quarters = _collect_scores_after(lines, i)
-                print(f">>> SCORE PARSER: Matched OPP team at line {i}: {line.strip()!r} -> quarters={opp_quarters}", flush=True)
-
-        # Fallback: find the first two lines that look like team names (contain letters)
-        # followed by number-only lines
+        # Strategy 2: Try vertical format (number-only lines below team name)
         if not your_quarters or not opp_quarters:
-            print(f">>> SCORE PARSER: Name match incomplete, trying positional fallback", flush=True)
-            team_blocks = []
-            i = 0
-            while i < len(lines):
-                stripped = lines[i].strip()
-                # A team-name line has letters and is not purely a number
-                if stripped and not re.match(r'^\d+$', stripped) and re.search(r'[a-zA-Z]', stripped):
-                    scores = _collect_scores_after(lines, i)
-                    if len(scores) >= 2:
-                        team_blocks.append((stripped, scores))
-                        print(f">>> SCORE PARSER: Fallback block: {stripped!r} -> {scores}", flush=True)
-                        i += len(scores)  # skip past the score lines
-                i += 1
-            if len(team_blocks) >= 2:
-                if not your_quarters:
-                    your_quarters = team_blocks[0][1]
-                if not opp_quarters:
-                    opp_quarters = team_blocks[1][1]
+            print(f">>> SCORE PARSER: Trying vertical format parser", flush=True)
+            if not your_quarters:
+                your_quarters = _parse_vertical_scores(lines, your_team_lower, your_words)
+                if your_quarters:
+                    print(f">>> SCORE PARSER: Vertical YOUR: {your_quarters}", flush=True)
+            if not opp_quarters:
+                opp_quarters = _parse_vertical_scores(lines, opp_team_lower, opp_words)
+                if opp_quarters:
+                    print(f">>> SCORE PARSER: Vertical OPP: {opp_quarters}", flush=True)
 
-        # Halftime = Q1 + Q2 (first two numbers collected)
+        # Strategy 3: Try pipe/tab separated lines
+        if not your_quarters or not opp_quarters:
+            print(f">>> SCORE PARSER: Trying separated format parser", flush=True)
+            for line in lines:
+                if not your_quarters:
+                    your_quarters = _parse_separated_scores(line, your_team_lower, your_words)
+                if not opp_quarters:
+                    opp_quarters = _parse_separated_scores(line, opp_team_lower, opp_words)
+
+        # Halftime = Q1 + Q2 (first two numbers)
         if your_quarters and len(your_quarters) >= 2 and opp_quarters and len(opp_quarters) >= 2:
             your_score = your_quarters[0] + your_quarters[1]
             opp_score = opp_quarters[0] + opp_quarters[1]
-            print(f">>> HALFTIME SCORE: {your_team} {your_score} (Q1={your_quarters[0]}, Q2={your_quarters[1]}) - "
+            print(f">>> HALFTIME SCORE: {your_team} {your_score} (Q1={your_quarters[0]}, Q2={your_quarters[1]}) — "
                   f"{opp_team} {opp_score} (Q1={opp_quarters[0]}, Q2={opp_quarters[1]})", flush=True)
         else:
-            print(f">>> SCORE PARSER: Could not find enough quarter data. "
-                  f"your_quarters={your_quarters}, opp_quarters={opp_quarters}", flush=True)
+            print(f">>> SCORE PARSER: FAILED. your_quarters={your_quarters}, opp_quarters={opp_quarters}", flush=True)
 
     print(f">>> RENDER: your_score={your_score!r}, opp_score={opp_score!r}, ai_result={'yes' if ai_result else 'no'}", flush=True)
 
