@@ -238,6 +238,14 @@
       transition: border-color 0.15s;
     }
     .sort-bar select:focus { border-color: #4f6ef7; }
+    .btn-export {
+      background: #065f46; color: #34d399; border: 1px solid #059669;
+      padding: 8px 18px; border-radius: 8px; font-size: 13px;
+      font-weight: 600; font-family: inherit; cursor: pointer;
+      white-space: nowrap; transition: background 0.15s, border-color 0.15s;
+      margin-left: auto;
+    }
+    .btn-export:hover { background: #047857; border-color: #34d399; }
   </style>
 </head>
 <body>
@@ -331,6 +339,7 @@
       <option value="TKL">TKL (Tackling)</option>
       <option value="T">T (Technique)</option>
     </select>
+    <button class="btn-export" onclick="exportCSV()">Export CSV</button>
   </div>
 
   <div id="resultsArea"></div>
@@ -412,6 +421,55 @@
     if (!_lastResultData) return;
     var key = document.getElementById('sortSelect').value;
     renderResults(_lastResultData, key);
+  }
+
+  function csvEscape(val) {
+    var s = String(val == null ? '' : val);
+    if (s.indexOf(',') !== -1 || s.indexOf('"') !== -1 || s.indexOf('\n') !== -1) {
+      return '"' + s.replace(/"/g, '""') + '"';
+    }
+    return s;
+  }
+
+  function exportCSV() {
+    if (!_lastResultData || !_lastResultData.sections) return;
+    var sortKey = document.getElementById('sortSelect').value;
+    var ATTRS = ['A','SPD','STR','E','GI','H','BLK','TKL','T'];
+    var header = ['Rank','Name','Position','Tier','Distance','OVR','GPA','Work Ethic']
+      .concat(ATTRS).concat(['Strengths','Red Flags','Section']);
+    var rows = [header.join(',')];
+
+    _lastResultData.sections.forEach(function(section) {
+      (section.tiers || []).forEach(function(tier) {
+        var players = tier.players || [];
+        if (sortKey) players = sortPlayers(players, sortKey);
+        players.forEach(function(p) {
+          var attrs = p.attributes || {};
+          var row = [
+            csvEscape(p.rank),
+            csvEscape(p.name),
+            csvEscape(p.position || ''),
+            csvEscape(tier.name),
+            csvEscape(fmtDist(p.distance)),
+            csvEscape(p.ovr),
+            csvEscape(p.gpa),
+            csvEscape(p.work_ethic)
+          ];
+          ATTRS.forEach(function(a) { row.push(csvEscape(attrs[a] != null ? attrs[a] : '')); });
+          row.push(csvEscape((p.strengths || []).join('; ')));
+          row.push(csvEscape((p.red_flags || []).join('; ')));
+          row.push(csvEscape(section.header));
+          rows.push(row.join(','));
+        });
+      });
+    });
+
+    var blob = new Blob([rows.join('\n')], {type: 'text/csv;charset=utf-8;'});
+    var link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'recruiting-evaluation.csv';
+    link.click();
+    URL.revokeObjectURL(link.href);
   }
 
   function renderResults(data, sortKey) {
