@@ -349,6 +349,13 @@
     return 'low';
   }
 
+  function fmtDist(val) {
+    if (!val) return 'N/A';
+    var s = String(val);
+    // Replace decimal numbers with rounded integers (e.g. "292.0 miles" → "292 miles")
+    return s.replace(/(\d+)\.\d+/g, function(m, intPart) { return String(Math.round(parseFloat(m))); });
+  }
+
   function parseNum(val) {
     if (val == null) return -Infinity;
     var s = String(val).replace(/[^0-9.\-]/g, '');
@@ -453,7 +460,7 @@
           var stats = document.createElement('div');
           stats.className = 'stat-row';
           stats.innerHTML =
-            '<span class="stat-item">Distance: <strong>' + escHtml(p.distance || 'N/A') + '</strong></span>' +
+            '<span class="stat-item">Distance: <strong>' + escHtml(fmtDist(p.distance)) + '</strong></span>' +
             '<span class="stat-item">OVR: <strong>' + escHtml(String(p.ovr || 'N/A')) + '</strong></span>' +
             '<span class="stat-item">GPA: <strong>' + escHtml(String(p.gpa || 'N/A')) + '</strong></span>' +
             '<span class="stat-item">Work Ethic: <strong>' + escHtml(String(p.work_ethic || 'N/A')) + '</strong></span>';
