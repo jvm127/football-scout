@@ -2881,8 +2881,14 @@ def parse_recruiting_players(raw_text):
         tokens = re.split(r'\t', line)
         num_tabs = len(tokens)
 
-        # Is this a "data row" (has tabs like the header) or a "school line" (few/no tabs)?
-        if num_tabs >= max(3, header_tab_count - 3):
+        # Is this a "data row" (has tabs → structured data) or a "school line" (no tabs)?
+        # A data row has a WIS prefix OR has enough tabs to hold name+pos+stats.
+        # School lines are plain text with no tabs (or just one from copy-paste).
+        first_token_lower = tokens[0].strip().lower() if tokens else ''
+        is_wis_prefixed = first_token_lower in DATA_ROW_PREFIXES
+        is_data_row = is_wis_prefixed or num_tabs >= 3
+
+        if is_data_row:
             # This is a player data row
             tokens = [t.strip().lstrip('*').strip() for t in tokens]
 
@@ -2892,62 +2898,117 @@ def parse_recruiting_players(raw_text):
                 tokens = tokens[1:]
                 print(f">>> PARSE: Stripped WIS prefix, now {len(tokens)} cols", flush=True)
 
-            name = tokens[name_col] if name_col < len(tokens) else ''
-            if not name:
-                continue
+            # Decide whether col_map applies: if this row has far fewer columns
+            # than the header, the layout doesn't match — use content-based detection
+            use_col_map = len(tokens) >= header_tab_count - 2
 
-            pos = ''
-            if pos_col is not None and pos_col < len(tokens):
-                pos = tokens[pos_col].upper()
-
-            player = {
-                'name': name,
-                'pos': pos,
-                'distance': None,
-                'gpa': '',
-                'work_ethic': '',
-                'ovr': '',
-                'considering': [],
-                'stats': {},
-                'raw_line': line,
-            }
-
-            for j, field in col_map.items():
-                if j >= len(tokens):
+            if use_col_map:
+                # ── Column-mapped parsing (data matches header layout) ──
+                name = tokens[name_col] if name_col < len(tokens) else ''
+                if not name:
                     continue
-                val = tokens[j]
-                if field == 'distance':
-                    num = re.sub(r'[^0-9.]', '', val)
-                    try:
-                        player['distance'] = float(num) if num else None
-                    except ValueError:
-                        player['distance'] = None
-                elif field == 'gpa':
-                    player['gpa'] = val
-                elif field == 'work_ethic':
-                    player['work_ethic'] = val
-                elif field == 'ovr':
-                    player['ovr'] = val
-                elif field == 'considering':
-                    schools = re.split(r'[,/;]', val)
-                    player['considering'] = [s.strip() for s in schools if s.strip()]
-                elif field in ('T', 'ST', 'STR', 'A', 'SPD', 'D', 'E', 'GI', 'H', 'BLK', 'TKL'):
-                    try:
-                        player['stats'][field] = int(float(val))
-                    except (ValueError, TypeError):
-                        pass
 
-            # If no distance column in header, scan all unmapped numeric columns for distance-like values
-            if not has_distance_col and player['distance'] is None:
-                for j in range(len(tokens)):
-                    if j in col_map:
-                        continue  # skip mapped columns
+                pos = ''
+                if pos_col is not None and pos_col < len(tokens):
+                    pos = tokens[pos_col].upper()
+
+                player = {
+                    'name': name,
+                    'pos': pos,
+                    'distance': None,
+                    'gpa': '',
+                    'work_ethic': '',
+                    'ovr': '',
+                    'considering': [],
+                    'stats': {},
+                    'raw_line': line,
+                }
+
+                for j, field in col_map.items():
+                    if j >= len(tokens):
+                        continue
+                    val = tokens[j]
+                    if field == 'distance':
+                        num = re.sub(r'[^0-9.]', '', val)
+                        try:
+                            player['distance'] = float(num) if num else None
+                        except ValueError:
+                            player['distance'] = None
+                    elif field == 'gpa':
+                        player['gpa'] = val
+                    elif field == 'work_ethic':
+                        player['work_ethic'] = val
+                    elif field == 'ovr':
+                        player['ovr'] = val
+                    elif field == 'considering':
+                        schools = re.split(r'[,/;]', val)
+                        player['considering'] = [s.strip() for s in schools if s.strip()]
+                    elif field in ('T', 'ST', 'STR', 'A', 'SPD', 'D', 'E', 'GI', 'H', 'BLK', 'TKL'):
+                        try:
+                            player['stats'][field] = int(float(val))
+                        except (ValueError, TypeError):
+                            pass
+            else:
+                # ── Content-based parsing (data row has fewer cols than header) ──
+                # Typical WIS summary: Pos, Name, Height, Weight, ..., City/State, Miles
+                # Detect fields by pattern rather than header position
+                player = {
+                    'name': '',
+                    'pos': '',
+                    'distance': None,
+                    'gpa': '',
+                    'work_ethic': '',
+                    'ovr': '',
+                    'considering': [],
+                    'stats': {},
+                    'raw_line': line,
+                }
+
+                KNOWN_POSITIONS = {'QB','RB','WR','TE','OL','DL','LB','DB','K','P',
+                                   'C','OG','OT','DE','DT','NT','SS','FS','CB','S',
+                                   'FB','SE','FL','NG','ILB','OLB','MLB','ATH'}
+
+                for j, val in enumerate(tokens):
+                    val_upper = val.upper().strip()
+                    val_stripped = val.strip()
+
+                    # Position (short uppercase, known set)
+                    if not player['pos'] and val_upper in KNOWN_POSITIONS:
+                        player['pos'] = val_upper
+                    # Name (contains a space, mostly letters, not a city/state with comma)
+                    elif not player['name'] and ' ' in val_stripped and ',' not in val_stripped and re.match(r'^[A-Za-z\s\.\'-]+$', val_stripped):
+                        player['name'] = val_stripped
+                    # GPA (decimal between 1.0 and 5.0)
+                    elif not player['gpa'] and re.match(r'^\d\.\d+$', val_stripped):
+                        gpa_val = float(val_stripped)
+                        if 1.0 <= gpa_val <= 5.0:
+                            player['gpa'] = val_stripped
+                    # Distance (last pure integer in plausible range, or number > 100)
+                    # We'll collect candidates and pick the best one below
+
+                # Scan from right to left for the distance (last numeric value in range)
+                for j in range(len(tokens) - 1, -1, -1):
                     val = tokens[j].strip()
-                    # Look for a value that looks like miles (number, possibly with "mi" or "miles")
                     m = re.match(r'^(\d+(?:\.\d+)?)\s*(?:mi(?:les?)?)?$', val, re.IGNORECASE)
                     if m:
                         dist_val = float(m.group(1))
-                        # Plausible distance range (1–5000 miles), and not a stat-like small number
+                        if 10 < dist_val < 5000:
+                            player['distance'] = dist_val
+                            break
+
+                if not player['name']:
+                    continue
+
+                print(f">>> PARSE (content-detect): name={player['name']!r}, pos={player['pos']!r}, "
+                      f"dist={player['distance']}, gpa={player['gpa']!r}", flush=True)
+
+            # If distance is still None, scan ALL columns for distance-like values
+            if player['distance'] is None:
+                for j in range(len(tokens)):
+                    val = tokens[j].strip()
+                    m = re.match(r'^(\d+(?:\.\d+)?)\s*(?:mi(?:les?)?)?$', val, re.IGNORECASE)
+                    if m:
+                        dist_val = float(m.group(1))
                         if 10 < dist_val < 5000:
                             player['distance'] = dist_val
                             break
