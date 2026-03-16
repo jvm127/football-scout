@@ -3186,6 +3186,25 @@ def parse_recruiting_players(raw_text):
     if not lines_stripped:
         return []
 
+    # ── Normalize separators: convert multi-space to tabs ──
+    # WIS data can be pasted with 4+ spaces instead of tabs. Detect this by
+    # checking if no lines contain tabs but some contain 2+ space gaps.
+    has_tabs = any('\t' in line for line in lines_stripped[:20])
+    if not has_tabs:
+        has_multi_space = any(re.search(r'  {3,}', line) for line in lines_stripped[:20])
+        if has_multi_space:
+            print(f">>> RECRUITING: No tabs found — converting multi-space separators to tabs", flush=True)
+            normalized = []
+            for line in lines_stripped:
+                stripped = line.strip()
+                # Only normalize lines with multi-space gaps (data/header rows)
+                # Leave school-name-only lines untouched
+                if re.search(r'  {3,}', stripped):
+                    normalized.append(re.sub(r'  {2,}', '\t', stripped))
+                else:
+                    normalized.append(stripped)
+            lines_stripped = normalized
+
     # ── Pre-processing: strip WIS page noise ──
     # Step 1 (FIND THE START): header row contains both 'Pos' and 'Name' as tab-separated values
     original_count = len(lines_stripped)
