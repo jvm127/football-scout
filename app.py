@@ -2755,10 +2755,256 @@ Opponent Team Ratings:
 def recruiting():
     return render_template("recruiting.html")
 
+# ─── Recruiting: D1-AA school exclusion list ─────────────────────────────────
+D1AA_EXCLUDED_SCHOOLS = {s.strip().lower() for s in """
+Michigan, Arizona State, Iowa, USC, Virginia, Penn State, Florida, Indiana,
+DePaul, Syracuse, Texas, Purdue, Alabama, LSU, Florida State, Minnesota,
+Nebraska, Southern Methodist, Vanderbilt, Clemson, Georgia, Notre Dame,
+Oklahoma, Tennessee, Miami (FL), Boston College, South Carolina, Washington,
+Missouri, Northwestern, UCLA, California, Colorado State, Iowa State, Temple,
+Colorado, Kansas, West Virginia, Cincinnati, Ohio State, Toledo, Montana,
+Air Force, Baylor, Navy, Washington State, Texas A&M, Texas Tech, Army,
+Akron, Ole Miss, Stanford, Buffalo, Boise State, Tulane, Kent State, BYU,
+Kentucky, Auburn, Alabama Birmingham, Oklahoma State, North Texas, Hawaii,
+Pittsburgh, Utah State, Northern Illinois, San Diego State, New Mexico State,
+Arkansas, Louisiana Tech, Kansas State, Oregon, Idaho, Mississippi State,
+Fresno State, North Carolina, Wake Forest, South Florida, Georgia Tech,
+Central Michigan, Oregon State, Michigan State, Tulsa, NC State, Wisconsin,
+Ohio, Marshall, East Carolina, Rice, Memphis, Louisville, Utah, Connecticut,
+Arizona, Bowling Green, Ball State, Southern Mississippi, Illinois,
+Central Florida, Louisiana Lafayette, Marquette, Rutgers, Miami (OH),
+Troy State, Arkansas State, UNLV, New Mexico, San Jose State, Virginia Tech,
+UTEP, Middle Tennessee, Nevada, Western Michigan, Maryland, Louisiana Monroe,
+Duke, Wyoming, Texas Christian, Eastern Michigan, Houston
+""".replace('\n', ',').split(',') if s.strip()}
+
+
+def parse_recruiting_players(raw_text):
+    """Parse tab-separated recruiting board data into list of player dicts.
+
+    Flexibly detects columns by header names. Returns list of dicts with keys:
+    name, pos, distance (float or None), gpa (str), work_ethic (str),
+    ovr (str), considering (list of school strings), raw_line (original text),
+    and all stat values found.
+    """
+    lines = [l for l in raw_text.splitlines() if l.strip()]
+    if not lines:
+        return []
+
+    # ── Find the header row ──
+    HEADER_ALIASES = {
+        'name': 'name', 'player': 'name',
+        'pos': 'pos', 'position': 'pos',
+        'dist': 'distance', 'distance': 'distance', 'miles': 'distance',
+        'gpa': 'gpa',
+        'we': 'work_ethic', 'work ethic': 'work_ethic', 'workethic': 'work_ethic',
+        'ovr': 'ovr', 'overall': 'ovr', 'tot': 'ovr', 'total': 'ovr',
+        'considering': 'considering', 'schools': 'considering', 'interest': 'considering',
+        # Stats
+        't': 'T', 'technique': 'T', 'tech': 'T',
+        'str': 'STR', 'strength': 'STR', 'strn': 'STR',
+        'a': 'A', 'agility': 'A', 'agl': 'A', 'ath': 'A', 'athleticism': 'A',
+        'spd': 'SPD', 'speed': 'SPD',
+        'e': 'E', 'elusiveness': 'E', 'elus': 'E',
+        'gi': 'GI', 'game instinct': 'GI', 'instinct': 'GI',
+        'h': 'H', 'hands': 'H',
+        'blk': 'BLK', 'blocking': 'BLK', 'block': 'BLK',
+        'tkl': 'TKL', 'tackling': 'TKL', 'tckl': 'TKL',
+    }
+
+    header_idx = None
+    col_map = {}  # col_index -> field_name
+
+    for i, line in enumerate(lines):
+        tokens = re.split(r'\t', line)
+        if len(tokens) < 3:
+            continue
+        temp_map = {}
+        for j, tok in enumerate(tokens):
+            key = tok.strip().lower()
+            if key in HEADER_ALIASES:
+                temp_map[j] = HEADER_ALIASES[key]
+        # Need at least name/pos and one stat to call it a header
+        fields_found = set(temp_map.values())
+        has_identity = 'name' in fields_found or 'pos' in fields_found
+        has_stat = bool(fields_found & {'T', 'STR', 'A', 'SPD', 'E', 'GI', 'H', 'BLK', 'TKL', 'ovr'})
+        if has_identity and has_stat:
+            header_idx = i
+            col_map = temp_map
+            break
+
+    if header_idx is None:
+        # No header found — return raw text to Claude as-is
+        return []
+
+    # Determine name and pos columns with fallbacks
+    name_cols = [j for j, f in col_map.items() if f == 'name']
+    pos_cols = [j for j, f in col_map.items() if f == 'pos']
+    name_col = name_cols[0] if name_cols else None
+    pos_col = pos_cols[0] if pos_cols else None
+
+    if name_col is None:
+        name_col = 0 if pos_col != 0 else 1
+
+    players = []
+    for line in lines[header_idx + 1:]:
+        tokens = re.split(r'\t', line)
+        tokens = [t.strip().lstrip('*').strip() for t in tokens]
+        if len(tokens) < 3:
+            continue
+
+        name = tokens[name_col] if name_col < len(tokens) else ''
+        if not name:
+            continue
+
+        pos = ''
+        if pos_col is not None and pos_col < len(tokens):
+            pos = tokens[pos_col].upper()
+
+        player = {
+            'name': name,
+            'pos': pos,
+            'distance': None,
+            'gpa': '',
+            'work_ethic': '',
+            'ovr': '',
+            'considering': [],
+            'stats': {},
+            'raw_line': line,
+        }
+
+        for j, field in col_map.items():
+            if j >= len(tokens):
+                continue
+            val = tokens[j]
+            if field == 'distance':
+                # Extract numeric distance
+                num = re.sub(r'[^0-9.]', '', val)
+                try:
+                    player['distance'] = float(num) if num else None
+                except ValueError:
+                    player['distance'] = None
+            elif field == 'gpa':
+                player['gpa'] = val
+            elif field == 'work_ethic':
+                player['work_ethic'] = val
+            elif field == 'ovr':
+                player['ovr'] = val
+            elif field == 'considering':
+                # Schools may be comma or slash separated
+                schools = re.split(r'[,/;]', val)
+                player['considering'] = [s.strip() for s in schools if s.strip()]
+            elif field in ('T', 'STR', 'A', 'SPD', 'E', 'GI', 'H', 'BLK', 'TKL'):
+                try:
+                    player['stats'][field] = int(float(val))
+                except (ValueError, TypeError):
+                    pass
+
+        players.append(player)
+
+    return players
+
+
+def filter_recruiting_players(players, division, position):
+    """Apply all recruiting filters in Python. Returns (primary, extended) lists."""
+
+    # Filter by position if specified
+    if position:
+        pos_upper = position.upper()
+        players = [p for p in players if p['pos'] == pos_upper or not p['pos']]
+
+    # ── Division-specific filtering ──
+    if division == 'Division 1':
+        # Exclude missing distance
+        players = [p for p in players if p['distance'] is not None]
+        # Split into within 360 and beyond
+        primary = [p for p in players if p['distance'] <= 360]
+        beyond = [p for p in players if p['distance'] > 360]
+        beyond.sort(key=lambda p: p['distance'])
+        # Auto-expand if fewer than 10
+        extended = []
+        if len(primary) < 10:
+            needed = 10 - len(primary)
+            extended = beyond[:needed]
+        return primary, extended
+
+    elif division == 'Division 1-AA':
+        # Exclude missing distance
+        players = [p for p in players if p['distance'] is not None]
+        # School exclusion check
+        def passes_school_check(p):
+            for school in p.get('considering', []):
+                if school.strip().lower() in D1AA_EXCLUDED_SCHOOLS:
+                    return False
+            return True
+        players = [p for p in players if passes_school_check(p)]
+        # Split into within 360 and beyond
+        primary = [p for p in players if p['distance'] <= 360]
+        beyond = [p for p in players if p['distance'] > 360]
+        beyond.sort(key=lambda p: p['distance'])
+        # Auto-expand if fewer than 10
+        extended = []
+        if len(primary) < 10:
+            needed = 10 - len(primary)
+            extended = beyond[:needed]
+        return primary, extended
+
+    elif division in ('Division 2', 'Division 3'):
+        # Only include undecided players
+        def is_undecided(p):
+            considering = p.get('considering', [])
+            if not considering:
+                return True
+            return all(s.strip().lower() in ('undecided', '') for s in considering)
+        players = [p for p in players if is_undecided(p)]
+        # Exclude missing distance
+        players = [p for p in players if p['distance'] is not None]
+        # Split into within 800 and beyond
+        primary = [p for p in players if p['distance'] <= 800]
+        beyond = [p for p in players if p['distance'] > 800]
+        beyond.sort(key=lambda p: p['distance'])
+        # Auto-expand if fewer than 10
+        extended = []
+        if len(primary) < 10:
+            needed = 10 - len(primary)
+            extended = beyond[:needed]
+        return primary, extended
+
+    # Default: no filtering
+    return players, []
+
+
+def format_players_for_claude(players, tag=''):
+    """Format a list of player dicts into readable text for Claude."""
+    lines = []
+    for p in players:
+        parts = [f"Name: {p['name']}"]
+        if p['pos']:
+            parts.append(f"Pos: {p['pos']}")
+        if p['distance'] is not None:
+            parts.append(f"Distance: {p['distance']} miles")
+        if p['ovr']:
+            parts.append(f"OVR: {p['ovr']}")
+        if p['gpa']:
+            parts.append(f"GPA: {p['gpa']}")
+        if p['work_ethic']:
+            parts.append(f"Work Ethic: {p['work_ethic']}")
+        if p['stats']:
+            stat_parts = [f"{k}: {v}" for k, v in p['stats'].items()]
+            parts.append(f"Stats: {', '.join(stat_parts)}")
+        if p.get('considering'):
+            parts.append(f"Considering: {', '.join(p['considering'])}")
+        if tag:
+            parts.append(f"[{tag}]")
+        lines.append(' | '.join(parts))
+    return '\n'.join(lines)
+
+
 @app.route("/recruiting/analyze", methods=["POST"])
 @subscription_required
 def recruiting_analyze():
     from flask import jsonify
+    import json as _json
     data = request.get_json()
     division = data.get("division", "")
     position = data.get("position", "")
@@ -2767,14 +3013,36 @@ def recruiting_analyze():
     if not player_data.strip():
         return jsonify(error="No player data provided."), 400
 
-    system_prompt = """You are a football player evaluation engine. Your ONLY job is to evaluate and rank football players provided by the user using predefined rules.
+    # ── Step 1: Parse player data ──
+    players = parse_recruiting_players(player_data)
+    print(f">>> RECRUITING: Parsed {len(players)} players from input", flush=True)
+
+    if not players:
+        # Could not parse structured data — send raw text to Claude with filtering instructions
+        print(">>> RECRUITING: Could not parse players, sending raw data to Claude", flush=True)
+        primary_text = player_data
+        extended_text = ''
+        has_extended = False
+    else:
+        # ── Step 2: Apply filters in Python ──
+        primary, extended = filter_recruiting_players(players, division, position)
+        print(f">>> RECRUITING: After filtering — primary={len(primary)}, extended={len(extended)}", flush=True)
+
+        if not primary and not extended:
+            return jsonify(error="No players qualified after applying filters for this division."), 400
+
+        primary_text = format_players_for_claude(primary)
+        extended_text = format_players_for_claude(extended, tag='EXTENDED RANGE') if extended else ''
+        has_extended = len(extended) > 0
+
+    # ── Step 3: Build prompt for Claude — evaluation only, no filtering ──
+    system_prompt = """You are a football player evaluation engine. Your ONLY job is to evaluate and rank the pre-filtered players provided below.
+
+IMPORTANT: These players have already been filtered and qualify. Evaluate and rank ONLY these players. Do NOT apply any additional filtering or exclusions. Do NOT remove any players.
 
 STRICT RULES:
 - Never ask questions
-- Never explain what filters you are applying
-- Never announce exclusions before showing results
-- Never say "insufficient results" or similar — just silently apply the rules and show what qualifies
-- For Division 1: if fewer than 10 players qualify within 360 miles, automatically include additional players beyond 360 miles to reach 10 total
+- Never explain what filters were applied
 - Just output the JSON immediately with no preamble or commentary
 
 ATTRIBUTE DEFINITIONS:
@@ -2795,22 +3063,15 @@ Division 1: STR >= 55
 Division 1-AA: STR >= 50
 Division 2 and 3: No minimum
 Exclude specialists below minimum.
-SCHOOL EXCLUSIONS:
-Division 1: NO school exclusions — include all players regardless of what school they are considering.
-DIVISION 1-AA ONLY — exclude any player considering these schools: Michigan, Arizona State, Iowa, USC, Virginia, Penn State, Florida, Indiana, DePaul, Syracuse, Texas, Purdue, Alabama, LSU, Florida State, Minnesota, Nebraska, Southern Methodist, Vanderbilt, Clemson, Georgia, Notre Dame, Oklahoma, Tennessee, Miami (FL), Boston College, South Carolina, Washington, Missouri, Northwestern, UCLA, California, Colorado State, Iowa State, Temple, Colorado, Kansas, West Virginia, Cincinnati, Ohio State, Toledo, Montana, Air Force, Baylor, Navy, Washington State, Texas A&M, Texas Tech, Army, Akron, Ole Miss, Stanford, Buffalo, Boise State, Tulane, Kent State, BYU, Kentucky, Auburn, Alabama Birmingham, Oklahoma State, North Texas, Hawaii, Pittsburgh, Utah State, Northern Illinois, San Diego State, New Mexico State, Arkansas, Louisiana Tech, Kansas State, Oregon, Idaho, Mississippi State, Fresno State, North Carolina, Wake Forest, South Florida, Georgia Tech, Central Michigan, Oregon State, Michigan State, Tulsa, NC State, Wisconsin, Ohio, Marshall, East Carolina, Rice, Memphis, Louisville, Utah, Connecticut, Arizona, Bowling Green, Ball State, Southern Mississippi, Illinois, Central Florida, Louisiana Lafayette, Marquette, Rutgers, Miami (OH), Troy State, Arkansas State, UNLV, New Mexico, San Jose State, Virginia Tech, UTEP, Middle Tennessee, Nevada, Western Michigan, Maryland, Louisiana Monroe, Duke, Wyoming, Texas Christian, Eastern Michigan, Houston
-DIVISION 2 AND 3 — only include players who are Undecided.
-DISTANCE RULES:
-Division 1 and 1-AA: 360 miles or less (but for Division 1, if fewer than 10 qualify, expand beyond 360 to reach 10)
-Division 2 and 3: 800 miles or less
-Missing distance = exclude
 OVERALL RATING RULE — OVR comes from the data only, never calculate or adjust. If missing show "N/A".
 RANKING — rank players by position attributes primarily but consider the whole player. Use WE (Work Ethic) then GPA as tiebreakers.
+Players tagged with [EXTENDED RANGE] should be placed in a separate section header "Extended Range — Beyond 360 Miles" (or "Beyond 800 Miles" for D2/D3).
 
 OUTPUT FORMAT — You MUST respond with valid JSON only. No text before or after the JSON. Use this exact structure:
 {
   "sections": [
     {
-      "header": "Within 360 Miles",
+      "header": "Results",
       "tiers": [
         {
           "name": "Tier 1 — Elite",
@@ -2835,13 +3096,17 @@ OUTPUT FORMAT — You MUST respond with valid JSON only. No text before or after
 }
 
 SECTION RULES:
-- For Division 1: if you expanded beyond 360 miles, create two sections: "Within 360 Miles" and "Extended Range — Beyond 360 Miles". Otherwise just one section with header "Results".
-- For all other divisions: one section with header "Results".
+- If there are EXTENDED RANGE players, create two sections: first with header based on the distance limit, second with "Extended Range — Beyond X Miles".
+- If no extended range players, use a single section with header "Results".
 - Only include tiers that have players. If no players qualify for a tier, omit it.
 - attributes object should only contain the core attributes for that position.
 - End the JSON and nothing else — do not add any text after the closing brace."""
 
-    user_message = f"Division: {division}\nPosition Group: {position}\n\nPlayer Data:\n{player_data}"
+    # Build user message with pre-filtered players
+    user_parts = [f"Division: {division}", f"Position Group: {position}", "", "=== QUALIFYING PLAYERS ===", primary_text]
+    if extended_text:
+        user_parts.extend(["", "=== EXTENDED RANGE PLAYERS ===", extended_text])
+    user_message = '\n'.join(user_parts)
 
     try:
         client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
@@ -2855,7 +3120,6 @@ SECTION RULES:
         print(f">>> RECRUITING RAW RESPONSE (first 500): {result_text[:500]}", flush=True)
 
         # Try to parse as JSON server-side and return structured data
-        import json as _json
         cleaned = result_text.strip()
         # Strip markdown code fences
         if cleaned.startswith('```'):
