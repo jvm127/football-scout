@@ -3186,6 +3186,44 @@ def parse_recruiting_players(raw_text):
     if not lines_stripped:
         return []
 
+    # ── Pre-processing: strip WIS page noise ──
+    NOISE_PHRASES = [
+        'recruits', 'next >>', 'roster', 'quick jump', 'terms of use',
+        'customer support', 'privacy', 'whatifsports', 'popular on',
+        'save', 'reminders', 'signing period', 'recruiting ends',
+        'no recruits', 'maximum 10', 'recruit compare', 'posnamerating',
+        'previous', '<< prev', 'page ', ' of ', 'footer', 'navigation',
+        'copyright', 'all rights reserved',
+    ]
+    # Roster summary pattern: "QBAll3697" or "AllAll42__745__" (position+All+digits)
+    ROSTER_SUMMARY_RE = re.compile(r'^[A-Z]{2,3}All\d|^AllAll\d', re.IGNORECASE)
+
+    original_count = len(lines_stripped)
+    filtered_lines = []
+    for line in lines_stripped:
+        stripped = line.strip()
+        lower = stripped.lower()
+        # Skip blank
+        if not stripped:
+            continue
+        # Skip lines matching noise phrases
+        if any(phrase in lower for phrase in NOISE_PHRASES):
+            continue
+        # Skip roster summary lines
+        if ROSTER_SUMMARY_RE.match(stripped):
+            continue
+        # Skip lines that look like pure navigation/menu (no tabs, very short, all links)
+        if '\t' not in stripped and len(stripped) < 20 and not re.search(r'[A-Z][a-z]', stripped):
+            continue
+        filtered_lines.append(line)
+
+    stripped_count = original_count - len(filtered_lines)
+    print(f">>> RECRUITING NOISE FILTER: {stripped_count} lines stripped, {len(filtered_lines)} lines kept (from {original_count})", flush=True)
+    lines_stripped = filtered_lines
+
+    if not lines_stripped:
+        return []
+
     # ── Find the header row ──
     HEADER_ALIASES = {
         'name': 'name', 'player': 'name',
@@ -3668,7 +3706,7 @@ SECTION RULES:
         client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
         response = client.messages.create(
             model="claude-sonnet-4-20250514",
-            max_tokens=4096,
+            max_tokens=1000,
             system=system_prompt,
             messages=[{"role": "user", "content": user_message}],
         )
