@@ -3742,7 +3742,7 @@ SECTION RULES:
         client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
         response = client.messages.create(
             model="claude-sonnet-4-20250514",
-            max_tokens=1000,
+            max_tokens=4096,
             system=system_prompt,
             messages=[{"role": "user", "content": user_message}],
         )
@@ -3763,7 +3763,8 @@ SECTION RULES:
         try:
             parsed = _json.loads(cleaned)
             return jsonify(result=parsed, format="json")
-        except _json.JSONDecodeError:
+        except _json.JSONDecodeError as e:
+            print(f">>> RECRUITING: JSON parse failed: {e}", flush=True)
             # Remove trailing commas and retry
             fixed = re.sub(r',\s*([}\]])', r'\1', cleaned)
             try:
@@ -3771,6 +3772,29 @@ SECTION RULES:
                 return jsonify(result=parsed, format="json")
             except _json.JSONDecodeError:
                 pass
+            # Try to repair truncated JSON (API may have cut off mid-response)
+            # Close any open strings, arrays, objects
+            repaired = cleaned
+            # Count unclosed braces/brackets
+            open_braces = repaired.count('{') - repaired.count('}')
+            open_brackets = repaired.count('[') - repaired.count(']')
+            # If truncated mid-string, close the string
+            if repaired.count('"') % 2 != 0:
+                repaired += '"'
+            # Remove any trailing comma or partial key/value
+            repaired = re.sub(r',\s*$', '', repaired)
+            repaired = re.sub(r',\s*"[^"]*$', '', repaired)
+            # Close arrays then objects
+            repaired += ']' * max(0, open_brackets)
+            repaired += '}' * max(0, open_braces)
+            repaired = re.sub(r',\s*([}\]])', r'\1', repaired)
+            try:
+                parsed = _json.loads(repaired)
+                print(f">>> RECRUITING: Repaired truncated JSON successfully", flush=True)
+                return jsonify(result=parsed, format="json")
+            except _json.JSONDecodeError as e2:
+                print(f">>> RECRUITING: JSON repair also failed: {e2}", flush=True)
+                print(f">>> RECRUITING: Last 200 chars: {cleaned[-200:]!r}", flush=True)
         # Fallback: return raw text
         return jsonify(result=result_text, format="text")
     except Exception as e:
