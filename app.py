@@ -2644,6 +2644,12 @@ def validate_ai_output(text):
             print(f">>> VALIDATE: Removed 'tale of two halves' phrase matching: {pattern}", flush=True)
             text = _re.sub(pattern, 'a pivotal first half', text, flags=_re.IGNORECASE)
 
+    # 6. Remove leading colons before stat lines (e.g. ": 5 rec, 89 yds" -> "5 rec, 89 yds")
+    colon_count = len(_re.findall(r':\s*\d+\s*(?:rec|car|att|yds|td|int|sack|tkl|comp)', text, flags=_re.IGNORECASE))
+    if colon_count:
+        text = _re.sub(r':\s*(\d+\s*(?:rec|car|att|yds|td|int|sack|tkl|comp))', r' \1', text, flags=_re.IGNORECASE)
+        print(f">>> VALIDATE: Removed {colon_count} leading colon(s) before stat lines", flush=True)
+
     return text
 
 
@@ -2817,7 +2823,9 @@ CRITICAL RULES:
 - DO NOT CONTRADICT THE DATA — if the passing game is working well (high completion %, good yardage), do not recommend abandoning it. If inside runs average 3.0+ ypc, that is decent — do not say to abandon them. Only recommend stopping something if the numbers clearly show it is failing (below 3.0 ypc for runs, below 50% completion for passes). Every recommendation must be logically consistent with the actual first half stats.
 - SCORE ACCURACY — always state the score correctly. If Team A has 13 points and Team B has 14 points, then Team A is LOSING by 1 point and Team B is WINNING by 1 point. The team with MORE points is winning. The team with FEWER points is losing. Double check who is winning before writing the summary. Never say a team "leads" when their score is lower than the opponent's.
 - NO "TALE OF TWO HALVES" — this is a HALFTIME report. Only the first half has been played. The second half has NOT happened yet. Never use phrases like "tale of two halves", "game of two halves", "two different halves", or any language that implies both halves have already been played. You are analyzing ONE half of data and recommending adjustments for the upcoming second half.
-- MISMATCH THRESHOLD — a mismatch only exists when the difference is 20 or more points. If YOUR stat is 767 and THEIR stat is 768 that is NOT a mismatch — it is an even matchup. Never say to exploit a matchup where your rating is lower than or equal to the opponent. Never recommend targeting a position as a mismatch unless your rating is at least 20 points higher than their corresponding defender rating.
+- MISMATCH THRESHOLD — a mismatch only exists when the difference is 20 or more points. If YOUR stat is 767 and THEIR stat is 768 that is NOT a mismatch — it is an even matchup. Never say to exploit a matchup where your rating is lower than or equal to the opponent. Never recommend targeting a position as a mismatch unless your rating is at least 20 points higher than their corresponding defender rating. This applies to ALL matchups including TE TOT vs LB TOT — if the TE TOT is not at least 20 higher than LB TOT, do not recommend exploiting the TE as a mismatch.
+- SACKS BELONG TO THE DEFENSE — "Sacked-Yds 3-21" listed under a team's stats means that team's QB was sacked 3 times for 21 yards lost. Sacks are a DEFENSIVE stat credited to the opposing defense. If Stony Brook shows "Sacked-Yds 3-21" that means Stony Brook's offense has a pass protection problem — their QB was sacked 3 times. It does NOT mean Stony Brook's defense recorded sacks. Always check which team the sack stat belongs to before writing any recommendation about pass rush or QB protection. If YOUR team has sacks listed, YOUR offense is struggling with protection. If THEIR team has sacks listed, THEIR defense is getting to your QB.
+- TOP PERFORMERS FORMATTING — in the Top Performers section, never put a colon before stat lines. Write "5 rec, 89 yds" not ": 5 rec, 89 yds". No colon prefix on any stat line.
 
 ANALYSIS RULES:
 - Read the game log carefully and identify actual play patterns — what run directions worked, what pass routes converted, which players performed
