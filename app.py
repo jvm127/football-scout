@@ -2545,25 +2545,49 @@ def validate_ai_output(text):
     """
     import re as _re
 
-    # 1. Fix "X overpowers Y" where the numbers are backwards
-    # Matches patterns like "their 84 overpowers your 88" or "88 significantly overpowers 84"
+    # 1. Fix "X overpowers/dominates/overwhelms Y" — wrong direction or too small a gap
+    POWER_WORDS = r'(?:overpower[s]?|dominate[s]?|overwhelm[s]?)'
+    POWER_REPLACEMENT_MAP = {
+        'overpowers': 'is outmatched by', 'overpower': 'is outmatched by',
+        'dominates': 'is outmatched by', 'dominate': 'is outmatched by',
+        'overwhelms': 'is outmatched by', 'overwhelm': 'is outmatched by',
+    }
+    MILD_REPLACEMENT_MAP = {
+        'overpowers': 'holds a slight edge over', 'overpower': 'hold a slight edge over',
+        'dominates': 'has a modest advantage over', 'dominate': 'have a modest advantage over',
+        'overwhelms': 'edges out', 'overwhelm': 'edge out',
+    }
+
     def _fix_overpowers(m):
         full = m.group(0)
         nums = _re.findall(r'(\d+)', full)
         if len(nums) >= 2:
             first, second = int(nums[0]), int(nums[1])
-            # "their X overpowers your Y" — X should be > Y
-            if 'their' in full.lower()[:full.lower().index('overpower')] and first < second:
-                print(f">>> VALIDATE: Fixed wrong overpower claim: {full!r}", flush=True)
-                return full.replace('overpowers', 'is outmatched by').replace('overpower', 'is outmatched by')
-            # "your X overpowers their Y" — X should be > Y
-            if 'your' in full.lower()[:full.lower().index('overpower')] and first < second:
-                print(f">>> VALIDATE: Fixed wrong overpower claim: {full!r}", flush=True)
-                return full.replace('overpowers', 'trails').replace('overpower', 'trails')
+            lower = full.lower()
+            # Find the power word position
+            pw_match = _re.search(POWER_WORDS, lower)
+            if not pw_match:
+                return full
+            pw_pos = pw_match.start()
+            pw_word = pw_match.group(0)
+
+            # Check if numbers are backwards ("their X overpowers your Y" but X < Y)
+            if 'their' in lower[:pw_pos] and first < second:
+                print(f">>> VALIDATE: Fixed wrong power claim (backwards): {full!r}", flush=True)
+                return _re.sub(POWER_WORDS, lambda m2: POWER_REPLACEMENT_MAP.get(m2.group(0).lower(), 'is outmatched by'), full, flags=_re.IGNORECASE)
+            if 'your' in lower[:pw_pos] and first < second:
+                print(f">>> VALIDATE: Fixed wrong power claim (backwards): {full!r}", flush=True)
+                return _re.sub(POWER_WORDS, lambda m2: 'trails', full, flags=_re.IGNORECASE)
+
+            # Check if gap is too small for power language (< 20)
+            gap = abs(first - second)
+            if gap < 20:
+                print(f">>> VALIDATE: Downgraded power word for small gap ({gap}): {full!r}", flush=True)
+                return _re.sub(POWER_WORDS, lambda m2: MILD_REPLACEMENT_MAP.get(m2.group(0).lower(), 'edges'), full, flags=_re.IGNORECASE)
         return full
 
     text = _re.sub(
-        r'[^.]*\d+[^.]*overpower[s]?[^.]*\d+[^.]*',
+        r'[^.]*\d+[^.]*' + POWER_WORDS + r'[^.]*\d+[^.]*',
         _fix_overpowers, text, flags=_re.IGNORECASE
     )
 
@@ -2710,6 +2734,8 @@ NEVER compare RB vs DL, WR vs LB, RB SPD vs DB SPD, or include QB protection.
 
 MISMATCH THRESHOLD: A mismatch only exists when the difference is 20 or more points. If YOUR stat is 767 and THEIR stat is 768 that is NOT a mismatch — it is an even matchup. Never say to exploit a matchup where your rating is lower than or equal to the opponent. Never recommend targeting a position as a mismatch unless your rating is at least 20 points higher than their corresponding defender rating.
 
+OVERPOWERING LANGUAGE: Never use "overpowers", "dominates", or "overwhelms" for any stat difference less than 20 points. A +4 edge (e.g. OL STR 88 vs DL STR 84) is a "slight edge" or "modest advantage". A +10 to +19 edge is a "solid advantage". Only use "dominates" or "overpowers" for differences of +20 or more.
+
 OUTPUT SECTIONS IN ORDER:
 
 STANDOUT PLAYERS — parse individual player names and TOT ratings from the raw data
@@ -2826,6 +2852,8 @@ CRITICAL RULES:
 - MISMATCH THRESHOLD — a mismatch only exists when the difference is 20 or more points. If YOUR stat is 767 and THEIR stat is 768 that is NOT a mismatch — it is an even matchup. Never say to exploit a matchup where your rating is lower than or equal to the opponent. Never recommend targeting a position as a mismatch unless your rating is at least 20 points higher than their corresponding defender rating. This applies to ALL matchups including TE TOT vs LB TOT — if the TE TOT is not at least 20 higher than LB TOT, do not recommend exploiting the TE as a mismatch.
 - SACKS BELONG TO THE DEFENSE — "Sacked-Yds 3-21" listed under a team's stats means that team's QB was sacked 3 times for 21 yards lost. Sacks are a DEFENSIVE stat credited to the opposing defense. If Stony Brook shows "Sacked-Yds 3-21" that means Stony Brook's offense has a pass protection problem — their QB was sacked 3 times. It does NOT mean Stony Brook's defense recorded sacks. Always check which team the sack stat belongs to before writing any recommendation about pass rush or QB protection. If YOUR team has sacks listed, YOUR offense is struggling with protection. If THEIR team has sacks listed, THEIR defense is getting to your QB.
 - TOP PERFORMERS FORMATTING — in the Top Performers section, never put a colon before stat lines. Write "5 rec, 89 yds" not ": 5 rec, 89 yds". No colon prefix on any stat line.
+- ONE RUN DIRECTION — calculate average yards per carry for inside runs and outside runs separately from the game log. Recommend ONLY the direction with higher yards per carry. Never recommend both inside AND outside running in the same game plan. Pick one and commit to it with the data to back it up.
+- OVERPOWERING LANGUAGE — never use "overpowers", "dominates", or "overwhelms" for any stat difference less than 20 points. A +4 edge (e.g. OL STR 88 vs DL STR 84) is a "slight edge" or "modest advantage". A +10 to +19 edge is a "solid advantage". Only use "dominates" or "overpowers" for differences of +20 or more.
 
 ANALYSIS RULES:
 - Read the game log carefully and identify actual play patterns — what run directions worked, what pass routes converted, which players performed
@@ -3008,6 +3036,8 @@ Opponent Team Ratings:
         else:
             print(f">>> SCORE PARSER: Could not find enough quarter data. "
                   f"your_quarters={your_quarters}, opp_quarters={opp_quarters}", flush=True)
+
+    print(f">>> RENDER: your_score={your_score!r}, opp_score={opp_score!r}, ai_result={'yes' if ai_result else 'no'}", flush=True)
 
     return render_template(
         "halftime.html",
