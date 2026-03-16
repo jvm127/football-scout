@@ -2534,6 +2534,106 @@ def analyze_route():
     )
 
 
+# ─── AI output validation layer ──────────────────────────────────────────────
+
+def validate_ai_output(text):
+    """Post-process AI output to fix common errors:
+    1. Fix incorrect 'overpowers' claims where the numbers are wrong
+    2. Remove formation-change recommendations
+    3. Remove cross-position analysis (TE stats in RB context, etc.)
+    4. Fix false speed advantage claims
+    """
+    import re as _re
+
+    # 1. Fix "X overpowers Y" where the numbers are backwards
+    # Matches patterns like "their 84 overpowers your 88" or "88 significantly overpowers 84"
+    def _fix_overpowers(m):
+        full = m.group(0)
+        nums = _re.findall(r'(\d+)', full)
+        if len(nums) >= 2:
+            first, second = int(nums[0]), int(nums[1])
+            # "their X overpowers your Y" — X should be > Y
+            if 'their' in full.lower()[:full.lower().index('overpower')] and first < second:
+                print(f">>> VALIDATE: Fixed wrong overpower claim: {full!r}", flush=True)
+                return full.replace('overpowers', 'is outmatched by').replace('overpower', 'is outmatched by')
+            # "your X overpowers their Y" — X should be > Y
+            if 'your' in full.lower()[:full.lower().index('overpower')] and first < second:
+                print(f">>> VALIDATE: Fixed wrong overpower claim: {full!r}", flush=True)
+                return full.replace('overpowers', 'trails').replace('overpower', 'trails')
+        return full
+
+    text = _re.sub(
+        r'[^.]*\d+[^.]*overpower[s]?[^.]*\d+[^.]*',
+        _fix_overpowers, text, flags=_re.IGNORECASE
+    )
+
+    # 2. Remove formation-change recommendations
+    FORMATION_CHANGE_PATTERNS = [
+        r'<div class="gameplan-bullet">[^<]*(?:switch(?:ing)?\s+(?:to|formations?)|go\s+to\s+shotgun|spread\s+(?:the\s+field|formation)|(?:use|try|go\s+with)\s+(?:a\s+)?(?:\d-wide|trips|shotgun|pro\s+set|wishbone|i\s+formation|notre\s+dame)|add(?:ing)?\s+(?:an?\s+)?extra\s+(?:receiver|wide\s+out|WR)|(?:\d|more|extra|additional)\s*(?:-|\s)?wide\s*(?:-|\s)?receiver\s+set)[^<]*</div>',
+        r'<li>[^<]*(?:switch(?:ing)?\s+(?:to|formations?)|go\s+to\s+shotgun|spread\s+(?:the\s+field|formation)|(?:use|try|go\s+with)\s+(?:a\s+)?(?:\d-wide|trips|shotgun|pro\s+set|wishbone|i\s+formation|notre\s+dame)|add(?:ing)?\s+(?:an?\s+)?extra\s+(?:receiver|wide\s+out|WR)|(?:\d|more|extra|additional)\s*(?:-|\s)?wide\s*(?:-|\s)?receiver\s+set)[^<]*</li>',
+    ]
+    for pattern in FORMATION_CHANGE_PATTERNS:
+        matches = _re.findall(pattern, text, flags=_re.IGNORECASE)
+        for match in matches:
+            print(f">>> VALIDATE: Removed formation-change recommendation: {match[:100]!r}", flush=True)
+        text = _re.sub(pattern, '', text, flags=_re.IGNORECASE)
+
+    # Also catch plain-text formation changes (for strategy page non-HTML output)
+    PLAIN_FORMATION_PATTERNS = [
+        r'^[•\-\*]\s*[^\n]*(?:switch(?:ing)?\s+(?:to|formations?)|go\s+to\s+shotgun|(?:\d|more|extra)\s*-?\s*wide\s*-?\s*receiver\s+set)[^\n]*$',
+    ]
+    for pattern in PLAIN_FORMATION_PATTERNS:
+        matches = _re.findall(pattern, text, flags=_re.IGNORECASE | _re.MULTILINE)
+        for match in matches:
+            print(f">>> VALIDATE: Removed plain-text formation change: {match[:100]!r}", flush=True)
+        text = _re.sub(pattern, '', text, flags=_re.IGNORECASE | _re.MULTILINE)
+
+    # 3. Flag cross-position analysis (TE in RB context, RB in TE context)
+    # Look for "RB" recommendations that reference TE ratings or vice versa
+    def _clean_cross_position(m):
+        sentence = m.group(0)
+        # Check for RB context mentioning TE stats
+        if _re.search(r'\bRB\b', sentence) and _re.search(r'\bTE\b.*\b(?:TOT|SPD|rating|overall)\b', sentence):
+            # Remove the TE reference clause
+            cleaned = _re.sub(r',?\s*(?:and|combined with|along with|plus|supported by)[^,.]* \bTE\b[^,.]*', '', sentence)
+            if cleaned != sentence:
+                print(f">>> VALIDATE: Removed TE reference from RB context", flush=True)
+                return cleaned
+        # Check for TE context mentioning RB stats
+        if _re.search(r'\bTE\b', sentence) and _re.search(r'\bRB\b.*\b(?:STR|SPD|rating|overall)\b', sentence):
+            cleaned = _re.sub(r',?\s*(?:and|combined with|along with|plus|supported by)[^,.]* \bRB\b[^,.]*', '', sentence)
+            if cleaned != sentence:
+                print(f">>> VALIDATE: Removed RB reference from TE context", flush=True)
+                return cleaned
+        return sentence
+
+    text = _re.sub(r'[^.!?]*(?:RB|TE)[^.!?]*(?:TE|RB)[^.!?]*[.!?]', _clean_cross_position, text)
+
+    # 4. Fix false speed advantage claims
+    # Pattern: "X SPD NN ... speed advantage ... Y SPD MM" where NN < MM
+    def _fix_speed_claims(m):
+        full = m.group(0)
+        spd_vals = _re.findall(r'SPD\s*(?:of\s*)?(\d+)', full, _re.IGNORECASE)
+        if len(spd_vals) >= 2:
+            our_spd, their_spd = int(spd_vals[0]), int(spd_vals[1])
+            if our_spd < their_spd and 'speed advantage' in full.lower():
+                print(f">>> VALIDATE: Fixed false speed advantage (ours={our_spd} < theirs={their_spd})", flush=True)
+                return full.replace('speed advantage', 'route running ability')
+        return full
+
+    text = _re.sub(
+        r'[^.]*SPD[^.]*speed advantage[^.]*SPD[^.]*\.',
+        _fix_speed_claims, text, flags=_re.IGNORECASE
+    )
+    # Also check reverse order (speed advantage mentioned before SPD numbers)
+    text = _re.sub(
+        r'[^.]*speed advantage[^.]*SPD[^.]*SPD[^.]*\.',
+        _fix_speed_claims, text, flags=_re.IGNORECASE
+    )
+
+    return text
+
+
 @app.route("/strategy", methods=["POST"])
 @subscription_required
 def strategy_route():
@@ -2553,6 +2653,10 @@ def strategy_route():
         error = "Please paste ratings for both teams."
     else:
         strategy_system_prompt = """You are an expert WhatIfSports sim football analyst. Analyze the matchup between two teams and provide a detailed game plan.
+
+SIM FOOTBALL CONTEXT — READ FIRST:
+This is text-based sim football, not real football. All recommendations must work within the constraints of a text-based sim game. There are no audibles, no pre-snap reads, no physical adjustments, no formation changes mid-game, no player substitutions during a drive. The only decisions available are: run inside, run outside, pass (which receivers to target), and which plays to call within the selected formation. Never recommend anything that requires physical action, real football strategy that does not apply to text sim, or changes that cannot be made in a text-based game.
+
 You will receive:
 
 Your team name and offense formation
@@ -2616,7 +2720,7 @@ Opponent Team Ratings:
                 system=strategy_system_prompt,
                 messages=[{"role": "user", "content": user_message}],
             )
-            ai_result = response.content[0].text
+            ai_result = validate_ai_output(response.content[0].text)
         except Exception as e:
             print(f">>> STRATEGY ANALYZE ERROR: {e}", flush=True)
             traceback.print_exc()
@@ -2664,6 +2768,9 @@ def halftime_route():
         error = "Please paste at least a box score or game log."
     else:
         halftime_system_prompt = """You are an expert WhatIfSports sim football halftime analyst AND a dramatic color commentator. You will receive first half game data and team ratings and provide a detailed second half game plan.
+
+SIM FOOTBALL CONTEXT — READ FIRST:
+This is text-based sim football, not real football. All recommendations must work within the constraints of a text-based sim game. There are no audibles, no pre-snap reads, no physical adjustments, no formation changes mid-game, no player substitutions during a drive. The only decisions available are: run inside, run outside, pass (which receivers to target), and which plays to call within the selected formation. Never recommend anything that requires physical action, real football strategy that does not apply to text sim, or changes that cannot be made in a text-based game.
 
 VOICE AND PERSONALITY:
 Write with drama, energy, and personality. You CAN reference team names, mascots, records, rivalry context, and the magnitude of the game. Paint the picture — make the coach FEEL the moment. However, you CANNOT invent specific facts that are not in the data. If both teams are undefeated based on the data, you can say "two undefeated powerhouses colliding." You CANNOT make up historical context, championship references, or specific facts not provided. Facts must be real, storytelling can be dramatic.
@@ -2750,7 +2857,7 @@ Opponent Team Ratings:
                 system=halftime_system_prompt,
                 messages=[{"role": "user", "content": user_message}],
             )
-            raw_result = response.content[0].text
+            raw_result = validate_ai_output(response.content[0].text)
             # Sanitize: only allow specific safe HTML tags
             import re as _re
             ALLOWED_TAGS = {'h3','h4','p','strong','em','ul','ol','li','div','span','br'}
