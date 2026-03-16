@@ -206,11 +206,6 @@
       content: "!"; position: absolute; left: 0; font-weight: 700; color: #ef4444;
     }
 
-    .closing-text {
-      font-size: 14px; color: #64748b; font-style: italic;
-      margin-top: 28px; text-align: center;
-    }
-
     /* Fallback raw display */
     .result-raw {
       background: #1e2130; border: 1px solid #2d3348; border-radius: 12px;
@@ -399,10 +394,6 @@
       area.appendChild(sDiv);
     });
 
-    var closing = document.createElement('div');
-    closing.className = 'closing-text';
-    closing.textContent = 'What position group would you like to evaluate next?';
-    area.appendChild(closing);
   }
 
   function extractJSON(text) {
