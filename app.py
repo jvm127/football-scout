@@ -3582,13 +3582,20 @@ def recruiting_analyze():
     players = parse_recruiting_players(player_data)
     print(f">>> RECRUITING: Parsed {len(players)} players from input", flush=True)
     print(f">>> RECRUITING: Division={division}, Position={position}", flush=True)
-    print(f">>> RECRUITING: Raw input first 500 chars: {player_data[:500]!r}", flush=True)
-    # Debug: check separator type
+    print(f">>> RECRUITING: Raw input length: {len(player_data)} chars, {len(player_data.splitlines())} lines", flush=True)
+    # Debug: dump raw input to temp file for inspection
+    try:
+        with open('/tmp/recruiting_raw_input.txt', 'w') as _df:
+            _df.write(player_data)
+        print(f">>> RECRUITING: Raw input saved to /tmp/recruiting_raw_input.txt", flush=True)
+    except Exception:
+        pass
+    # Debug: check separator type in first 5 lines
     first_lines = player_data.splitlines()[:5]
     for dl_i, dl in enumerate(first_lines):
         has_tab = '\t' in dl
         has_mspace = bool(re.search(r'  {3,}', dl))
-        print(f">>> INPUT LINE {dl_i}: has_tab={has_tab}, has_multispace={has_mspace}, len={len(dl)}, repr={dl[:120]!r}", flush=True)
+        print(f">>> INPUT LINE {dl_i}: has_tab={has_tab}, has_multispace={has_mspace}, len={len(dl)}, repr={dl[:150]!r}", flush=True)
 
     # Debug: show first 3 parsed players
     for idx, p in enumerate(players[:3]):
