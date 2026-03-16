@@ -521,7 +521,7 @@ def compute_matchups(offense_r, defense_r, off_form=None):
 
     raw = [
         # RUN GAME
-        ('run_block',    'Run Blocking',  'Your OL BLK vs Their DL TKL',   edge('OL', 'BLK', 'DL', 'TKL')),
+        ('run_block',    'Run Blocking',  'Your OL BLK vs Their DL STR',   edge('OL', 'BLK', 'DL', 'STR')),
         ('power_run',   'Power Run',      'Your OL STR vs Their DL STR',   edge('OL', 'STR', 'DL', 'STR')),
         ('outside_run', 'Outside Run',    'Your RB SPD vs Their LB SPD',   edge('RB', 'SPD', 'LB', 'SPD')),
         ('short_yardage','Short Yardage', 'Your RB STR vs Their LB STR',   edge('RB', 'STR', 'LB', 'STR')),
@@ -553,7 +553,7 @@ def compute_matchups(offense_r, defense_r, off_form=None):
 # ─── Mismatch scanning: only the 8 meaningful comparisons ───────────────────
 
 MISMATCH_COMPARISONS = [
-    ('OL', 'BLK', 'DL', 'TKL', 'OL Blocking vs DL Tackling'),
+    ('OL', 'BLK', 'DL', 'STR', 'OL Blocking vs DL Strength'),
     ('OL', 'STR', 'DL', 'STR', 'OL Strength vs DL Strength'),
     ('RB', 'SPD', 'LB', 'SPD', 'RB Speed vs LB Speed'),
     ('RB', 'STR', 'LB', 'STR', 'RB Strength vs LB Strength'),
@@ -2575,8 +2575,8 @@ Nickel: 4 DL, 2 LB, 5 DB
 Dime: 3 DL, 2 LB, 6 DB
 ONLY USE THESE MEANINGFUL MATCHUPS:
 
-YOUR OL BLK vs THEIR DL TKL — run blocking edge
-YOUR OL STR vs THEIR DL STR — power run edge
+YOUR OL BLK vs THEIR DL STR — run blocking edge (can your blockers move their DL)
+YOUR OL STR vs THEIR DL STR — power run edge (who wins the strength battle)
 YOUR RB SPD vs THEIR LB SPD — outside run edge (only flag if +15 or more)
 YOUR RB STR vs THEIR LB STR — short yardage edge
 YOUR WR SPD vs THEIR DB SPD — deep passing edge
@@ -2695,7 +2695,9 @@ ANALYSIS RULES:
 - Read the game log carefully and identify actual play patterns — what run directions worked, what pass routes converted, which players performed
 - Use the ratings to identify matchup advantages
 - Combine what actually happened in the first half WITH the ratings to give the most accurate second half plan
-- Only use these 8 meaningful matchups: OL BLK vs DL TKL, OL STR vs DL STR, RB SPD vs LB SPD (only if +15 or more), RB STR vs LB STR, WR SPD vs DB SPD, WR AGI vs DB AGI, TE TOT vs LB TOT, TE SPD vs DB SPD
+- Only use these 8 meaningful matchups:
+  RUN GAME: OL BLK vs DL STR (run blocking edge), OL STR vs DL STR (power run edge), RB SPD vs LB SPD (outside run, only if +15 or more), RB STR vs LB STR (short yardage edge)
+  PASSING GAME: WR SPD vs DB SPD, WR AGI vs DB AGI, TE TOT vs LB TOT, TE SPD vs DB SPD
 
 OUTPUT FORMAT — respond with clean HTML fragments (no <html>, <head>, or <body> tags). Use these elements:
 - <h3> for section headers
