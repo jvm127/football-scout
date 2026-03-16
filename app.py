@@ -2684,12 +2684,15 @@ Nickel: 4 DL, 2 LB, 5 DB
 Dime: 3 DL, 2 LB, 6 DB
 
 CRITICAL RULES:
-- NEVER recommend switching formations. Players CANNOT change formations mid-game in this sim. Only give play-calling advice within the formation already selected.
+- NEVER recommend switching formations, using different receiver sets, or any formation variation. Players CANNOT change formations mid-game in this sim. Do not suggest "X-wide receiver sets", "spread formations", "go to shotgun", etc. Only give play-calling advice within the formation already selected.
 - EVERY player mentioned MUST include position and team in parentheses. Example: Roy Hogan (RB, Stony Brook). No exceptions.
 - Never compare RB vs DL, WR vs LB, or include QB protection matchups.
 - For Shotgun: no RB on field, passing only.
 - If Nickel or Dime defense: recommend running more.
 - Never include motivational filler — every recommendation must be specific and backed by data.
+- NO MIXING POSITION ANALYSIS — when analyzing an RB, use only RB stats and matchups. When analyzing a TE, use only TE stats and matchups. Do not bring in one position's ratings to support another position's recommendation. Keep each position analysis clean and separate.
+- MATH MUST BE CORRECT — before writing any comparison, verify which number is higher. If YOUR stat is 88 and THEIR stat is 84, that is a +4 advantage FOR YOU — do not say they overpower you. Never say a stat "overpowers" or "significantly overpowers" unless the edge is +15 or more. Double check every single comparison before writing.
+- DO NOT CONTRADICT THE DATA — if the passing game is working well (high completion %, good yardage), do not recommend abandoning it. If inside runs average 3.0+ ypc, that is decent — do not say to abandon them. Only recommend stopping something if the numbers clearly show it is failing (below 3.0 ypc for runs, below 50% completion for passes). Every recommendation must be logically consistent with the actual first half stats.
 
 ANALYSIS RULES:
 - Read the game log carefully and identify actual play patterns — what run directions worked, what pass routes converted, which players performed
