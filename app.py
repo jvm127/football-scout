@@ -2965,6 +2965,7 @@ def filter_recruiting_players(players, division, position):
     # ── Division-specific filtering ──
     if division == 'Division 1':
         # Division 1: distance filtering ONLY — NO school exclusions whatsoever
+        print(f">>> D1 NO SCHOOL EXCLUSIONS APPLIED — {len(players)} players enter distance-only filter", flush=True)
         # Players with known distance: split into within 360 and beyond
         has_dist = [p for p in players if p['distance'] is not None]
         no_dist = [p for p in players if p['distance'] is None]
