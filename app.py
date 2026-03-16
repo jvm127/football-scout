@@ -2942,7 +2942,7 @@ def parse_recruiting_players(raw_text):
                         player['ovr'] = val
                     elif field == 'considering':
                         schools = re.split(r'[,/;]', val)
-                        player['considering'] = [s.strip() for s in schools if s.strip()]
+                        player['considering'] = [s.strip().rstrip('*').strip() for s in schools if s.strip()]
                     elif field in ('T', 'ST', 'STR', 'A', 'SPD', 'D', 'E', 'GI', 'H', 'BLK', 'TKL'):
                         try:
                             player['stats'][field] = int(float(val))
@@ -3020,7 +3020,8 @@ def parse_recruiting_players(raw_text):
                 school_text = line.strip()
                 if school_text:
                     schools = re.split(r'[,/;]', school_text)
-                    new_schools = [s.strip() for s in schools if s.strip()]
+                    # Strip whitespace AND trailing asterisks/markers from school names
+                    new_schools = [s.strip().rstrip('*').strip() for s in schools if s.strip()]
                     players[-1]['considering'].extend(new_schools)
 
     return players
@@ -3055,7 +3056,8 @@ def filter_recruiting_players(players, division, position):
         # School exclusion check (D1-AA only)
         def passes_school_check(p):
             for school in p.get('considering', []):
-                if school.strip().lower() in D1AA_EXCLUDED_SCHOOLS:
+                cleaned = school.strip().rstrip('*').strip().lower()
+                if cleaned in D1AA_EXCLUDED_SCHOOLS:
                     return False
             return True
         players = [p for p in players if passes_school_check(p)]
@@ -3151,6 +3153,17 @@ def recruiting_analyze():
     sorted_excl = sorted(list(D1AA_EXCLUDED_SCHOOLS))[:10]
     print(f">>> EXCLUSION LIST (first 10 of {len(D1AA_EXCLUDED_SCHOOLS)}): {sorted_excl}", flush=True)
 
+    # Debug: specifically check Ray Brock if present
+    for p in players:
+        if 'brock' in p['name'].lower():
+            print(f">>> RAY BROCK DEBUG: name={p['name']!r}", flush=True)
+            print(f">>> RAY BROCK DEBUG: considering (raw list)={p['considering']!r}", flush=True)
+            for school in p['considering']:
+                cleaned = school.strip().rstrip('*').strip().lower()
+                in_excl = cleaned in D1AA_EXCLUDED_SCHOOLS
+                print(f">>> RAY BROCK DEBUG: school={school!r} → repr={repr(school)} → "
+                      f"cleaned={cleaned!r} → in_exclusion={in_excl}", flush=True)
+
     # Debug: test school check on first 3 players for D1-AA
     if division == 'Division 1-AA':
         for idx, p in enumerate(players[:3]):
@@ -3158,13 +3171,15 @@ def recruiting_analyze():
             has_distance = p['distance'] is not None
             failed_school = None
             for school in schools:
-                if school.strip().lower() in D1AA_EXCLUDED_SCHOOLS:
+                cleaned = school.strip().rstrip('*').strip().lower()
+                if cleaned in D1AA_EXCLUDED_SCHOOLS:
                     failed_school = school
                     break
             if not has_distance:
                 reason = "FAIL: missing distance"
             elif failed_school:
-                reason = f"FAIL: school match '{failed_school}' (lowered: '{failed_school.strip().lower()}')"
+                cleaned = failed_school.strip().rstrip('*').strip().lower()
+                reason = f"FAIL: school match '{failed_school}' (cleaned: '{cleaned}')"
             elif p['distance'] > 360:
                 reason = f"PASS but beyond 360 (distance={p['distance']})"
             else:
