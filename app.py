@@ -2852,7 +2852,33 @@ SECTION RULES:
             messages=[{"role": "user", "content": user_message}],
         )
         result_text = response.content[0].text
-        return jsonify(result=result_text)
+        print(f">>> RECRUITING RAW RESPONSE (first 500): {result_text[:500]}", flush=True)
+
+        # Try to parse as JSON server-side and return structured data
+        import json as _json
+        cleaned = result_text.strip()
+        # Strip markdown code fences
+        if cleaned.startswith('```'):
+            cleaned = re.sub(r'^```(?:json)?\s*\n?', '', cleaned, flags=re.IGNORECASE)
+            cleaned = re.sub(r'\n?```\s*$', '', cleaned, flags=re.IGNORECASE)
+        # Extract JSON object if there's text before/after
+        first_brace = cleaned.find('{')
+        last_brace = cleaned.rfind('}')
+        if first_brace != -1 and last_brace > first_brace:
+            cleaned = cleaned[first_brace:last_brace + 1]
+        try:
+            parsed = _json.loads(cleaned)
+            return jsonify(result=parsed, format="json")
+        except _json.JSONDecodeError:
+            # Remove trailing commas and retry
+            fixed = re.sub(r',\s*([}\]])', r'\1', cleaned)
+            try:
+                parsed = _json.loads(fixed)
+                return jsonify(result=parsed, format="json")
+            except _json.JSONDecodeError:
+                pass
+        # Fallback: return raw text
+        return jsonify(result=result_text, format="text")
     except Exception as e:
         print(f">>> RECRUITING ANALYZE ERROR: {e}", flush=True)
         traceback.print_exc()

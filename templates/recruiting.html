@@ -405,6 +405,37 @@
     area.appendChild(closing);
   }
 
+  function extractJSON(text) {
+    // Strategy: try multiple approaches to find valid JSON
+    var cleaned = text.trim();
+
+    // 1. Strip markdown code fences (```json ... ``` or ``` ... ```)
+    cleaned = cleaned.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '');
+
+    // 2. Try parsing the whole thing
+    try { return JSON.parse(cleaned); } catch(e) {}
+
+    // 3. Find first { and last } — extract JSON object
+    var firstBrace = cleaned.indexOf('{');
+    var lastBrace = cleaned.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace > firstBrace) {
+      var jsonStr = cleaned.substring(firstBrace, lastBrace + 1);
+      try { return JSON.parse(jsonStr); } catch(e) {
+        console.log('JSON.parse failed on extracted braces:', e.message);
+        console.log('Extracted string (first 300):', jsonStr.substring(0, 300));
+      }
+    }
+
+    // 4. Try to fix common issues: trailing commas
+    if (firstBrace !== -1 && lastBrace > firstBrace) {
+      var jsonStr2 = cleaned.substring(firstBrace, lastBrace + 1);
+      jsonStr2 = jsonStr2.replace(/,\s*([}\]])/g, '$1');
+      try { return JSON.parse(jsonStr2); } catch(e) {}
+    }
+
+    return null;
+  }
+
   function escHtml(str) {
     var d = document.createElement('div');
     d.appendChild(document.createTextNode(str));
@@ -440,19 +471,31 @@
       var data = await resp.json();
       if (!resp.ok) throw new Error(data.error || 'HTTP ' + resp.status);
 
-      // Try to parse AI result as JSON for pretty rendering
-      var resultText = data.result;
-      try {
-        // Strip markdown code fences if present
-        var cleaned = resultText.trim();
-        if (cleaned.startsWith('```')) {
-          cleaned = cleaned.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
+      // Render AI result — backend may return parsed JSON object or raw text string
+      var result = data.result;
+      var fmt = data.format || 'text';
+      console.log('Response format:', fmt, '| type:', typeof result);
+
+      if (fmt === 'json' && typeof result === 'object' && result.sections) {
+        // Backend already parsed JSON for us
+        console.log('Using server-parsed JSON, sections:', result.sections.length);
+        renderResults(result);
+      } else if (typeof result === 'string') {
+        // Try client-side JSON extraction
+        console.log('Trying client-side parse, first 300:', result.substring(0, 300));
+        var parsed = extractJSON(result);
+        if (parsed && parsed.sections) {
+          console.log('Client-side parse succeeded');
+          renderResults(parsed);
+        } else {
+          console.log('All JSON parsing failed, showing raw text');
+          resultsArea.innerHTML = '<div class="result-raw">' + escHtml(result) + '</div>';
         }
-        var parsed = JSON.parse(cleaned);
-        renderResults(parsed);
-      } catch (parseErr) {
-        // Fallback: show raw text
-        resultsArea.innerHTML = '<div class="result-raw">' + escHtml(resultText) + '</div>';
+      } else if (typeof result === 'object' && result.sections) {
+        // Object with sections but format wasn't set
+        renderResults(result);
+      } else {
+        resultsArea.innerHTML = '<div class="result-raw">' + escHtml(JSON.stringify(result, null, 2)) + '</div>';
       }
     } catch (e) {
       errorEl.textContent = 'Error: ' + e.message;
