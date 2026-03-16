@@ -216,13 +216,16 @@
 
     /* ── Nav links ── */
     .nav-links {
-      display: flex; gap: 10px; margin-left: auto;
+      display: flex; gap: 6px; margin-left: auto; align-items: center; flex-wrap: wrap;
     }
     .nav-link {
-      font-size: 13px; font-weight: 600; color: #94a3b8; text-decoration: none;
-      padding: 8px 16px; border: 1px solid #2d3348; border-radius: 8px;
+      font-size: 12px; font-weight: 600; color: #94a3b8; text-decoration: none;
+      padding: 6px 12px; border: 1px solid #2d3348; border-radius: 6px;
+      white-space: nowrap; display: inline-flex; align-items: center;
+      justify-content: center; height: 32px;
+      transition: color 0.15s, border-color 0.15s, background 0.15s;
     }
-    .nav-link:hover { color: #e2e8f0; border-color: #4f6ef7; }
+    .nav-link:hover { color: #e2e8f0; border-color: #4f6ef7; background: #1e2130; }
 
     .hamburger {
       display: none; background: none; border: 1px solid #2d3348; color: #e2e8f0;
