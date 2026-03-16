@@ -3187,38 +3187,44 @@ def parse_recruiting_players(raw_text):
         return []
 
     # ── Pre-processing: strip WIS page noise ──
-    NOISE_PHRASES = [
-        'recruits', 'next >>', 'roster', 'quick jump', 'terms of use',
-        'customer support', 'privacy', 'whatifsports', 'popular on',
-        'save', 'reminders', 'signing period', 'recruiting ends',
-        'no recruits', 'maximum 10', 'recruit compare', 'posnamerating',
-        'previous', '<< prev', 'page ', ' of ', 'footer', 'navigation',
-        'copyright', 'all rights reserved',
-    ]
-    # Roster summary pattern: "QBAll3697" or "AllAll42__745__" (position+All+digits)
-    ROSTER_SUMMARY_RE = re.compile(r'^[A-Z]{2,3}All\d|^AllAll\d', re.IGNORECASE)
-
+    # Strategy: find the first real data line (tab + known position), discard everything
+    # before it. Find "Next >>" and discard everything from that point onwards.
+    KNOWN_POSITIONS = {'QB', 'RB', 'WR', 'TE', 'OL', 'DL', 'LB', 'DB', 'K', 'P',
+                       'FB', 'SS', 'FS', 'CB', 'DE', 'DT', 'OT', 'OG', 'C', 'KR', 'PR'}
     original_count = len(lines_stripped)
-    filtered_lines = []
-    for line in lines_stripped:
-        stripped = line.strip()
-        lower = stripped.lower()
-        # Skip blank
-        if not stripped:
+
+    # Step 1: Find first line with a tab AND a known position abbreviation
+    # Then include the header row (line before it that also has tabs)
+    data_start = 0
+    for i, line in enumerate(lines_stripped):
+        if '\t' not in line:
             continue
-        # Skip lines matching noise phrases
-        if any(phrase in lower for phrase in NOISE_PHRASES):
-            continue
-        # Skip roster summary lines
-        if ROSTER_SUMMARY_RE.match(stripped):
-            continue
-        # Skip lines that look like pure navigation/menu (no tabs, very short, all links)
-        if '\t' not in stripped and len(stripped) < 20 and not re.search(r'[A-Z][a-z]', stripped):
-            continue
-        filtered_lines.append(line)
+        tokens = line.split('\t')
+        for tok in tokens:
+            if tok.strip().upper() in KNOWN_POSITIONS:
+                data_start = i
+                break
+        if data_start > 0:
+            break
+    # Include the header row: scan backwards from data_start for the first tab line
+    start_idx = data_start
+    for i in range(data_start - 1, -1, -1):
+        if '\t' in lines_stripped[i]:
+            start_idx = i
+            break
+
+    # Step 2: Find "Next >>" and cut everything from that line onwards
+    end_idx = len(lines_stripped)
+    for i in range(start_idx, len(lines_stripped)):
+        if 'next >>' in lines_stripped[i].lower():
+            end_idx = i
+            break
+
+    filtered_lines = lines_stripped[start_idx:end_idx]
 
     stripped_count = original_count - len(filtered_lines)
-    print(f">>> RECRUITING NOISE FILTER: {stripped_count} lines stripped, {len(filtered_lines)} lines kept (from {original_count})", flush=True)
+    print(f">>> RECRUITING NOISE FILTER: kept lines {start_idx}-{end_idx} "
+          f"({len(filtered_lines)} kept, {stripped_count} stripped from {original_count})", flush=True)
     lines_stripped = filtered_lines
 
     if not lines_stripped:
