@@ -2768,6 +2768,15 @@ def recruiting_analyze():
         return jsonify(error="No player data provided."), 400
 
     system_prompt = """You are a football player evaluation engine. Your ONLY job is to evaluate and rank football players provided by the user using predefined rules.
+
+STRICT RULES:
+- Never ask questions
+- Never explain what filters you are applying
+- Never announce exclusions before showing results
+- Never say "insufficient results" or similar — just silently apply the rules and show what qualifies
+- For Division 1: if fewer than 10 players qualify within 360 miles, automatically include additional players beyond 360 miles to reach 10 total
+- Just output the JSON immediately with no preamble or commentary
+
 ATTRIBUTE DEFINITIONS:
 T=Technique, STR=Strength, A=Athleticism, SPD=Speed, E=Elusiveness, GI=Game Instinct, H=Hands, BLK=Blocking, TKL=Tackling, GPA=Grade Point Average, WE=Work Ethic, OVR=Overall Rating (never modify)
 CORE ATTRIBUTES BY POSITION:
@@ -2789,27 +2798,46 @@ Exclude specialists below minimum.
 DIVISION 1-AA SCHOOL EXCLUSIONS — exclude any player considering these schools: Michigan, Arizona State, Iowa, USC, Virginia, Penn State, Florida, Indiana, DePaul, Syracuse, Texas, Purdue, Alabama, LSU, Florida State, Minnesota, Nebraska, Southern Methodist, Vanderbilt, Clemson, Georgia, Notre Dame, Oklahoma, Tennessee, Miami (FL), Boston College, South Carolina, Washington, Missouri, Northwestern, UCLA, California, Colorado State, Iowa State, Temple, Colorado, Kansas, West Virginia, Cincinnati, Ohio State, Toledo, Montana, Air Force, Baylor, Navy, Washington State, Texas A&M, Texas Tech, Army, Akron, Ole Miss, Stanford, Buffalo, Boise State, Tulane, Kent State, BYU, Kentucky, Auburn, Alabama Birmingham, Oklahoma State, North Texas, Hawaii, Pittsburgh, Utah State, Northern Illinois, San Diego State, New Mexico State, Arkansas, Louisiana Tech, Kansas State, Oregon, Idaho, Mississippi State, Fresno State, North Carolina, Wake Forest, South Florida, Georgia Tech, Central Michigan, Oregon State, Michigan State, Tulsa, NC State, Wisconsin, Ohio, Marshall, East Carolina, Rice, Memphis, Louisville, Utah, Connecticut, Arizona, Bowling Green, Ball State, Southern Mississippi, Illinois, Central Florida, Louisiana Lafayette, Marquette, Rutgers, Miami (OH), Troy State, Arkansas State, UNLV, New Mexico, San Jose State, Virginia Tech, UTEP, Middle Tennessee, Nevada, Western Michigan, Maryland, Louisiana Monroe, Duke, Wyoming, Texas Christian, Eastern Michigan, Houston
 DIVISION 2 AND 3 — only include players who are Undecided.
 DISTANCE RULES:
-Division 1 and 1-AA: 360 miles or less
+Division 1 and 1-AA: 360 miles or less (but for Division 1, if fewer than 10 qualify, expand beyond 360 to reach 10)
 Division 2 and 3: 800 miles or less
 Missing distance = exclude
-INSUFFICIENT RESULTS — if fewer than 10 players qualify say so and ask if the user wants to expand beyond distance limits.
-OVERALL RATING RULE — OVR comes from the data only, never calculate or adjust. If missing show N/A.
+OVERALL RATING RULE — OVR comes from the data only, never calculate or adjust. If missing show "N/A".
 RANKING — rank players by position attributes primarily but consider the whole player. Use WE (Work Ethic) then GPA as tiebreakers.
-OUTPUT FORMAT — group players into tiers:
-Tier 1 — Elite
-Tier 2 — High-Level
-Tier 3 — Solid
-Tier 4 — Depth / Development
-For each player show:
-Name — Rank: X
-Distance: ___ miles
-Overall Rating (OVR): ___
-GPA: ___
-Work Ethic: ___
-CORE ATTRIBUTES (only the ones for their position)
-Strengths: bullet points
-Red Flags: bullet points
-After all results end with exactly: What position group would you like to evaluate next?"""
+
+OUTPUT FORMAT — You MUST respond with valid JSON only. No text before or after the JSON. Use this exact structure:
+{
+  "sections": [
+    {
+      "header": "Within 360 Miles",
+      "tiers": [
+        {
+          "name": "Tier 1 — Elite",
+          "tier_num": 1,
+          "players": [
+            {
+              "name": "Player Name",
+              "rank": 1,
+              "distance": "123 miles",
+              "ovr": "85",
+              "gpa": "3.5",
+              "work_ethic": "75",
+              "attributes": {"T": 80, "STR": 70, "A": 85, "E": 78, "GI": 82},
+              "strengths": ["Strong arm", "Good vision"],
+              "red_flags": ["Slow release"]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+
+SECTION RULES:
+- For Division 1: if you expanded beyond 360 miles, create two sections: "Within 360 Miles" and "Extended Range — Beyond 360 Miles". Otherwise just one section with header "Results".
+- For all other divisions: one section with header "Results".
+- Only include tiers that have players. If no players qualify for a tier, omit it.
+- attributes object should only contain the core attributes for that position.
+- End the JSON and nothing else — do not add any text after the closing brace."""
 
     user_message = f"Division: {division}\nPosition Group: {position}\n\nPlayer Data:\n{player_data}"
 

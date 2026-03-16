@@ -108,25 +108,116 @@
     @keyframes spin { to { transform: rotate(360deg); } }
     .spinner-text { font-size: 13px; color: #94a3b8; }
 
-    .result-card {
-      display: none; background: #1e2130; border: 1px solid #2d3348;
-      border-radius: 12px; padding: 28px 32px; margin-top: 28px;
-    }
-    .result-card.visible { display: block; }
-    .result-card h2 {
-      font-size: 14px; font-weight: 600; color: #f59e0b;
-      text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 16px;
-    }
-    .result-body {
-      font-size: 14px; color: #e2e8f0; line-height: 1.7;
-      white-space: pre-wrap; word-wrap: break-word;
-    }
     .result-error {
       background: #2d1b1b; border: 1px solid #7f1d1d; color: #fca5a5;
       padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-top: 20px;
       display: none;
     }
     .result-error.visible { display: block; }
+
+    /* ── Results Area ── */
+    #resultsArea { margin-top: 28px; }
+
+    .section-header {
+      font-size: 16px; font-weight: 700; color: #e2e8f0;
+      margin-bottom: 20px; margin-top: 32px;
+      padding-bottom: 10px; border-bottom: 1px solid #2d3348;
+    }
+    .section-header:first-child { margin-top: 0; }
+
+    .tier-section { margin-bottom: 32px; }
+    .tier-header {
+      font-size: 13px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.1em; padding: 10px 18px; border-radius: 8px;
+      margin-bottom: 16px;
+    }
+    .tier-1 .tier-header { background: #2a2000; color: #fbbf24; border: 1px solid #854d0e; }
+    .tier-2 .tier-header { background: #1c1f2e; color: #c0c0c0; border: 1px solid #6b7280; }
+    .tier-3 .tier-header { background: #1e1a14; color: #cd7f32; border: 1px solid #92400e; }
+    .tier-4 .tier-header { background: #161926; color: #64748b; border: 1px solid #334155; }
+
+    .player-card {
+      background: #1e2130; border: 1px solid #2d3348; border-radius: 12px;
+      padding: 20px 24px; margin-bottom: 14px; border-left: 4px solid;
+    }
+    .tier-1 .player-card { border-left-color: #fbbf24; }
+    .tier-2 .player-card { border-left-color: #c0c0c0; }
+    .tier-3 .player-card { border-left-color: #cd7f32; }
+    .tier-4 .player-card { border-left-color: #475569; }
+
+    .player-top {
+      display: flex; align-items: baseline; justify-content: space-between;
+      margin-bottom: 12px; flex-wrap: wrap; gap: 8px;
+    }
+    .player-name { font-size: 17px; font-weight: 700; color: #e2e8f0; }
+    .player-rank {
+      font-size: 12px; font-weight: 700; padding: 3px 10px;
+      border-radius: 20px; white-space: nowrap;
+    }
+    .tier-1 .player-rank { background: #422006; color: #fbbf24; }
+    .tier-2 .player-rank { background: #1e293b; color: #c0c0c0; }
+    .tier-3 .player-rank { background: #292017; color: #cd7f32; }
+    .tier-4 .player-rank { background: #1e293b; color: #64748b; }
+
+    .stat-row {
+      display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 14px;
+    }
+    .stat-item {
+      font-size: 12px; color: #94a3b8;
+    }
+    .stat-item strong { color: #e2e8f0; font-weight: 600; }
+
+    .attr-badges {
+      display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px;
+    }
+    .attr-badge {
+      font-size: 11px; font-weight: 700; padding: 4px 10px;
+      border-radius: 6px; background: #252a3d; color: #94a3b8;
+      display: flex; gap: 4px;
+    }
+    .attr-badge .attr-name { color: #64748b; }
+    .attr-badge .attr-val { color: #e2e8f0; }
+    .attr-badge.high .attr-val { color: #22c55e; }
+    .attr-badge.mid .attr-val { color: #f59e0b; }
+    .attr-badge.low .attr-val { color: #ef4444; }
+
+    .strengths-flags { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 640px) { .strengths-flags { grid-template-columns: 1fr; } }
+
+    .sf-col h4 {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.1em; margin-bottom: 6px;
+    }
+    .sf-col.strengths h4 { color: #22c55e; }
+    .sf-col.red-flags h4 { color: #ef4444; }
+
+    .sf-col ul {
+      list-style: none; padding: 0;
+    }
+    .sf-col ul li {
+      font-size: 12px; line-height: 1.6; padding-left: 14px; position: relative;
+    }
+    .sf-col.strengths ul li { color: #86efac; }
+    .sf-col.strengths ul li::before {
+      content: "+"; position: absolute; left: 0; font-weight: 700; color: #22c55e;
+    }
+    .sf-col.red-flags ul li { color: #fca5a5; }
+    .sf-col.red-flags ul li::before {
+      content: "!"; position: absolute; left: 0; font-weight: 700; color: #ef4444;
+    }
+
+    .closing-text {
+      font-size: 14px; color: #64748b; font-style: italic;
+      margin-top: 28px; text-align: center;
+    }
+
+    /* Fallback raw display */
+    .result-raw {
+      background: #1e2130; border: 1px solid #2d3348; border-radius: 12px;
+      padding: 28px 32px; margin-top: 28px;
+      font-size: 14px; color: #e2e8f0; line-height: 1.7;
+      white-space: pre-wrap; word-wrap: break-word;
+    }
   </style>
 </head>
 <body>
@@ -197,28 +288,137 @@
     <button class="btn-evaluate" id="evaluateBtn" onclick="evaluatePlayers()">Evaluate Players</button>
     <div class="spinner-wrap" id="spinnerWrap">
       <div class="spinner"></div>
-      <span class="spinner-text">Evaluating players — this may take a moment...</span>
+      <span class="spinner-text">Analyzing — this may take a moment...</span>
     </div>
     <div class="result-error" id="errorMsg"></div>
   </div>
 
-  <div class="result-card" id="resultCard">
-    <h2>Evaluation Results</h2>
-    <div class="result-body" id="resultBody"></div>
-  </div>
+  <div id="resultsArea"></div>
 
 </div>
 
 <script>
+  function getAttrClass(val) {
+    var n = parseInt(val, 10);
+    if (isNaN(n)) return '';
+    if (n >= 75) return 'high';
+    if (n >= 55) return 'mid';
+    return 'low';
+  }
+
+  function renderResults(data) {
+    var area = document.getElementById('resultsArea');
+    area.innerHTML = '';
+
+    if (!data || !data.sections) {
+      area.innerHTML = '<div class="result-raw">' + escHtml(JSON.stringify(data)) + '</div>';
+      return;
+    }
+
+    data.sections.forEach(function(section) {
+      var sDiv = document.createElement('div');
+      var sh = document.createElement('div');
+      sh.className = 'section-header';
+      sh.textContent = section.header;
+      sDiv.appendChild(sh);
+
+      (section.tiers || []).forEach(function(tier) {
+        var tierDiv = document.createElement('div');
+        tierDiv.className = 'tier-section tier-' + tier.tier_num;
+
+        var th = document.createElement('div');
+        th.className = 'tier-header';
+        th.textContent = tier.name;
+        tierDiv.appendChild(th);
+
+        (tier.players || []).forEach(function(p) {
+          var card = document.createElement('div');
+          card.className = 'player-card';
+
+          // Top row: name + rank
+          var top = document.createElement('div');
+          top.className = 'player-top';
+          top.innerHTML = '<span class="player-name">' + escHtml(p.name) + '</span>' +
+            '<span class="player-rank">Rank #' + p.rank + '</span>';
+          card.appendChild(top);
+
+          // Stat row
+          var stats = document.createElement('div');
+          stats.className = 'stat-row';
+          stats.innerHTML =
+            '<span class="stat-item">Distance: <strong>' + escHtml(p.distance || 'N/A') + '</strong></span>' +
+            '<span class="stat-item">OVR: <strong>' + escHtml(String(p.ovr || 'N/A')) + '</strong></span>' +
+            '<span class="stat-item">GPA: <strong>' + escHtml(String(p.gpa || 'N/A')) + '</strong></span>' +
+            '<span class="stat-item">Work Ethic: <strong>' + escHtml(String(p.work_ethic || 'N/A')) + '</strong></span>';
+          card.appendChild(stats);
+
+          // Attribute badges
+          if (p.attributes) {
+            var badges = document.createElement('div');
+            badges.className = 'attr-badges';
+            Object.keys(p.attributes).forEach(function(key) {
+              var val = p.attributes[key];
+              var cls = getAttrClass(val);
+              badges.innerHTML += '<span class="attr-badge ' + cls + '">' +
+                '<span class="attr-name">' + escHtml(key) + '</span>' +
+                '<span class="attr-val">' + escHtml(String(val)) + '</span></span>';
+            });
+            card.appendChild(badges);
+          }
+
+          // Strengths and Red Flags
+          var sf = document.createElement('div');
+          sf.className = 'strengths-flags';
+          var hasStrengths = p.strengths && p.strengths.length > 0;
+          var hasFlags = p.red_flags && p.red_flags.length > 0;
+
+          if (hasStrengths) {
+            var sCol = document.createElement('div');
+            sCol.className = 'sf-col strengths';
+            sCol.innerHTML = '<h4>Strengths</h4><ul>' +
+              p.strengths.map(function(s) { return '<li>' + escHtml(s) + '</li>'; }).join('') +
+              '</ul>';
+            sf.appendChild(sCol);
+          }
+          if (hasFlags) {
+            var fCol = document.createElement('div');
+            fCol.className = 'sf-col red-flags';
+            fCol.innerHTML = '<h4>Red Flags</h4><ul>' +
+              p.red_flags.map(function(s) { return '<li>' + escHtml(s) + '</li>'; }).join('') +
+              '</ul>';
+            sf.appendChild(fCol);
+          }
+          if (hasStrengths || hasFlags) card.appendChild(sf);
+
+          tierDiv.appendChild(card);
+        });
+
+        sDiv.appendChild(tierDiv);
+      });
+
+      area.appendChild(sDiv);
+    });
+
+    var closing = document.createElement('div');
+    closing.className = 'closing-text';
+    closing.textContent = 'What position group would you like to evaluate next?';
+    area.appendChild(closing);
+  }
+
+  function escHtml(str) {
+    var d = document.createElement('div');
+    d.appendChild(document.createTextNode(str));
+    return d.innerHTML;
+  }
+
   async function evaluatePlayers() {
-    const division  = document.getElementById('division').value;
-    const position  = document.getElementById('position').value;
-    const playerData = document.getElementById('playerData').value.trim();
-    const btn       = document.getElementById('evaluateBtn');
-    const spinner   = document.getElementById('spinnerWrap');
-    const errorEl   = document.getElementById('errorMsg');
-    const resultCard = document.getElementById('resultCard');
-    const resultBody = document.getElementById('resultBody');
+    var division  = document.getElementById('division').value;
+    var position  = document.getElementById('position').value;
+    var playerData = document.getElementById('playerData').value.trim();
+    var btn       = document.getElementById('evaluateBtn');
+    var spinner   = document.getElementById('spinnerWrap');
+    var errorEl   = document.getElementById('errorMsg');
+    var resultsArea = document.getElementById('resultsArea');
 
     if (!playerData) {
       errorEl.textContent = 'Please paste player data before evaluating.';
@@ -227,23 +427,35 @@
     }
 
     errorEl.classList.remove('visible');
-    resultCard.classList.remove('visible');
+    resultsArea.innerHTML = '';
     btn.disabled = true;
     spinner.classList.add('visible');
 
     try {
-      const resp = await fetch('/recruiting/analyze', {
+      var resp = await fetch('/recruiting/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ division, position, player_data: playerData }),
+        body: JSON.stringify({ division: division, position: position, player_data: playerData }),
       });
-      const data = await resp.json();
-      if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
+      var data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || 'HTTP ' + resp.status);
 
-      resultBody.textContent = data.result;
-      resultCard.classList.add('visible');
+      // Try to parse AI result as JSON for pretty rendering
+      var resultText = data.result;
+      try {
+        // Strip markdown code fences if present
+        var cleaned = resultText.trim();
+        if (cleaned.startsWith('```')) {
+          cleaned = cleaned.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
+        }
+        var parsed = JSON.parse(cleaned);
+        renderResults(parsed);
+      } catch (parseErr) {
+        // Fallback: show raw text
+        resultsArea.innerHTML = '<div class="result-raw">' + escHtml(resultText) + '</div>';
+      }
     } catch (e) {
-      errorEl.textContent = `Error: ${e.message}`;
+      errorEl.textContent = 'Error: ' + e.message;
       errorEl.classList.add('visible');
     } finally {
       btn.disabled = false;
