@@ -103,7 +103,7 @@
     .features { padding: 40px 0 60px; }
     .features-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(2, 1fr);
       gap: 24px;
     }
     @media (max-width: 700px) { .features-grid { grid-template-columns: 1fr; } }
@@ -128,6 +128,20 @@
       font-size: 14px;
       color: #94a3b8;
       line-height: 1.6;
+    }
+    .badge-ai {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      color: #f59e0b;
+      background: #2a2000;
+      border: 1px solid #854d0e;
+      padding: 2px 8px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-left: 8px;
+      vertical-align: middle;
     }
 
     /* ── Pricing ── */
@@ -225,7 +239,7 @@
 
     <div class="hero">
       <h2>The <span>Unfair Advantage</span><br/>in WhatIfSports Football</h2>
-      <p>Break down opponent tendencies, exploit matchup edges, and make winning halftime adjustments — all backed by real play-by-play data.</p>
+      <p>Scout opponents, analyze matchups, evaluate recruits, and dominate halftime — all powered by AI and real play-by-play data.</p>
       <a href="/signup" class="hero-cta">Get Started</a>
     </div>
 
@@ -234,17 +248,22 @@
         <div class="feature-card">
           <div class="feature-icon">&#127944;</div>
           <h3>Play Tendency Scout</h3>
-          <p>Upload play-by-play CSV data and instantly see run/pass tendencies broken down by down, distance, and formation. Know what your opponent does before they do it.</p>
+          <p>See your opponent's run/pass tendencies broken down by down, distance, and formation. Know exactly what they like to call in every situation before the game starts.</p>
         </div>
         <div class="feature-card">
           <div class="feature-icon">&#9878;</div>
-          <h3>Pre-Game Matchup Analyzer</h3>
-          <p>Paste team ratings and get a complete matchup breakdown. See where you have the edge on the line, in the backfield, and in coverage — with specific play-calling recommendations.</p>
+          <h3>Pre-Game Matchup Analyzer <span class="badge-ai">AI Powered</span></h3>
+          <p>Paste both team ratings and select your formation and their defense. AI analyzes every meaningful matchup, identifies mismatches, recommends passing target percentages by player name, and gives you a complete game plan with run/pass splits.</p>
         </div>
         <div class="feature-card">
           <div class="feature-icon">&#9201;</div>
-          <h3>Halftime Advisor</h3>
-          <p>Paste the box score and game log at halftime. Get a real-time analysis of what's working, who's performing, and exactly what adjustments to make in the second half.</p>
+          <h3>Halftime Advisor <span class="badge-ai">AI Powered</span></h3>
+          <p>Paste the box score and game log at halftime. AI reads the actual play-by-play, identifies what is working and what is not, and gives you specific second half adjustments with player names and percentages.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#127891;</div>
+          <h3>Recruiting Evaluator <span class="badge-ai">AI Powered</span></h3>
+          <p>Paste your recruiting board. AI filters by division rules, distance limits, and school exclusions automatically. Players are ranked and tiered by position attributes with strengths and red flags. Export results to CSV.</p>
         </div>
       </div>
     </div>
@@ -255,12 +274,13 @@
       <div class="price-card">
         <div class="price-amount">$7 <span>/month</span></div>
         <ul class="price-features">
-          <li><span class="check">&#10003;</span> Unlimited scouting reports</li>
-          <li><span class="check">&#10003;</span> Formation-level tendency breakdown</li>
-          <li><span class="check">&#10003;</span> Pre-game matchup analyzer</li>
-          <li><span class="check">&#10003;</span> Real-time halftime advisor</li>
-          <li><span class="check">&#10003;</span> Cancel anytime</li>
+          <li><span class="check">&#10003;</span> Play tendency scouting by formation</li>
+          <li><span class="check">&#10003;</span> AI-powered pre-game matchup analysis</li>
+          <li><span class="check">&#10003;</span> AI-powered halftime adjustments</li>
+          <li><span class="check">&#10003;</span> AI-powered recruiting evaluator</li>
+          <li><span class="check">&#10003;</span> Export recruiting rankings to CSV</li>
           <li><span class="check">&#10003;</span> All future updates included</li>
+          <li><span class="check">&#10003;</span> Cancel anytime</li>
         </ul>
         <a href="/signup" class="price-cta">Sign Up</a>
       </div>
