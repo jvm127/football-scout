@@ -11,6 +11,7 @@ import stripe
 import sqlite3
 import csv
 import io
+import traceback
 import re
 import os
 
@@ -2617,6 +2618,8 @@ Opponent Team Ratings:
             )
             ai_result = response.content[0].text
         except Exception as e:
+            print(f">>> STRATEGY ANALYZE ERROR: {e}", flush=True)
+            traceback.print_exc()
             error = f"AI analysis failed: {str(e)}"
 
     return render_template(
@@ -2733,6 +2736,8 @@ Opponent Team Ratings:
             )
             ai_result = response.content[0].text
         except Exception as e:
+            print(f">>> HALFTIME ANALYZE ERROR: {e}", flush=True)
+            traceback.print_exc()
             error = f"AI analysis failed: {str(e)}"
 
     return render_template(
@@ -2819,6 +2824,8 @@ After all results end with exactly: What position group would you like to evalua
         result_text = response.content[0].text
         return jsonify(result=result_text)
     except Exception as e:
+        print(f">>> RECRUITING ANALYZE ERROR: {e}", flush=True)
+        traceback.print_exc()
         return jsonify(error=str(e)), 500
 
 
@@ -2872,6 +2879,8 @@ def admin_reorder():
 
 
 if __name__ == '__main__':
+    api_key = os.environ.get('ANTHROPIC_API_KEY', 'NOT FOUND')
+    print(f'>>> ANTHROPIC_API_KEY starts with: {api_key[:15]}', flush=True)
     print(">>> Registered routes:", flush=True)
     for rule in sorted(app.url_map.iter_rules(), key=lambda r: r.rule):
         print(f">>>   {rule.rule:30s} → {rule.endpoint} [{', '.join(rule.methods - {'OPTIONS', 'HEAD'})}]", flush=True)
