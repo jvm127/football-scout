@@ -216,6 +216,28 @@
       font-size: 14px; color: #e2e8f0; line-height: 1.7;
       white-space: pre-wrap; word-wrap: break-word;
     }
+
+    /* Sort controls */
+    .sort-bar {
+      display: none; align-items: center; gap: 12px;
+      margin-bottom: 20px; margin-top: 28px;
+    }
+    .sort-bar.visible { display: flex; }
+    .sort-bar label {
+      font-size: 12px; font-weight: 600; color: #64748b;
+      text-transform: uppercase; letter-spacing: 0.07em;
+      white-space: nowrap;
+    }
+    .sort-bar select {
+      background: #0f1117; border: 1px solid #2d3348; color: #e2e8f0;
+      padding: 8px 36px 8px 14px; border-radius: 8px; font-size: 13px;
+      font-family: inherit; outline: none; width: auto;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2394a3b8' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 12px center;
+      transition: border-color 0.15s;
+    }
+    .sort-bar select:focus { border-color: #4f6ef7; }
   </style>
 </head>
 <body>
@@ -291,11 +313,33 @@
     <div class="result-error" id="errorMsg"></div>
   </div>
 
+  <div class="sort-bar" id="sortBar">
+    <label for="sortSelect">Sort By</label>
+    <select id="sortSelect" onchange="applySortFromDropdown()">
+      <option value="distance">Distance</option>
+      <option value="ovr">Overall Rating (OVR)</option>
+      <option value="gpa">GPA</option>
+      <option value="work_ethic">Work Ethic</option>
+      <option value="A">A (Agility)</option>
+      <option value="SPD">SPD (Speed)</option>
+      <option value="STR">STR (Strength)</option>
+      <option value="E">E (Elusiveness)</option>
+      <option value="GI">GI (Game Instinct)</option>
+      <option value="H">H (Hands)</option>
+      <option value="BLK">BLK (Blocking)</option>
+      <option value="TKL">TKL (Tackling)</option>
+      <option value="T">T (Technique)</option>
+    </select>
+  </div>
+
   <div id="resultsArea"></div>
 
 </div>
 
 <script>
+  // Global store for re-sorting without API call
+  var _lastResultData = null;
+
   function getAttrClass(val) {
     var n = parseInt(val, 10);
     if (isNaN(n)) return '';
@@ -304,7 +348,46 @@
     return 'low';
   }
 
-  function renderResults(data) {
+  function parseNum(val) {
+    if (val == null) return -Infinity;
+    var s = String(val).replace(/[^0-9.\-]/g, '');
+    var n = parseFloat(s);
+    return isNaN(n) ? -Infinity : n;
+  }
+
+  function getSortValue(player, key) {
+    // Distance: from the distance field (e.g. "363 miles" or "363")
+    if (key === 'distance') return parseNum(player.distance);
+    if (key === 'ovr') return parseNum(player.ovr);
+    if (key === 'gpa') return parseNum(player.gpa);
+    if (key === 'work_ethic') return parseNum(player.work_ethic);
+    // Attribute keys (A, SPD, STR, etc.)
+    if (player.attributes && player.attributes[key] != null) return parseNum(player.attributes[key]);
+    return -Infinity;
+  }
+
+  function sortPlayers(players, key) {
+    var sorted = players.slice(); // copy
+    var asc = (key === 'distance'); // distance = ascending (closest first), everything else = descending
+    sorted.sort(function(a, b) {
+      var va = getSortValue(a, key);
+      var vb = getSortValue(b, key);
+      // Push -Infinity (missing values) to the end
+      if (va === -Infinity && vb === -Infinity) return 0;
+      if (va === -Infinity) return 1;
+      if (vb === -Infinity) return -1;
+      return asc ? va - vb : vb - va;
+    });
+    return sorted;
+  }
+
+  function applySortFromDropdown() {
+    if (!_lastResultData) return;
+    var key = document.getElementById('sortSelect').value;
+    renderResults(_lastResultData, key);
+  }
+
+  function renderResults(data, sortKey) {
     var area = document.getElementById('resultsArea');
     area.innerHTML = '';
 
@@ -329,7 +412,13 @@
         th.textContent = tier.name;
         tierDiv.appendChild(th);
 
-        (tier.players || []).forEach(function(p) {
+        // Sort players within tier if a sort key is provided
+        var players = tier.players || [];
+        if (sortKey) {
+          players = sortPlayers(players, sortKey);
+        }
+
+        players.forEach(function(p) {
           var card = document.createElement('div');
           card.className = 'player-card';
 
@@ -453,6 +542,9 @@
 
     errorEl.classList.remove('visible');
     resultsArea.innerHTML = '';
+    document.getElementById('sortBar').classList.remove('visible');
+    document.getElementById('sortSelect').value = 'distance';
+    _lastResultData = null;
     btn.disabled = true;
     spinner.classList.add('visible');
 
@@ -470,26 +562,31 @@
       var fmt = data.format || 'text';
       console.log('Response format:', fmt, '| type:', typeof result);
 
+      var parsedResult = null;
+
       if (fmt === 'json' && typeof result === 'object' && result.sections) {
-        // Backend already parsed JSON for us
         console.log('Using server-parsed JSON, sections:', result.sections.length);
-        renderResults(result);
+        parsedResult = result;
       } else if (typeof result === 'string') {
-        // Try client-side JSON extraction
         console.log('Trying client-side parse, first 300:', result.substring(0, 300));
         var parsed = extractJSON(result);
         if (parsed && parsed.sections) {
           console.log('Client-side parse succeeded');
-          renderResults(parsed);
+          parsedResult = parsed;
         } else {
           console.log('All JSON parsing failed, showing raw text');
           resultsArea.innerHTML = '<div class="result-raw">' + escHtml(result) + '</div>';
         }
       } else if (typeof result === 'object' && result.sections) {
-        // Object with sections but format wasn't set
-        renderResults(result);
+        parsedResult = result;
       } else {
         resultsArea.innerHTML = '<div class="result-raw">' + escHtml(JSON.stringify(result, null, 2)) + '</div>';
+      }
+
+      if (parsedResult) {
+        _lastResultData = parsedResult;
+        renderResults(parsedResult);
+        document.getElementById('sortBar').classList.add('visible');
       }
     } catch (e) {
       errorEl.textContent = 'Error: ' + e.message;
