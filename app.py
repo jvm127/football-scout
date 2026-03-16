@@ -3187,43 +3187,33 @@ def parse_recruiting_players(raw_text):
         return []
 
     # ── Pre-processing: strip WIS page noise ──
-    # Strategy: find the first real data line (tab + known position), discard everything
-    # before it. Find "Next >>" and discard everything from that point onwards.
-    KNOWN_POSITIONS = {'QB', 'RB', 'WR', 'TE', 'OL', 'DL', 'LB', 'DB', 'K', 'P',
-                       'FB', 'SS', 'FS', 'CB', 'DE', 'DT', 'OT', 'OG', 'C', 'KR', 'PR'}
+    # Step 1 (FIND THE START): header row contains both 'Pos' and 'Name' as tab-separated values
     original_count = len(lines_stripped)
-
-    # Step 1: Find first line with a tab AND a known position abbreviation
-    # Then include the header row (line before it that also has tabs)
-    data_start = 0
+    start_idx = 0
     for i, line in enumerate(lines_stripped):
         if '\t' not in line:
             continue
-        tokens = line.split('\t')
-        for tok in tokens:
-            if tok.strip().upper() in KNOWN_POSITIONS:
-                data_start = i
-                break
-        if data_start > 0:
-            break
-    # Include the header row: scan backwards from data_start for the first tab line
-    start_idx = data_start
-    for i in range(data_start - 1, -1, -1):
-        if '\t' in lines_stripped[i]:
+        tokens = [t.strip().lower() for t in line.split('\t')]
+        if 'pos' in tokens and 'name' in tokens:
             start_idx = i
+            print(f">>> NOISE FILTER: Header row found at line {i}: {line.strip()[:80]!r}", flush=True)
             break
 
-    # Step 2: Find "Next >>" and cut everything from that line onwards
+    # Step 2 (FIND THE END): stop at first line matching any stop pattern
+    STOP_PATTERNS = ['next >>', 'roster', 'reminders', 'terms of use',
+                     'quick jump', 'popular on', 'signing period', 'recruiting ends']
     end_idx = len(lines_stripped)
-    for i in range(start_idx, len(lines_stripped)):
-        if 'next >>' in lines_stripped[i].lower():
+    for i in range(start_idx + 1, len(lines_stripped)):
+        lower = lines_stripped[i].lower().strip()
+        if any(pat in lower for pat in STOP_PATTERNS):
             end_idx = i
+            print(f">>> NOISE FILTER: Stop line found at line {i}: {lines_stripped[i].strip()[:80]!r}", flush=True)
             break
 
     filtered_lines = lines_stripped[start_idx:end_idx]
 
     stripped_count = original_count - len(filtered_lines)
-    print(f">>> RECRUITING NOISE FILTER: kept lines {start_idx}-{end_idx} "
+    print(f">>> NOISE FILTER: kept lines {start_idx}-{end_idx} "
           f"({len(filtered_lines)} kept, {stripped_count} stripped from {original_count})", flush=True)
     lines_stripped = filtered_lines
 
