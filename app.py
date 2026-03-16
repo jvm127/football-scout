@@ -2702,6 +2702,8 @@ YOUR TE TOT vs THEIR LB TOT — TE coverage mismatch
 YOUR TE SPD vs THEIR DB SPD — TE over the middle
 NEVER compare RB vs DL, WR vs LB, RB SPD vs DB SPD, or include QB protection.
 
+MISMATCH THRESHOLD: A mismatch only exists when the difference is 20 or more points. If YOUR stat is 767 and THEIR stat is 768 that is NOT a mismatch — it is an even matchup. Never say to exploit a matchup where your rating is lower than or equal to the opponent. Never recommend targeting a position as a mismatch unless your rating is at least 20 points higher than their corresponding defender rating.
+
 OUTPUT SECTIONS IN ORDER:
 
 STANDOUT PLAYERS — parse individual player names and TOT ratings from the raw data
@@ -2815,6 +2817,7 @@ CRITICAL RULES:
 - DO NOT CONTRADICT THE DATA — if the passing game is working well (high completion %, good yardage), do not recommend abandoning it. If inside runs average 3.0+ ypc, that is decent — do not say to abandon them. Only recommend stopping something if the numbers clearly show it is failing (below 3.0 ypc for runs, below 50% completion for passes). Every recommendation must be logically consistent with the actual first half stats.
 - SCORE ACCURACY — always state the score correctly. If Team A has 13 points and Team B has 14 points, then Team A is LOSING by 1 point and Team B is WINNING by 1 point. The team with MORE points is winning. The team with FEWER points is losing. Double check who is winning before writing the summary. Never say a team "leads" when their score is lower than the opponent's.
 - NO "TALE OF TWO HALVES" — this is a HALFTIME report. Only the first half has been played. The second half has NOT happened yet. Never use phrases like "tale of two halves", "game of two halves", "two different halves", or any language that implies both halves have already been played. You are analyzing ONE half of data and recommending adjustments for the upcoming second half.
+- MISMATCH THRESHOLD — a mismatch only exists when the difference is 20 or more points. If YOUR stat is 767 and THEIR stat is 768 that is NOT a mismatch — it is an even matchup. Never say to exploit a matchup where your rating is lower than or equal to the opponent. Never recommend targeting a position as a mismatch unless your rating is at least 20 points higher than their corresponding defender rating.
 
 ANALYSIS RULES:
 - Read the game log carefully and identify actual play patterns — what run directions worked, what pass routes converted, which players performed
@@ -2909,19 +2912,53 @@ Opponent Team Ratings:
     opp_score = None
     if box_raw and your_team and opp_team:
         lines = box_raw.splitlines()
+        your_team_lower = your_team.lower().strip()
+        opp_team_lower = opp_team.lower().strip()
+
+        # Build search terms: full name + individual words (3+ chars) for fuzzy matching
+        your_words = [w for w in your_team_lower.split() if len(w) >= 3]
+        opp_words = [w for w in opp_team_lower.split() if len(w) >= 3]
+
+        print(f">>> SCORE PARSER: Looking for '{your_team}' and '{opp_team}' in box score", flush=True)
+        print(f">>> SCORE PARSER: your_words={your_words}, opp_words={opp_words}", flush=True)
+
         # Find lines containing each team name and extract numbers
         your_nums = None
         opp_nums = None
-        for line in lines:
+        # Track lines with numbers for fallback (first two lines with 4+ numbers)
+        score_lines = []
+
+        for i, line in enumerate(lines):
             line_lower = line.lower().strip()
             if not line_lower:
                 continue
             # Extract all numbers from this line
             nums = re.findall(r'\b(\d+)\b', line)
-            if your_team.lower() in line_lower and len(nums) >= 2:
+            if len(nums) < 2:
+                continue
+
+            print(f">>> SCORE PARSER: Line {i}: {line.strip()!r} -> nums={nums}", flush=True)
+
+            # Check if this line matches your team (full name or any word)
+            is_your = your_team_lower in line_lower or any(w in line_lower for w in your_words)
+            is_opp = opp_team_lower in line_lower or any(w in line_lower for w in opp_words)
+
+            if is_your and not your_nums:
                 your_nums = [int(n) for n in nums]
-            elif opp_team.lower() in line_lower and len(nums) >= 2:
+                print(f">>> SCORE PARSER: Matched YOUR team: {your_nums}", flush=True)
+            elif is_opp and not opp_nums:
                 opp_nums = [int(n) for n in nums]
+                print(f">>> SCORE PARSER: Matched OPP team: {opp_nums}", flush=True)
+            elif len(nums) >= 4:
+                score_lines.append([int(n) for n in nums])
+
+        # Fallback: if we couldn't match team names but found exactly 2 score-like lines
+        if (not your_nums or not opp_nums) and len(score_lines) >= 2:
+            print(f">>> SCORE PARSER: Name match failed, using fallback score lines", flush=True)
+            if not your_nums:
+                your_nums = score_lines[0]
+            if not opp_nums:
+                opp_nums = score_lines[1] if len(score_lines) > 1 else None
 
         # If we found quarter-by-quarter data (4+ numbers = Q1,Q2,Q3,Q4,Total or Q1,Q2,Q3,Q4)
         # Sum only Q1 + Q2 for halftime score
@@ -2944,6 +2981,8 @@ Opponent Team Ratings:
 
             print(f">>> HALFTIME SCORE: {your_team} {your_score} (from {your_nums}) - "
                   f"{opp_team} {opp_score} (from {opp_nums})", flush=True)
+        else:
+            print(f">>> SCORE PARSER: Could not find scores. your_nums={your_nums}, opp_nums={opp_nums}", flush=True)
 
     return render_template(
         "halftime.html",
