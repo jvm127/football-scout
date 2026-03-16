@@ -198,12 +198,15 @@
     }
     .score-team-pts {
       font-size: 48px; font-weight: 800; color: #ffffff; line-height: 1;
+      margin-top: 8px;
     }
-    .score-team.winning .score-team-pts { color: #22c55e; }
-    .score-team.losing .score-team-pts { color: #ef4444; }
+    .score-team.winning .score-team-pts { color: #f59e0b; }
+    .score-team.losing .score-team-pts { color: #475569; font-weight: 700; }
     .score-team.tied .score-team-pts { color: #f59e0b; }
     .score-divider {
-      font-size: 28px; font-weight: 700; color: #475569; padding: 0 8px;
+      font-size: 12px; font-weight: 700; color: #64748b; padding: 0 16px;
+      text-transform: uppercase; letter-spacing: 0.12em;
+      display: flex; align-items: center;
     }
 
     .spinner-wrap {
@@ -330,7 +333,7 @@
       <div class="score-team-name">{{ your_team }}</div>
       <div class="score-team-pts">{{ your_score }}</div>
     </div>
-    <div class="score-divider">—</div>
+    <div class="score-divider">Halftime</div>
     <div class="score-team {% if opp_score > your_score %}winning{% elif opp_score < your_score %}losing{% else %}tied{% endif %}">
       <div class="score-team-name">{{ opp_team }}</div>
       <div class="score-team-pts">{{ opp_score }}</div>
@@ -341,7 +344,7 @@
     <div class="score-team tied">
       <div class="score-team-name">{{ your_team }}</div>
     </div>
-    <div class="score-divider" style="font-size:14px;font-weight:700;color:#f59e0b;text-transform:uppercase;letter-spacing:0.1em;">Halftime</div>
+    <div class="score-divider">Halftime</div>
     <div class="score-team tied">
       <div class="score-team-name">{{ opp_team }}</div>
     </div>
