@@ -2631,6 +2631,19 @@ def validate_ai_output(text):
         _fix_speed_claims, text, flags=_re.IGNORECASE
     )
 
+    # 5. Remove "tale of two halves" and similar phrases (this is a halftime report — only one half played)
+    TWO_HALVES_PATTERNS = [
+        r'tale\s+of\s+two\s+halves',
+        r'game\s+of\s+two\s+halves',
+        r'two\s+(?:very\s+)?different\s+halves',
+        r'two\s+distinct\s+halves',
+        r'a\s+story\s+of\s+two\s+halves',
+    ]
+    for pattern in TWO_HALVES_PATTERNS:
+        if _re.search(pattern, text, flags=_re.IGNORECASE):
+            print(f">>> VALIDATE: Removed 'tale of two halves' phrase matching: {pattern}", flush=True)
+            text = _re.sub(pattern, 'a pivotal first half', text, flags=_re.IGNORECASE)
+
     return text
 
 
@@ -2801,6 +2814,7 @@ CRITICAL RULES:
 - MATH MUST BE CORRECT — before writing any comparison, verify which number is higher. If YOUR stat is 88 and THEIR stat is 84, that is a +4 advantage FOR YOU — do not say they overpower you. Never say a stat "overpowers" or "significantly overpowers" unless the edge is +15 or more. Double check every single comparison before writing.
 - DO NOT CONTRADICT THE DATA — if the passing game is working well (high completion %, good yardage), do not recommend abandoning it. If inside runs average 3.0+ ypc, that is decent — do not say to abandon them. Only recommend stopping something if the numbers clearly show it is failing (below 3.0 ypc for runs, below 50% completion for passes). Every recommendation must be logically consistent with the actual first half stats.
 - SCORE ACCURACY — always state the score correctly. If Team A has 13 points and Team B has 14 points, then Team A is LOSING by 1 point and Team B is WINNING by 1 point. The team with MORE points is winning. The team with FEWER points is losing. Double check who is winning before writing the summary. Never say a team "leads" when their score is lower than the opponent's.
+- NO "TALE OF TWO HALVES" — this is a HALFTIME report. Only the first half has been played. The second half has NOT happened yet. Never use phrases like "tale of two halves", "game of two halves", "two different halves", or any language that implies both halves have already been played. You are analyzing ONE half of data and recommending adjustments for the upcoming second half.
 
 ANALYSIS RULES:
 - Read the game log carefully and identify actual play patterns — what run directions worked, what pass routes converted, which players performed
@@ -2888,32 +2902,48 @@ Opponent Team Ratings:
             traceback.print_exc()
             error = f"AI analysis failed: {str(e)}"
 
-    # Parse score from box score text for scoreboard display
+    # Parse halftime score from box score text
+    # WIS box score format: "Team  Q1  Q2  Q3  Q4  Total" or similar
+    # We want Q1 + Q2 only (halftime), not the full game total
     your_score = None
     opp_score = None
     if box_raw and your_team and opp_team:
-        for line in box_raw.splitlines():
-            line_stripped = line.strip()
-            # Try patterns like "Team Name    13" or "Team Name\t13" or "Team Name: 13"
-            # Match team name followed by a number
-            if your_team.lower() in line_stripped.lower():
-                score_match = re.findall(r'(\d+)\s*$', line_stripped)
-                if score_match:
-                    your_score = int(score_match[-1])
-            if opp_team.lower() in line_stripped.lower():
-                score_match = re.findall(r'(\d+)\s*$', line_stripped)
-                if score_match:
-                    opp_score = int(score_match[-1])
-        # Also try pattern: "Team1 13, Team2 14" or "Team1 13 - Team2 14" on one line
-        if your_score is None or opp_score is None:
-            for line in box_raw.splitlines():
-                m = re.search(r'(\d+)\s*[-–—,]\s*(\d+)', line)
-                if m and (your_team.lower() in line.lower() or opp_team.lower() in line.lower()):
-                    your_score = int(m.group(1))
-                    opp_score = int(m.group(2))
-                    break
-        if your_score is not None and opp_score is not None:
-            print(f">>> HALFTIME SCORE: {your_team} {your_score} - {opp_team} {opp_score}", flush=True)
+        lines = box_raw.splitlines()
+        # Find lines containing each team name and extract numbers
+        your_nums = None
+        opp_nums = None
+        for line in lines:
+            line_lower = line.lower().strip()
+            if not line_lower:
+                continue
+            # Extract all numbers from this line
+            nums = re.findall(r'\b(\d+)\b', line)
+            if your_team.lower() in line_lower and len(nums) >= 2:
+                your_nums = [int(n) for n in nums]
+            elif opp_team.lower() in line_lower and len(nums) >= 2:
+                opp_nums = [int(n) for n in nums]
+
+        # If we found quarter-by-quarter data (4+ numbers = Q1,Q2,Q3,Q4,Total or Q1,Q2,Q3,Q4)
+        # Sum only Q1 + Q2 for halftime score
+        if your_nums and opp_nums:
+            if len(your_nums) >= 4:
+                # Q1 + Q2 (first two numbers are quarter scores)
+                your_score = your_nums[0] + your_nums[1]
+            elif len(your_nums) == 1:
+                your_score = your_nums[0]
+            else:
+                # 2-3 numbers — could be "Q1 Q2 Total" or just scores; use last as total
+                your_score = your_nums[-1]
+
+            if len(opp_nums) >= 4:
+                opp_score = opp_nums[0] + opp_nums[1]
+            elif len(opp_nums) == 1:
+                opp_score = opp_nums[0]
+            else:
+                opp_score = opp_nums[-1]
+
+            print(f">>> HALFTIME SCORE: {your_team} {your_score} (from {your_nums}) - "
+                  f"{opp_team} {opp_score} (from {opp_nums})", flush=True)
 
     return render_template(
         "halftime.html",
