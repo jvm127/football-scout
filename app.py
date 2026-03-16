@@ -2810,6 +2810,8 @@ def parse_recruiting_players(raw_text):
         'considering': 'considering', 'schools': 'considering', 'interest': 'considering',
         # Stats
         't': 'T', 'technique': 'T', 'tech': 'T',
+        'd': 'D', 'durability': 'D',
+        'st': 'ST', 'stamina': 'ST',
         'str': 'STR', 'strength': 'STR', 'strn': 'STR',
         'a': 'A', 'agility': 'A', 'agl': 'A', 'ath': 'A', 'athleticism': 'A',
         'spd': 'SPD', 'speed': 'SPD',
@@ -2819,6 +2821,9 @@ def parse_recruiting_players(raw_text):
         'blk': 'BLK', 'blocking': 'BLK', 'block': 'BLK',
         'tkl': 'TKL', 'tackling': 'TKL', 'tckl': 'TKL',
     }
+
+    # Prefixes that WIS prepends to data rows but NOT to the header
+    DATA_ROW_PREFIXES = {'watch recruit', 'you have contacted this recruit.', 'you have contacted this recruit'}
 
     header_idx = None
     col_map = {}  # col_index -> field_name
@@ -2881,6 +2886,12 @@ def parse_recruiting_players(raw_text):
             # This is a player data row
             tokens = [t.strip().lstrip('*').strip() for t in tokens]
 
+            # WIS prepends "Watch Recruit" or "You have contacted this recruit."
+            # as an extra first column not present in the header — strip it
+            if tokens and tokens[0].lower() in DATA_ROW_PREFIXES:
+                tokens = tokens[1:]
+                print(f">>> PARSE: Stripped WIS prefix, now {len(tokens)} cols", flush=True)
+
             name = tokens[name_col] if name_col < len(tokens) else ''
             if not name:
                 continue
@@ -2920,7 +2931,7 @@ def parse_recruiting_players(raw_text):
                 elif field == 'considering':
                     schools = re.split(r'[,/;]', val)
                     player['considering'] = [s.strip() for s in schools if s.strip()]
-                elif field in ('T', 'STR', 'A', 'SPD', 'E', 'GI', 'H', 'BLK', 'TKL'):
+                elif field in ('T', 'ST', 'STR', 'A', 'SPD', 'D', 'E', 'GI', 'H', 'BLK', 'TKL'):
                     try:
                         player['stats'][field] = int(float(val))
                     except (ValueError, TypeError):
