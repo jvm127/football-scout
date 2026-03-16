@@ -3187,23 +3187,22 @@ def parse_recruiting_players(raw_text):
         return []
 
     # ── Normalize separators: convert multi-space to tabs ──
-    # WIS data can be pasted with 4+ spaces instead of tabs. Detect this by
-    # checking if no lines contain tabs but some contain 2+ space gaps.
-    has_tabs = any('\t' in line for line in lines_stripped[:20])
-    if not has_tabs:
-        has_multi_space = any(re.search(r'  {3,}', line) for line in lines_stripped[:20])
-        if has_multi_space:
-            print(f">>> RECRUITING: No tabs found — converting multi-space separators to tabs", flush=True)
-            normalized = []
-            for line in lines_stripped:
-                stripped = line.strip()
-                # Only normalize lines with multi-space gaps (data/header rows)
-                # Leave school-name-only lines untouched
-                if re.search(r'  {3,}', stripped):
-                    normalized.append(re.sub(r'  {2,}', '\t', stripped))
-                else:
-                    normalized.append(stripped)
-            lines_stripped = normalized
+    # WIS data can be pasted with 4+ spaces instead of tabs, or a mix.
+    # Count how many lines use tabs vs multi-space to decide.
+    tab_lines = sum(1 for line in lines_stripped if '\t' in line)
+    space_lines = sum(1 for line in lines_stripped if re.search(r'  {3,}', line) and '\t' not in line)
+    if space_lines > tab_lines:
+        print(f">>> RECRUITING: {space_lines} space-separated lines vs {tab_lines} tab lines — normalizing to tabs", flush=True)
+        normalized = []
+        for line in lines_stripped:
+            stripped = line.strip()
+            # Only normalize lines with multi-space gaps (data/header rows)
+            # Leave school-name-only lines untouched
+            if '\t' not in stripped and re.search(r'  {3,}', stripped):
+                normalized.append(re.sub(r'  {2,}', '\t', stripped))
+            else:
+                normalized.append(stripped)
+        lines_stripped = normalized
 
     # ── Pre-processing: strip WIS page noise ──
     # Step 1 (FIND THE START): header row contains both 'Pos' and 'Name' as tab-separated values
@@ -3248,6 +3247,7 @@ def parse_recruiting_players(raw_text):
         'we': 'work_ethic', 'work ethic': 'work_ethic', 'workethic': 'work_ethic',
         'ovr': 'ovr', 'overall': 'ovr', 'tot': 'ovr', 'total': 'ovr',
         'considering': 'considering', 'schools': 'considering', 'interest': 'considering',
+        'considering (*human)': 'considering',
         # Stats
         't': 'T', 'technique': 'T', 'tech': 'T',
         'd': 'D', 'durability': 'D',
@@ -3583,6 +3583,12 @@ def recruiting_analyze():
     print(f">>> RECRUITING: Parsed {len(players)} players from input", flush=True)
     print(f">>> RECRUITING: Division={division}, Position={position}", flush=True)
     print(f">>> RECRUITING: Raw input first 500 chars: {player_data[:500]!r}", flush=True)
+    # Debug: check separator type
+    first_lines = player_data.splitlines()[:5]
+    for dl_i, dl in enumerate(first_lines):
+        has_tab = '\t' in dl
+        has_mspace = bool(re.search(r'  {3,}', dl))
+        print(f">>> INPUT LINE {dl_i}: has_tab={has_tab}, has_multispace={has_mspace}, len={len(dl)}, repr={dl[:120]!r}", flush=True)
 
     # Debug: show first 3 parsed players
     for idx, p in enumerate(players[:3]):
