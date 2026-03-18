@@ -2953,7 +2953,10 @@ Opponent Team Ratings:
             traceback.print_exc()
             yield f"data: {_json.dumps({'error': f'AI analysis failed: {str(e)}'})}\n\n"
 
-    return Response(stream_with_context(generate()), content_type='text/event-stream')
+    resp = Response(stream_with_context(generate()), content_type='text/event-stream')
+    resp.headers['Cache-Control'] = 'no-cache'
+    resp.headers['X-Accel-Buffering'] = 'no'
+    return resp
 
 
 @app.route("/halftime", methods=["POST"])
