@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Football Scout</title>
+  <title>Defensive Game Planning</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -415,38 +415,6 @@
       line-height: 1.6;
     }
 
-    /* ── Strategy Section ── */
-    .strategy-section {
-      margin-top: 48px;
-      border-top: 1px solid #2d3348;
-      padding-top: 36px;
-    }
-
-    .strategy-section .section-title {
-      font-size: 11px;
-      font-weight: 700;
-      color: #4f6ef7;
-      text-transform: uppercase;
-      letter-spacing: 0.12em;
-      margin-bottom: 20px;
-    }
-
-    .strategy-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 20px;
-      margin-bottom: 20px;
-    }
-
-    @media (max-width: 640px) {
-      .strategy-grid { grid-template-columns: 1fr; }
-    }
-
-    .strategy-col {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
 
     textarea {
       background: #0f1117;
@@ -479,6 +447,8 @@
       <a href="https://www.thenextguess.com/" target="_blank" rel="noopener" class="nav-link">The Next Guess</a>
       <a href="https://www.whatifsports.com/gd/office/" target="_blank" rel="noopener" class="nav-link">WIS Office</a>
       {% if current_user.is_authenticated or session.get('internal_access') %}
+      <a href="/offensive" class="nav-link">Offensive</a>
+      <a href="/scout" class="nav-link">Defensive</a>
       <a href="/halftime-advisor" class="nav-link">Halftime</a>
       <a href="/game-analysis" class="nav-link">Game Analysis</a>
       <a href="/recruiting" class="nav-link">Recruiting</a>
@@ -492,10 +462,12 @@
       <a href="https://www.thenextguess.com/" target="_blank" rel="noopener">The Next Guess</a>
       <a href="https://www.whatifsports.com/gd/office/" target="_blank" rel="noopener">WIS Office</a>
       {% if current_user.is_authenticated or session.get('internal_access') %}
+      <a href="/offensive">Offensive</a>
+      <a href="/scout">Defensive</a>
       <a href="/halftime-advisor">Halftime</a>
       <a href="/game-analysis">Game Analysis</a>
       <a href="/recruiting">Recruiting</a>
-      <a href="/training" class="">Training</a>
+      <a href="/training">Training</a>
       <a href="/account">My Account</a>
       <a href="/logout">Log Out</a>
       {% endif %}
@@ -504,7 +476,7 @@
 
   <!-- Input Card -->
   <div class="input-card">
-    <h2>Scout a Team</h2>
+    <h2>Defensive Game Planning</h2>
     <form method="POST" action="/analyze" enctype="multipart/form-data">
       <!-- Row 1: team + url + submit -->
       <div class="form-row">
@@ -677,68 +649,6 @@
   </div>
   {% endif %}
 
-  <!-- Strategy Section -->
-  <div class="strategy-section">
-    <div class="section-title">Strategy</div>
-    <form method="POST" action="/strategy">
-      <div class="strategy-grid">
-        <div class="strategy-col">
-          <div class="field">
-            <label for="opponent_team">Opponent Team</label>
-            <input type="text" id="opponent_team" name="opponent_team"
-                   placeholder="e.g. Minnesota"
-                   value="{{ team or '' }}"/>
-          </div>
-          <div class="field">
-            <label for="their_defense">Their Defense</label>
-            <select id="their_defense" name="their_defense" style="background:#0f1117;border:1px solid #2d3348;color:#e2e8f0;padding:10px 14px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;width:100%;">
-              <option value="">-- Select --</option>
-              <option value="3-4">3-4</option>
-              <option value="4-3">4-3</option>
-              <option value="4-4">4-4</option>
-              <option value="5-2">5-2</option>
-              <option value="Nickel">Nickel</option>
-              <option value="Dime">Dime</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="opponent_ratings">Opponent Team Ratings — paste raw ratings data here</label>
-            <textarea id="opponent_ratings" name="opponent_ratings" rows="10"
-                      placeholder="Pos&#9;A&#9;Spd&#9;Str&#9;Blk&#9;Tkl&#9;Tot&#10;QB&#9;72&#9;68&#9;55&#9;40&#9;45&#9;85&#10;RB&#9;85&#9;88&#9;75&#9;60&#9;50&#9;90&#10;..."></textarea>
-          </div>
-        </div>
-        <div class="strategy-col">
-          <div class="field">
-            <label for="your_team">Your Team</label>
-            <input type="text" id="your_team" name="your_team"
-                   placeholder="e.g. Michigan"/>
-          </div>
-          <div class="field">
-            <label for="your_offense">Your Offense</label>
-            <select id="your_offense" name="your_offense" style="background:#0f1117;border:1px solid #2d3348;color:#e2e8f0;padding:10px 14px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;width:100%;">
-              <option value="">-- Select --</option>
-              <option value="I Formation">I Formation</option>
-              <option value="Pro">Pro</option>
-              <option value="Wishbone">Wishbone</option>
-              <option value="Notre Dame Box">Notre Dame Box</option>
-              <option value="Shotgun">Shotgun</option>
-              <option value="Trips">Trips</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="your_ratings">Your Team Ratings — paste raw ratings data here</label>
-            <textarea id="your_ratings" name="your_ratings" rows="10"
-                      placeholder="Pos&#9;A&#9;Spd&#9;Str&#9;Blk&#9;Tkl&#9;Tot&#10;QB&#9;80&#9;75&#9;65&#9;50&#9;55&#9;88&#10;RB&#9;82&#9;86&#9;78&#9;62&#9;55&#9;88&#10;..."></textarea>
-          </div>
-        </div>
-      </div>
-      <button type="submit" class="btn-submit" id="strategyBtn">Generate Strategy</button>
-      <div class="spinner-wrap" id="strategySpinner" style="display:none;align-items:center;gap:12px;margin-top:16px;">
-        <div style="width:24px;height:24px;border:3px solid #2d3348;border-top-color:#4f6ef7;border-radius:50%;animation:spin 0.7s linear infinite;"></div>
-        <span style="font-size:13px;color:#94a3b8;">Analyzing matchup — this may take up to 60 seconds...</span>
-      </div>
-    </form>
-  </div>
   {% endif %}
 
 </div>
@@ -769,20 +679,6 @@
     }
   });
 
-  // Strategy form spinner
-  var strategyForm = document.querySelector('form[action="/strategy"]');
-  if (strategyForm) {
-    strategyForm.addEventListener('submit', function() {
-      var btn = document.getElementById('strategyBtn');
-      var spinner = document.getElementById('strategySpinner');
-      btn.disabled = true;
-      btn.textContent = 'Analyzing...';
-      btn.style.background = '#2d3348';
-      btn.style.color = '#64748b';
-      btn.style.cursor = 'not-allowed';
-      if (spinner) spinner.style.display = 'flex';
-    });
-  }
 </script>
 </body>
 </html>

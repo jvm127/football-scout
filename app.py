@@ -2353,14 +2353,14 @@ def build_halftime_report(your_team, opp_team, your_stats, their_stats, plays, b
 def internal_access():
     session.permanent = True
     session['internal_access'] = True
-    return redirect(url_for('index'))
+    return redirect(url_for('offensive_page'))
 
 @app.route("/")
 def landing():
     if session.get('internal_access'):
-        return redirect(url_for('index'))
+        return redirect(url_for('offensive_page'))
     if current_user.is_authenticated and current_user.subscribed:
-        return redirect(url_for('index'))
+        return redirect(url_for('offensive_page'))
     return render_template("landing.html")
 
 @app.route("/signup", methods=["GET", "POST"])
@@ -2402,7 +2402,7 @@ def login():
     user = User(**dict(row))
     login_user(user)
     if user.subscribed:
-        return redirect(url_for('index'))
+        return redirect(url_for('offensive_page'))
     return redirect(url_for('checkout'))
 
 @app.route("/logout")
@@ -2444,7 +2444,7 @@ def payment_success():
             conn.close()
         except Exception:
             pass
-    return redirect(url_for('index'))
+    return redirect(url_for('offensive_page'))
 
 @app.route("/cancel")
 @login_required
@@ -2530,8 +2530,18 @@ def cancel_subscription():
 
 @app.route("/scout", methods=["GET"])
 @tool_required('scout')
-def index():
+def scout_page():
     return render_template("index.html")
+
+
+@app.route("/offensive", methods=["GET"])
+@tool_required('scout')
+def offensive_page():
+    return render_template("strategy.html",
+                           opponent_team='', your_team='',
+                           opponent_ratings_raw='', your_ratings_raw='',
+                           your_offense='', their_defense='',
+                           ai_result=None, error=None)
 
 
 @app.route("/analyze", methods=["POST"])
@@ -2738,7 +2748,7 @@ def validate_ai_output(text):
 
 
 @app.route("/strategy", methods=["POST"])
-@subscription_required
+@tool_required('scout')
 def strategy_route():
     opponent_team        = request.form.get("opponent_team", "").strip()
     your_team            = request.form.get("your_team", "").strip()
@@ -4070,7 +4080,7 @@ def admin_reorder():
     return jsonify(ok=True)
 
 TOOL_LABELS = {
-    'scout': 'Scout',
+    'scout': 'Offensive & Defensive Game Planning',
     'halftime': 'Halftime Advisor',
     'game_analysis': 'Game Analysis',
     'recruiting': 'Recruiting Evaluator',

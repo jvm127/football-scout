@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Strategy — {{ your_team }} vs {{ opponent_team }}</title>
+  <title>Offensive Game Planning{% if your_team and opponent_team %} — {{ your_team }} vs {{ opponent_team }}{% endif %}</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -214,7 +214,8 @@
     <div class="nav-links">
       <a href="https://www.thenextguess.com/" target="_blank" rel="noopener" class="nav-link">The Next Guess</a>
       <a href="https://www.whatifsports.com/gd/office/" target="_blank" rel="noopener" class="nav-link">WIS Office</a>
-      <a href="/scout" class="nav-link">Scout</a>
+      <a href="/offensive" class="nav-link">Offensive</a>
+      <a href="/scout" class="nav-link">Defensive</a>
       <a href="/halftime-advisor" class="nav-link">Halftime</a>
       <a href="/game-analysis" class="nav-link">Game Analysis</a>
       <a href="/recruiting" class="nav-link">Recruiting</a>
@@ -226,7 +227,8 @@
     <div class="mobile-menu" id="mobileMenu">
       <a href="https://www.thenextguess.com/" target="_blank" rel="noopener">The Next Guess</a>
       <a href="https://www.whatifsports.com/gd/office/" target="_blank" rel="noopener">WIS Office</a>
-      <a href="/scout">Scout</a>
+      <a href="/offensive">Offensive</a>
+      <a href="/scout">Defensive</a>
       <a href="/halftime-advisor">Halftime</a>
       <a href="/game-analysis">Game Analysis</a>
       <a href="/recruiting">Recruiting</a>
@@ -238,7 +240,7 @@
 
   <!-- Strategy Form (pre-filled for easy re-run) -->
   <div class="input-card">
-    <h2>Pre-Game Strategy</h2>
+    <h2>Offensive Game Planning</h2>
     <form method="POST" action="/strategy">
       <div class="strategy-grid">
         <div class="strategy-col">
