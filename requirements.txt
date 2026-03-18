@@ -7,3 +7,4 @@ flask-mail>=0.10
 stripe>=7.0
 python-dotenv>=1.0
 itsdangerous>=2.1
+gevent>=24.2
