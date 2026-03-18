@@ -3140,6 +3140,129 @@ Opponent Team Ratings:
     )
 
 
+@app.route("/game-analysis", methods=["GET"])
+@subscription_required
+def game_analysis():
+    return render_template("game_analysis.html", your_team='', opp_team='', box_raw='',
+                           your_ratings_raw='', opp_ratings_raw='',
+                           your_offense='', their_defense='',
+                           error=None)
+
+@app.route("/game-analysis", methods=["POST"])
+@subscription_required
+def game_analysis_route():
+    your_team        = request.form.get("ga_your_team",    "").strip()
+    opp_team         = request.form.get("ga_opp_team",     "").strip()
+    box_raw          = request.form.get("ga_box_score",    "").strip()
+    your_ratings_raw = request.form.get("ga_your_ratings", "").strip()
+    opp_ratings_raw  = request.form.get("ga_opp_ratings",  "").strip()
+    your_offense     = request.form.get("ga_your_offense", "").strip()
+    their_defense    = request.form.get("ga_their_defense","").strip()
+
+    error   = None
+    ai_result = None
+
+    if not your_team or not opp_team:
+        error = "Please enter both team names."
+    elif not box_raw:
+        error = "Please paste the box score."
+    else:
+        game_analysis_prompt = """You are an expert WhatIfSports sim football analyst and sports journalist. You will receive full-game box score data and team ratings and write a post-game analysis in the style of a sports news article.
+
+SIM FOOTBALL CONTEXT:
+This is text-based sim football on WhatIfSports, not real football. All analysis should be grounded in the box score stats provided.
+
+VOICE AND PERSONALITY:
+Write like a professional sports journalist covering a big game. Be vivid, dramatic, and authoritative. Paint the narrative of how the game unfolded. Reference specific plays, stats, and players by name. Make the reader feel like they watched the game.
+
+CRITICAL RULES:
+- EVERY player mentioned MUST include position and team in parentheses. Example: Roy Hogan (RB, Stony Brook). No exceptions.
+- MATH MUST BE CORRECT — verify all stat comparisons before writing. The team with MORE points won. Double check the final score.
+- SCORE ACCURACY — always state the final score correctly. The team with more points is the winner. Never say a team "won" when their score is lower.
+- TOP PERFORMERS FORMATTING — never put a colon before stat lines. Write "5 rec, 89 yds" not ": 5 rec, 89 yds". No colon prefix on any stat line.
+- Do not invent plays, drives, or events not supported by the box score data. Stick to what the numbers show.
+- OVERPOWERING LANGUAGE — never use "overpowers", "dominates", or "overwhelms" for any stat difference less than 20 points.
+
+OUTPUT FORMAT — respond with clean HTML fragments (no <html>, <head>, or <body> tags). Use these elements:
+- <h3> for section headers
+- <p> for paragraphs
+- <strong> for bold/emphasis
+- <ul><li> for bullet lists
+- <div class="performers-grid"> with two <div class="perf-col"> inside for the two-column layout
+- <div class="stat-highlight"> for notable stat callouts
+Do NOT use markdown syntax (no **, no ##, no -). Output raw HTML only.
+
+OUTPUT SECTIONS IN ORDER:
+
+<h3>Game Recap</h3> — 8-12 sentences written like a sports news article. Lead with the final score and the winning team. Describe the flow of the game — who jumped out early, any momentum shifts, how it ended. Reference specific stats (passing yards, rushing yards, turnovers, sacks) and name the players who made the biggest impact. Be vivid and dramatic but factual.
+
+<h3>Key Performers</h3> — wrapped in <div class="performers-grid">. Two <div class="perf-col"> columns: one for each team. Inside each perf-col, format as follows:
+<h4>OFFENSE</h4> (all caps, gray subheader), then 2 offensive players (name, position, stats) in white text — one per <p> tag.
+Then <h4>DEFENSE</h4> (all caps, gray subheader with margin-top for spacing), then 2 defensive players in white text — one per <p> tag.
+Based on actual game stats.
+
+<h3>By the Numbers</h3> — 4-6 notable stats or stat comparisons from the game, each wrapped in <div class="stat-highlight">. Examples: total yards comparison, turnover margin, third down efficiency, time of possession, biggest individual performances. Each should tell part of the story.
+
+<h3>Takeaways</h3> — 3-4 bullet points (<ul><li>) summarizing the key lessons from this game. What did each team do well? What cost the losing team the game? What ratings matchups played out as expected or were surprising?"""
+
+        user_message = f"""Your Team: {your_team}
+Your Offense: {your_offense}
+Opponent Team: {opp_team}
+Their Defense: {their_defense}
+
+Box Score & Team Stats:
+{box_raw}
+
+Your Team Ratings:
+{your_ratings_raw}
+
+Opponent Team Ratings:
+{opp_ratings_raw}"""
+
+        try:
+            client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+            response = client.messages.create(
+                model="claude-sonnet-4-20250514",
+                max_tokens=2000,
+                system=game_analysis_prompt,
+                messages=[{"role": "user", "content": user_message}],
+            )
+            raw_result = validate_ai_output(response.content[0].text)
+            import re as _re
+            ALLOWED_TAGS = {'h3','h4','p','strong','em','ul','ol','li','div','span','br'}
+            ALLOWED_CLASSES = {'performers-grid','perf-col','stat-highlight'}
+            def _sanitize_html(html):
+                html = _re.sub(r'<script[^>]*>.*?</script>', '', html, flags=_re.DOTALL | _re.IGNORECASE)
+                html = _re.sub(r'<style[^>]*>.*?</style>', '', html, flags=_re.DOTALL | _re.IGNORECASE)
+                html = _re.sub(r'<iframe[^>]*>.*?</iframe>', '', html, flags=_re.DOTALL | _re.IGNORECASE)
+                html = _re.sub(r'\bon\w+\s*=', '', html, flags=_re.IGNORECASE)
+                def _filter_class(m):
+                    tag = m.group(1).lower()
+                    cls = m.group(2)
+                    if tag not in ALLOWED_TAGS:
+                        return ''
+                    classes = [c.strip() for c in cls.split() if c.strip() in ALLOWED_CLASSES]
+                    if classes:
+                        return f'<{m.group(1)} class="{" ".join(classes)}"'
+                    return f'<{m.group(1)}'
+                html = _re.sub(r'<(\w+)\s+class="([^"]*)"', _filter_class, html)
+                return html
+            ai_result = _sanitize_html(raw_result)
+        except Exception as e:
+            print(f">>> GAME ANALYSIS ERROR: {e}", flush=True)
+            traceback.print_exc()
+            error = f"AI analysis failed: {str(e)}"
+
+    return render_template(
+        "game_analysis.html",
+        your_team=your_team, opp_team=opp_team,
+        box_raw=box_raw,
+        your_ratings_raw=your_ratings_raw, opp_ratings_raw=opp_ratings_raw,
+        your_offense=your_offense, their_defense=their_defense,
+        ai_result=ai_result, error=error,
+    )
+
+
 @app.route("/recruiting")
 @subscription_required
 def recruiting():

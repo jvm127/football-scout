@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Halftime Advisor — {{ your_team }} vs {{ opp_team }}</title>
+  <title>Game Analysis — {{ your_team }} vs {{ opp_team }}</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -67,7 +67,7 @@
       .ht-textareas { grid-template-columns: 1fr; }
     }
 
-    /* ── Re-submit form ── */
+    /* ── Form ── */
     .input-card {
       background: #1e2130;
       border: 1px solid #2d3348;
@@ -183,38 +183,12 @@
     .perf-col p {
       color: #e2e8f0; margin: 4px 0; font-size: 14px;
     }
-    .gameplan-bullet {
-      background: #161926; border: 1px solid #2d3348; border-left: 4px solid #22c55e;
+    .stat-highlight {
+      background: #161926; border: 1px solid #2d3348; border-left: 4px solid #f59e0b;
       border-radius: 10px; padding: 16px 20px; margin-bottom: 12px;
       font-size: 14px; color: #cbd5e1; line-height: 1.7;
     }
-    .gameplan-bullet strong { color: #ffffff; }
-
-    .scoreboard {
-      display: flex; align-items: center; justify-content: center;
-      gap: 24px; margin-bottom: 28px;
-      background: #161926; border: 1px solid #2d3348; border-radius: 12px;
-      padding: 24px 32px;
-    }
-    .score-team {
-      text-align: center; flex: 1;
-    }
-    .score-team-name {
-      font-size: 13px; font-weight: 700; color: #94a3b8;
-      text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px;
-    }
-    .score-team-pts {
-      font-size: 48px; font-weight: 800; color: #ffffff; line-height: 1;
-      margin-top: 8px;
-    }
-    .score-team.winning .score-team-pts { color: #f59e0b; }
-    .score-team.losing .score-team-pts { color: #475569; font-weight: 700; }
-    .score-team.tied .score-team-pts { color: #f59e0b; }
-    .score-divider {
-      font-size: 12px; font-weight: 700; color: #64748b; padding: 0 16px;
-      text-transform: uppercase; letter-spacing: 0.12em;
-      display: flex; align-items: center;
-    }
+    .stat-highlight strong { color: #ffffff; }
 
     .spinner-wrap {
       display: none;
@@ -257,7 +231,7 @@
       <a href="https://www.thenextguess.com/" target="_blank" rel="noopener">The Next Guess</a>
       <a href="https://www.whatifsports.com/gd/office/" target="_blank" rel="noopener">WIS Office</a>
       <a href="/scout">Scout</a>
-      <a href="/halftime-advisor" class="">Halftime</a>
+      <a href="/halftime-advisor">Halftime</a>
       <a href="/game-analysis">Game Analysis</a>
       <a href="/recruiting">Recruiting</a>
       <a href="/training">Training</a>
@@ -266,19 +240,18 @@
     </div>
   </header>
 
-  <!-- Re-submit form -->
   <div class="input-card">
-    <h2>⏱ Halftime Advisor</h2>
-    <form method="POST" action="/halftime">
+    <h2>Game Analysis</h2>
+    <form method="POST" action="/game-analysis">
       <div class="ht-team-grid">
         <div class="ht-team-col">
           <div class="field">
             <label>Your Team</label>
-            <input type="text" name="ht_your_team" value="{{ your_team }}"/>
+            <input type="text" name="ga_your_team" value="{{ your_team }}"/>
           </div>
           <div class="field">
             <label>Your Offense</label>
-            <select name="ht_your_offense" style="background:#0f1117;border:1px solid #2d3348;color:#e2e8f0;padding:10px 14px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;width:100%;">
+            <select name="ga_your_offense" style="background:#0f1117;border:1px solid #2d3348;color:#e2e8f0;padding:10px 14px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;width:100%;">
               <option value="">-- Select --</option>
               {% for o in ['I Formation','Pro','Wishbone','Notre Dame Box','Shotgun','Trips'] %}
               <option value="{{ o }}" {% if your_offense == o %}selected{% endif %}>{{ o }}</option>
@@ -289,11 +262,11 @@
         <div class="ht-team-col">
           <div class="field">
             <label>Opponent Team</label>
-            <input type="text" name="ht_opp_team" value="{{ opp_team }}"/>
+            <input type="text" name="ga_opp_team" value="{{ opp_team }}"/>
           </div>
           <div class="field">
             <label>Opponent Defense</label>
-            <select name="ht_their_defense" style="background:#0f1117;border:1px solid #2d3348;color:#e2e8f0;padding:10px 14px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;width:100%;">
+            <select name="ga_their_defense" style="background:#0f1117;border:1px solid #2d3348;color:#e2e8f0;padding:10px 14px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;width:100%;">
               <option value="">-- Select --</option>
               {% for d in ['3-4','4-3','4-4','5-2','Nickel','Dime'] %}
               <option value="{{ d }}" {% if their_defense == d %}selected{% endif %}>{{ d }}</option>
@@ -305,24 +278,20 @@
       <div class="ht-textareas">
         <div class="field">
           <label>Box Score &amp; Team Stats</label>
-          <textarea name="ht_box_score" rows="10">{{ box_raw }}</textarea>
-        </div>
-        <div class="field">
-          <label>Game Log</label>
-          <textarea name="ht_game_log" rows="10">{{ gamelog_raw }}</textarea>
+          <textarea name="ga_box_score" rows="12">{{ box_raw }}</textarea>
         </div>
       </div>
       <div class="ht-textareas">
         <div class="field">
           <label>Your Team Ratings</label>
-          <textarea name="ht_your_ratings" rows="8" placeholder="Pos&#9;A&#9;Spd&#9;Str&#9;Blk&#9;Tkl&#9;Tot&#10;QB&#9;80&#9;75&#9;65&#9;50&#9;55&#9;88&#10;RB&#9;82&#9;86&#9;78&#9;62&#9;55&#9;88&#10;...">{{ your_ratings_raw }}</textarea>
+          <textarea name="ga_your_ratings" rows="8" placeholder="Pos&#9;A&#9;Spd&#9;Str&#9;Blk&#9;Tkl&#9;Tot&#10;QB&#9;80&#9;75&#9;65&#9;50&#9;55&#9;88&#10;RB&#9;82&#9;86&#9;78&#9;62&#9;55&#9;88&#10;...">{{ your_ratings_raw }}</textarea>
         </div>
         <div class="field">
           <label>Opponent Team Ratings</label>
-          <textarea name="ht_opp_ratings" rows="8" placeholder="Pos&#9;A&#9;Spd&#9;Str&#9;Blk&#9;Tkl&#9;Tot&#10;QB&#9;72&#9;68&#9;55&#9;40&#9;45&#9;85&#10;RB&#9;85&#9;88&#9;75&#9;60&#9;50&#9;90&#10;...">{{ opp_ratings_raw }}</textarea>
+          <textarea name="ga_opp_ratings" rows="8" placeholder="Pos&#9;A&#9;Spd&#9;Str&#9;Blk&#9;Tkl&#9;Tot&#10;QB&#9;72&#9;68&#9;55&#9;40&#9;45&#9;85&#10;RB&#9;85&#9;88&#9;75&#9;60&#9;50&#9;90&#10;...">{{ opp_ratings_raw }}</textarea>
         </div>
       </div>
-      <button type="submit" class="btn-halftime" id="submitBtn">Get Halftime Adjustments</button>
+      <button type="submit" class="btn-halftime" id="submitBtn">Analyze Game</button>
     </form>
   </div>
 
@@ -333,18 +302,18 @@
   {% if ai_result %}
   <div class="results-header">
     <h2>{{ your_team }} vs {{ opp_team }}</h2>
-    <div class="meta">AI halftime analysis</div>
+    <div class="meta">AI post-game analysis</div>
   </div>
 
   <div class="result-card">
-    <h2>Halftime Analysis</h2>
+    <h2>Game Analysis</h2>
     <div class="result-body">{{ ai_result | safe }}</div>
   </div>
   {% endif %}
 
 </div>
 <script>
-  document.querySelector('form[action="/halftime"]').addEventListener('submit', function() {
+  document.querySelector('form[action="/game-analysis"]').addEventListener('submit', function() {
     var btn = document.getElementById('submitBtn');
     btn.disabled = true;
     btn.textContent = 'Analyzing...';
@@ -353,12 +322,12 @@
     btn.style.cursor = 'not-allowed';
     var spinner = document.createElement('div');
     spinner.className = 'spinner-wrap visible';
-    spinner.innerHTML = '<div class="spinner"></div><span class="spinner-text" id="spinnerText">Analyzing first half stats...</span>';
+    spinner.innerHTML = '<div class="spinner"></div><span class="spinner-text" id="spinnerText">Reading the box score...</span>';
     btn.parentNode.insertBefore(spinner, btn.nextSibling);
     var messages = [
-      'Analyzing first half stats...',
-      'Identifying key matchups...',
-      'Building your second half game plan...'
+      'Reading the box score...',
+      'Identifying key performers...',
+      'Writing the game story...'
     ];
     var idx = 0;
     setInterval(function() {
