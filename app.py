@@ -2806,7 +2806,10 @@ Opponent Team Ratings:
 {opponent_ratings_raw}"""
 
         try:
-            client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+            client = anthropic.Anthropic(
+                api_key=os.environ.get("ANTHROPIC_API_KEY"),
+                timeout=90.0,
+            )
             response = client.messages.create(
                 model="claude-sonnet-4-20250514",
                 max_tokens=2000,

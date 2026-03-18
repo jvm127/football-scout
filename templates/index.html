@@ -465,6 +465,7 @@
 
     textarea:focus { border-color: #4f6ef7; }
     textarea::placeholder { color: #334155; }
+    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
@@ -731,7 +732,11 @@
           </div>
         </div>
       </div>
-      <button type="submit" class="btn-submit">Generate Strategy</button>
+      <button type="submit" class="btn-submit" id="strategyBtn">Generate Strategy</button>
+      <div class="spinner-wrap" id="strategySpinner" style="display:none;align-items:center;gap:12px;margin-top:16px;">
+        <div style="width:24px;height:24px;border:3px solid #2d3348;border-top-color:#4f6ef7;border-radius:50%;animation:spin 0.7s linear infinite;"></div>
+        <span style="font-size:13px;color:#94a3b8;">Analyzing matchup — this may take up to 60 seconds...</span>
+      </div>
     </form>
   </div>
   {% endif %}
@@ -763,6 +768,21 @@
       menu.classList.remove('open');
     }
   });
+
+  // Strategy form spinner
+  var strategyForm = document.querySelector('form[action="/strategy"]');
+  if (strategyForm) {
+    strategyForm.addEventListener('submit', function() {
+      var btn = document.getElementById('strategyBtn');
+      var spinner = document.getElementById('strategySpinner');
+      btn.disabled = true;
+      btn.textContent = 'Analyzing...';
+      btn.style.background = '#2d3348';
+      btn.style.color = '#64748b';
+      btn.style.cursor = 'not-allowed';
+      if (spinner) spinner.style.display = 'flex';
+    });
+  }
 </script>
 </body>
 </html>
