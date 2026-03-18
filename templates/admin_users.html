@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin — Manage Users</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0f1117; color: #e2e8f0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      min-height: 100vh; padding: 32px 24px;
+    }
+    .container { max-width: 800px; margin: 0 auto; }
+
+    h1 { font-size: 22px; font-weight: 700; color: #e2e8f0; margin-bottom: 8px; }
+    .nav-back {
+      font-size: 13px; color: #94a3b8; text-decoration: none; display: inline-block; margin-bottom: 28px;
+    }
+    .nav-back:hover { color: #e2e8f0; }
+
+    .card {
+      background: #1e2130; border: 1px solid #2d3348; border-radius: 12px;
+      padding: 24px 28px; margin-bottom: 28px;
+    }
+    .card h2 {
+      font-size: 11px; font-weight: 700; color: #f59e0b;
+      text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 18px;
+    }
+
+    .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+    label { font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.07em; }
+    input[type="text"], input[type="email"], input[type="password"] {
+      background: #0f1117; border: 1px solid #2d3348; color: #e2e8f0;
+      padding: 10px 14px; border-radius: 8px; font-size: 14px; font-family: inherit;
+      outline: none; width: 100%;
+    }
+    input:focus { border-color: #4f6ef7; }
+    select {
+      background: #0f1117; border: 1px solid #2d3348; color: #e2e8f0;
+      padding: 10px 14px; border-radius: 8px; font-size: 14px; font-family: inherit;
+      outline: none; width: 100%;
+    }
+
+    .checkbox-group { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 4px; }
+    .checkbox-group label {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 13px; font-weight: 500; color: #e2e8f0;
+      text-transform: none; letter-spacing: 0; cursor: pointer;
+    }
+    .checkbox-group input[type="checkbox"] {
+      width: 16px; height: 16px; accent-color: #f59e0b; cursor: pointer;
+    }
+
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 640px) { .form-row { grid-template-columns: 1fr; } }
+
+    .btn {
+      padding: 10px 20px; border-radius: 8px; font-size: 13px;
+      font-weight: 600; font-family: inherit; cursor: pointer; border: none;
+    }
+    .btn-primary { background: #4f6ef7; color: #fff; }
+    .btn-primary:hover { background: #3b57e8; }
+    .btn-danger { background: #7f1d1d; color: #fca5a5; font-size: 12px; padding: 6px 14px; }
+    .btn-danger:hover { background: #991b1b; }
+    .btn-secondary { background: #2d3348; color: #e2e8f0; font-size: 12px; padding: 6px 14px; }
+    .btn-secondary:hover { background: #3d4560; }
+
+    .alert {
+      padding: 12px 18px; border-radius: 8px; font-size: 14px; margin-bottom: 20px;
+    }
+    .alert-error { background: #2d1b1b; border: 1px solid #7f1d1d; color: #fca5a5; }
+    .alert-success { background: #1b2d1b; border: 1px solid #166534; color: #86efac; }
+
+    .user-list { display: flex; flex-direction: column; gap: 16px; }
+    .user-item {
+      background: #161926; border: 1px solid #1a1f2e; border-radius: 10px;
+      padding: 18px 20px;
+    }
+    .user-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 12px;
+    }
+    .user-email { font-size: 15px; font-weight: 600; color: #e2e8f0; }
+    .user-meta { font-size: 12px; color: #64748b; margin-top: 2px; }
+    .user-status {
+      font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+      padding: 4px 10px; border-radius: 20px;
+    }
+    .status-active { background: #166534; color: #86efac; }
+    .status-inactive { background: #7f1d1d; color: #fca5a5; }
+
+    .tool-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .tool-badge {
+      font-size: 11px; font-weight: 600; color: #94a3b8;
+      padding: 3px 10px; border-radius: 12px; border: 1px solid #2d3348;
+    }
+
+    .user-actions { display: flex; gap: 8px; margin-top: 14px; }
+    .edit-form { display: none; margin-top: 14px; padding-top: 14px; border-top: 1px solid #2d3348; }
+    .edit-form.open { display: block; }
+
+    .empty { color: #475569; font-size: 13px; font-style: italic; }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <a href="/admin" class="nav-back">&larr; Back to Admin</a>
+  <h1>Manage Users</h1>
+  <p style="color:#64748b;font-size:13px;margin-bottom:28px;">Create and manage users without Stripe. Stripe subscribers are not shown here — they have full access automatically.</p>
+
+  {% if error %}
+  <div class="alert alert-error">{{ error }}</div>
+  {% endif %}
+  {% if success %}
+  <div class="alert alert-success">{{ success }}</div>
+  {% endif %}
+
+  <div class="card">
+    <h2>Create User</h2>
+    <form method="POST">
+      <input type="hidden" name="action" value="create"/>
+      <div class="form-row">
+        <div class="field">
+          <label>Email</label>
+          <input type="email" name="email" required placeholder="user@example.com"/>
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input type="password" name="password" required placeholder="Min 6 characters"/>
+        </div>
+      </div>
+      <div class="field">
+        <label>Subscription Status</label>
+        <select name="subscribed">
+          <option value="1">Active</option>
+          <option value="0">Inactive</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Tool Access</label>
+        <div class="checkbox-group">
+          {% for key, label in tool_labels.items() %}
+          <label><input type="checkbox" name="tools" value="{{ key }}" checked/> {{ label }}</label>
+          {% endfor %}
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary">Create User</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Managed Users ({{ users|length }})</h2>
+    {% if users %}
+    <div class="user-list">
+      {% for item in users %}
+      {% set u = item.user %}
+      {% set tools = item.tools %}
+      <div class="user-item">
+        <div class="user-header">
+          <div>
+            <div class="user-email">{{ u.email }}</div>
+            <div class="user-meta">Created {{ u.created_at }}</div>
+          </div>
+          <span class="user-status {{ 'status-active' if u.subscribed else 'status-inactive' }}">
+            {{ 'Active' if u.subscribed else 'Inactive' }}
+          </span>
+        </div>
+        <div class="tool-badges">
+          {% for t in tools %}
+          <span class="tool-badge">{{ tool_labels.get(t, t) }}</span>
+          {% endfor %}
+          {% if not tools %}
+          <span style="color:#475569;font-size:12px;">No tools assigned</span>
+          {% endif %}
+        </div>
+        <div class="user-actions">
+          <button class="btn btn-secondary" onclick="toggleEdit({{ u.id }})">Edit</button>
+          <form method="POST" style="margin:0;">
+            <input type="hidden" name="action" value="delete"/>
+            <input type="hidden" name="user_id" value="{{ u.id }}"/>
+            <button type="submit" class="btn btn-danger" onclick="return confirm('Delete this user?')">Delete</button>
+          </form>
+        </div>
+        <div class="edit-form" id="edit-{{ u.id }}">
+          <form method="POST">
+            <input type="hidden" name="action" value="update"/>
+            <input type="hidden" name="user_id" value="{{ u.id }}"/>
+            <div class="field">
+              <label>Subscription Status</label>
+              <select name="subscribed">
+                <option value="1" {{ 'selected' if u.subscribed }}>Active</option>
+                <option value="0" {{ 'selected' if not u.subscribed }}>Inactive</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Tool Access</label>
+              <div class="checkbox-group">
+                {% for key, label in tool_labels.items() %}
+                <label><input type="checkbox" name="tools" value="{{ key }}" {{ 'checked' if key in tools }}/> {{ label }}</label>
+                {% endfor %}
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty">No manually-created users yet.</p>
+    {% endif %}
+  </div>
+
+</div>
+<script>
+  function toggleEdit(id) {
+    var el = document.getElementById('edit-' + id);
+    el.classList.toggle('open');
+  }
+</script>
+</body>
+</html>

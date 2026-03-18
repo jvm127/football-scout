@@ -80,6 +80,19 @@ def init_db():
         conn.execute('ALTER TABLE videos ADD COLUMN display_order INTEGER DEFAULT 0')
     except Exception:
         pass
+    # Add is_admin column if missing
+    try:
+        conn.execute('ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0')
+    except Exception:
+        pass
+    # Tool-level permissions for admin-created users
+    conn.execute('''CREATE TABLE IF NOT EXISTS user_tools (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        tool_name TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id),
+        UNIQUE(user_id, tool_name)
+    )''')
     conn.commit()
     conn.close()
 
@@ -104,14 +117,28 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'landing'
 
+ALL_TOOLS = ['scout', 'halftime', 'game_analysis', 'recruiting']
+
 class User(UserMixin):
-    def __init__(self, id, email, password, subscribed, stripe_customer_id, created_at):
+    def __init__(self, id, email, password, subscribed, stripe_customer_id, created_at, is_admin=0):
         self.id = id
         self.email = email
         self.password = password
         self.subscribed = bool(subscribed)
         self.stripe_customer_id = stripe_customer_id
         self.created_at = created_at
+        self.is_admin = bool(is_admin)
+
+    def has_tool(self, tool_name):
+        """Check if user can access a specific tool.
+        Stripe subscribers get everything. Admin-created users check user_tools."""
+        if self.stripe_customer_id:
+            return True
+        conn = get_db()
+        row = conn.execute('SELECT 1 FROM user_tools WHERE user_id = ? AND tool_name = ?',
+                           (self.id, tool_name)).fetchone()
+        conn.close()
+        return row is not None
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -135,6 +162,25 @@ def subscription_required(f):
             return redirect(url_for('landing'))
         return f(*args, **kwargs)
     return decorated
+
+def tool_required(tool_name):
+    """Decorator: user must have access to the specific tool.
+    Checks subscription first, then tool-level permissions."""
+    from functools import wraps
+    def decorator(f):
+        @wraps(f)
+        def decorated(*args, **kwargs):
+            if session.get('internal_access'):
+                return f(*args, **kwargs)
+            if not current_user.is_authenticated:
+                return redirect(url_for('landing'))
+            if not current_user.subscribed:
+                return redirect(url_for('landing'))
+            if not current_user.has_tool(tool_name):
+                return render_template("no_access.html", tool_name=tool_name), 403
+            return f(*args, **kwargs)
+        return decorated
+    return decorator
 
 # ─── Scouting: down/distance breakpoints ────────────────────────────────────
 
@@ -2483,13 +2529,13 @@ def cancel_subscription():
     return redirect(url_for('account'))
 
 @app.route("/scout", methods=["GET"])
-@subscription_required
+@tool_required('scout')
 def index():
     return render_template("index.html")
 
 
 @app.route("/analyze", methods=["POST"])
-@subscription_required
+@tool_required('scout')
 def analyze_route():
     team = request.form.get("team", "").strip()
     sheets_url = request.form.get("sheets_url", "").strip()
@@ -2787,7 +2833,7 @@ Opponent Team Ratings:
 
 
 @app.route("/halftime-advisor", methods=["GET"])
-@subscription_required
+@tool_required('halftime')
 def halftime_advisor():
     return render_template("halftime.html", your_team='', opp_team='', box_raw='', gamelog_raw='',
                            your_ratings_raw='', opp_ratings_raw='',
@@ -2795,7 +2841,7 @@ def halftime_advisor():
                            report={}, error=None)
 
 @app.route("/halftime", methods=["POST"])
-@subscription_required
+@tool_required('halftime')
 def halftime_route():
     your_team        = request.form.get("ht_your_team",    "").strip()
     opp_team         = request.form.get("ht_opp_team",     "").strip()
@@ -3141,13 +3187,13 @@ Opponent Team Ratings:
 
 
 @app.route("/game-analysis", methods=["GET"])
-@subscription_required
+@tool_required('game_analysis')
 def game_analysis():
     return render_template("game_analysis.html", your_team='', opp_team='',
                            box_raw='', gamelog_raw='', context='', error=None)
 
 @app.route("/game-analysis", methods=["POST"])
-@subscription_required
+@tool_required('game_analysis')
 def game_analysis_route():
     your_team   = request.form.get("ga_your_team",  "").strip()
     opp_team    = request.form.get("ga_opp_team",   "").strip()
@@ -3255,7 +3301,7 @@ Game Log:
 
 
 @app.route("/recruiting")
-@subscription_required
+@tool_required('recruiting')
 def recruiting():
     return render_template("recruiting.html")
 
@@ -3691,7 +3737,7 @@ def format_players_for_claude(players, tag=''):
 
 
 @app.route("/recruiting/analyze", methods=["POST"])
-@subscription_required
+@tool_required('recruiting')
 def recruiting_analyze():
     from flask import jsonify
     import json as _json
@@ -3967,6 +4013,94 @@ def admin_reorder():
         conn.commit()
         conn.close()
     return jsonify(ok=True)
+
+TOOL_LABELS = {
+    'scout': 'Scout',
+    'halftime': 'Halftime Advisor',
+    'game_analysis': 'Game Analysis',
+    'recruiting': 'Recruiting Evaluator',
+}
+
+@app.route("/admin/users", methods=["GET", "POST"])
+def admin_users():
+    error = None
+    success = None
+
+    if request.method == "POST":
+        action = request.form.get("action", "")
+
+        if action == "create":
+            email = request.form.get("email", "").strip().lower()
+            password = request.form.get("password", "").strip()
+            subscribed = 1 if request.form.get("subscribed") == "1" else 0
+            tools = request.form.getlist("tools")
+
+            if not email or not password:
+                error = "Email and password are required."
+            elif len(password) < 6:
+                error = "Password must be at least 6 characters."
+            else:
+                conn = get_db()
+                existing = conn.execute('SELECT id FROM users WHERE email = ?', (email,)).fetchone()
+                if existing:
+                    error = f"User {email} already exists."
+                    conn.close()
+                else:
+                    hashed = generate_password_hash(password, method='pbkdf2:sha256')
+                    cursor = conn.execute(
+                        'INSERT INTO users (email, password, subscribed, is_admin) VALUES (?, ?, ?, 0)',
+                        (email, hashed, subscribed))
+                    user_id = cursor.lastrowid
+                    for tool in tools:
+                        if tool in TOOL_LABELS:
+                            conn.execute('INSERT OR IGNORE INTO user_tools (user_id, tool_name) VALUES (?, ?)',
+                                         (user_id, tool))
+                    conn.commit()
+                    conn.close()
+                    success = f"User {email} created with {len(tools)} tool(s)."
+
+        elif action == "update":
+            user_id = request.form.get("user_id")
+            subscribed = 1 if request.form.get("subscribed") == "1" else 0
+            tools = request.form.getlist("tools")
+            if user_id:
+                conn = get_db()
+                conn.execute('UPDATE users SET subscribed = ? WHERE id = ?', (subscribed, int(user_id)))
+                conn.execute('DELETE FROM user_tools WHERE user_id = ?', (int(user_id),))
+                for tool in tools:
+                    if tool in TOOL_LABELS:
+                        conn.execute('INSERT OR IGNORE INTO user_tools (user_id, tool_name) VALUES (?, ?)',
+                                     (int(user_id), tool))
+                conn.commit()
+                conn.close()
+                success = "User updated."
+
+        elif action == "delete":
+            user_id = request.form.get("user_id")
+            if user_id:
+                conn = get_db()
+                conn.execute('DELETE FROM user_tools WHERE user_id = ?', (int(user_id),))
+                conn.execute('DELETE FROM users WHERE id = ? AND stripe_customer_id IS NULL', (int(user_id),))
+                conn.commit()
+                conn.close()
+                success = "User deleted."
+
+    # Load all non-Stripe users (admin-managed)
+    conn = get_db()
+    managed_users = conn.execute(
+        'SELECT * FROM users WHERE stripe_customer_id IS NULL ORDER BY created_at DESC'
+    ).fetchall()
+    # Load tool permissions for each
+    user_list = []
+    for u in managed_users:
+        tools = [r['tool_name'] for r in conn.execute(
+            'SELECT tool_name FROM user_tools WHERE user_id = ?', (u['id'],)).fetchall()]
+        user_list.append({'user': dict(u), 'tools': tools})
+    conn.close()
+
+    return render_template("admin_users.html",
+                           users=user_list, tool_labels=TOOL_LABELS,
+                           all_tools=ALL_TOOLS, error=error, success=success)
 
 
 if __name__ == '__main__':
