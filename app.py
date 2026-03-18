@@ -2965,13 +2965,20 @@ Opponent Team Ratings:
 {opp_ratings_raw}"""
 
         try:
-            client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+            api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+            print(f">>> HALFTIME API: key present={bool(api_key)}, key length={len(api_key)}, key prefix={api_key[:7] + '...' if len(api_key) > 7 else '(empty)'}", flush=True)
+            print(f">>> HALFTIME API: user_message length={len(user_message)}, trimmed_box length={len(trimmed_box)}, trimmed_log length={len(trimmed_log)}", flush=True)
+            if not api_key:
+                raise ValueError("ANTHROPIC_API_KEY environment variable is not set or empty")
+            client = anthropic.Anthropic(api_key=api_key)
+            print(f">>> HALFTIME API: Calling claude-sonnet-4-20250514 with max_tokens=800...", flush=True)
             response = client.messages.create(
                 model="claude-sonnet-4-20250514",
                 max_tokens=800,
                 system=halftime_system_prompt,
                 messages=[{"role": "user", "content": user_message}],
             )
+            print(f">>> HALFTIME API: Response received, stop_reason={response.stop_reason}, content_length={len(response.content[0].text) if response.content else 0}", flush=True)
             raw_result = validate_ai_output(response.content[0].text)
             # Sanitize: only allow specific safe HTML tags
             import re as _re
@@ -2998,9 +3005,9 @@ Opponent Team Ratings:
                 return html
             ai_result = _sanitize_html(raw_result)
         except Exception as e:
-            print(f">>> HALFTIME ANALYZE ERROR: {e}", flush=True)
+            print(f">>> HALFTIME ANALYZE ERROR: {type(e).__name__}: {e}", flush=True)
             traceback.print_exc()
-            error = f"AI analysis failed: {str(e)}"
+            error = f"AI analysis failed ({type(e).__name__}): {str(e)}"
 
     # Parse halftime score from box score text
     # WIS box score can come in multiple formats:
