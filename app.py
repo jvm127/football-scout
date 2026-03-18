@@ -2794,7 +2794,27 @@ def halftime_advisor():
                            your_offense='', their_defense='',
                            report={}, error=None)
 
-HALFTIME_SYSTEM_PROMPT = """You are an expert WhatIfSports sim football halftime analyst AND a dramatic color commentator. You will receive first half game data and team ratings and provide a detailed second half game plan.
+@app.route("/halftime", methods=["POST"])
+@subscription_required
+def halftime_route():
+    your_team        = request.form.get("ht_your_team",    "").strip()
+    opp_team         = request.form.get("ht_opp_team",     "").strip()
+    box_raw          = request.form.get("ht_box_score",    "").strip()
+    gamelog_raw       = request.form.get("ht_game_log",     "").strip()
+    your_ratings_raw = request.form.get("ht_your_ratings", "").strip()
+    opp_ratings_raw  = request.form.get("ht_opp_ratings",  "").strip()
+    your_offense     = request.form.get("ht_your_offense", "").strip()
+    their_defense    = request.form.get("ht_their_defense","").strip()
+
+    error   = None
+    ai_result = None
+
+    if not your_team or not opp_team:
+        error = "Please enter both team names."
+    elif not box_raw and not gamelog_raw:
+        error = "Please paste at least a box score or game log."
+    else:
+        halftime_system_prompt = """You are an expert WhatIfSports sim football halftime analyst AND a dramatic color commentator. You will receive first half game data and team ratings and provide a detailed second half game plan.
 
 SIM FOOTBALL CONTEXT — READ FIRST:
 This is text-based sim football, not real football. All recommendations must work within the constraints of a text-based sim game. There are no audibles, no pre-snap reads, no physical adjustments, no formation changes mid-game, no player substitutions during a drive. The only decisions available are: run inside, run outside, pass (which receivers to target), and which plays to call within the selected formation. Never recommend anything that requires physical action, real football strategy that does not apply to text sim, or changes that cannot be made in a text-based game.
@@ -2866,194 +2886,7 @@ OUTPUT SECTIONS IN ORDER:
 - Score situation urgency if losing by 2+ scores
 Never include generic advice. Every item must have a specific reason."""
 
-
-def _sanitize_halftime_html(html):
-    """Sanitize AI HTML output — allow only safe tags and classes."""
-    import re as _re
-    ALLOWED_TAGS = {'h3','h4','p','strong','em','ul','ol','li','div','span','br'}
-    ALLOWED_CLASSES = {'performers-grid','perf-col','gameplan-bullet'}
-    html = _re.sub(r'<script[^>]*>.*?</script>', '', html, flags=_re.DOTALL | _re.IGNORECASE)
-    html = _re.sub(r'<style[^>]*>.*?</style>', '', html, flags=_re.DOTALL | _re.IGNORECASE)
-    html = _re.sub(r'<iframe[^>]*>.*?</iframe>', '', html, flags=_re.DOTALL | _re.IGNORECASE)
-    html = _re.sub(r'\bon\w+\s*=', '', html, flags=_re.IGNORECASE)
-    def _filter_class(m):
-        tag = m.group(1).lower()
-        cls = m.group(2)
-        if tag not in ALLOWED_TAGS:
-            return ''
-        classes = [c.strip() for c in cls.split() if c.strip() in ALLOWED_CLASSES]
-        if classes:
-            return f'<{m.group(1)} class="{" ".join(classes)}"'
-        return f'<{m.group(1)}'
-    html = _re.sub(r'<(\w+)\s+class="([^"]*)"', _filter_class, html)
-    return html
-
-
-def _parse_halftime_scores(box_raw, your_team, opp_team):
-    """Parse halftime scores (Q1+Q2) from WIS box score text.
-    Returns (your_score, opp_score) or (None, None)."""
-    print(f">>> SCORE PARSER: Looking for '{your_team}' and '{opp_team}'", flush=True)
-    print(f">>> SCORE PARSER: First 200 chars of box_raw: {box_raw[:200]!r}", flush=True)
-
-    def _split_jammed_digits(digits_str):
-        results = []
-        def _bt(pos, current):
-            if pos == len(digits_str):
-                if len(current) >= 2:
-                    results.append(list(current))
-                return
-            if pos + 2 <= len(digits_str):
-                two = digits_str[pos:pos+2]
-                if two[0] != '0':
-                    current.append(int(two))
-                    _bt(pos + 2, current)
-                    current.pop()
-            if pos + 1 <= len(digits_str):
-                current.append(int(digits_str[pos]))
-                _bt(pos + 1, current)
-                current.pop()
-        _bt(0, [])
-        best = None
-        for r in results:
-            if len(r) >= 3 and r[-1] == sum(r[:-1]):
-                if best is None or len(r) > len(best):
-                    best = r
-        if not best:
-            for r in sorted(results, key=lambda x: -len(x)):
-                if 2 <= len(r) <= 5:
-                    best = r
-                    break
-        return best
-
-    def _parse_jammed_scores(text, team1, team2):
-        t1_quarters = None
-        t2_quarters = None
-        for team, other_team, label in [(team1, team2, 'YOUR'), (team2, team1, 'OPP')]:
-            escaped = re.escape(team)
-            team_match = re.search(escaped, text, re.IGNORECASE)
-            if not team_match:
-                continue
-            after_team = text[team_match.end():]
-            other_escaped = re.escape(other_team)
-            other_match = re.search(other_escaped, after_team, re.IGNORECASE)
-            if other_match:
-                segment = after_team[:other_match.start()]
-            else:
-                segment = after_team
-            segment_clean = re.sub(r'\([^)]*\)', '', segment)
-            segment_clean = re.sub(r'#\d+', '', segment_clean)
-            digit_blob = ''.join(re.findall(r'\d+', segment_clean))
-            if not digit_blob:
-                continue
-            quarters = _split_jammed_digits(digit_blob)
-            print(f">>> SCORE PARSER JAMMED: {label} team '{team}' -> blob='{digit_blob}', split={quarters}", flush=True)
-            if label == 'YOUR':
-                t1_quarters = quarters
-            else:
-                t2_quarters = quarters
-        return t1_quarters, t2_quarters
-
-    def _parse_vertical_scores(lines, team_lower, words):
-        for i, line in enumerate(lines):
-            line_lower = line.lower().strip()
-            if not line_lower:
-                continue
-            clean = re.sub(r'\([^)]*\)', '', line_lower).strip()
-            if not clean:
-                continue
-            if team_lower in line_lower or any(w in clean for w in words):
-                after_record = re.sub(r'^.*\)', '', line.strip())
-                jammed_nums = re.findall(r'\d+', after_record)
-                if jammed_nums:
-                    return None
-                scores = []
-                for j in range(i + 1, len(lines)):
-                    stripped = lines[j].strip()
-                    if not stripped:
-                        continue
-                    if re.match(r'^\d+$', stripped):
-                        scores.append(int(stripped))
-                    else:
-                        break
-                if len(scores) >= 2:
-                    return scores
-        return None
-
-    def _parse_separated_scores(line, team_lower, words):
-        line_lower = line.lower()
-        clean = re.sub(r'\([^)]*\)', '', line_lower)
-        if team_lower in line_lower or any(w in clean for w in words):
-            cleaned = re.sub(r'\([^)]*\)', '', line)
-            nums = re.findall(r'\d+', cleaned)
-            if len(nums) >= 2:
-                return [int(n) for n in nums]
-        return None
-
-    your_team_lower = your_team.lower().strip()
-    opp_team_lower = opp_team.lower().strip()
-    your_words = [w for w in your_team_lower.split() if len(w) >= 3]
-    opp_words = [w for w in opp_team_lower.split() if len(w) >= 3]
-
-    your_quarters = None
-    opp_quarters = None
-    lines = box_raw.splitlines()
-
-    joined = ' '.join(l.strip() for l in lines if l.strip())
-    if re.search(r'\)\s*\d', joined):
-        print(f">>> SCORE PARSER: Trying jammed format parser", flush=True)
-        your_quarters, opp_quarters = _parse_jammed_scores(joined, your_team, opp_team)
-
-    if not your_quarters or not opp_quarters:
-        print(f">>> SCORE PARSER: Trying vertical format parser", flush=True)
-        if not your_quarters:
-            your_quarters = _parse_vertical_scores(lines, your_team_lower, your_words)
-        if not opp_quarters:
-            opp_quarters = _parse_vertical_scores(lines, opp_team_lower, opp_words)
-
-    if not your_quarters or not opp_quarters:
-        print(f">>> SCORE PARSER: Trying separated format parser", flush=True)
-        for line in lines:
-            if not your_quarters:
-                your_quarters = _parse_separated_scores(line, your_team_lower, your_words)
-            if not opp_quarters:
-                opp_quarters = _parse_separated_scores(line, opp_team_lower, opp_words)
-
-    if your_quarters and len(your_quarters) >= 2 and opp_quarters and len(opp_quarters) >= 2:
-        your_score = your_quarters[0] + your_quarters[1]
-        opp_score = opp_quarters[0] + opp_quarters[1]
-        print(f">>> HALFTIME SCORE: {your_team} {your_score} — {opp_team} {opp_score}", flush=True)
-        return your_score, opp_score
-
-    print(f">>> SCORE PARSER: FAILED. your_quarters={your_quarters}, opp_quarters={opp_quarters}", flush=True)
-    return None, None
-
-
-@app.route("/halftime-stream", methods=["POST"])
-def halftime_stream():
-    """Stream the Anthropic API response via SSE so the sync worker isn't blocked."""
-    from flask import Response, stream_with_context
-    import json as _json
-
-    # Auth check — return SSE error instead of redirect (which breaks fetch)
-    if not session.get('internal_access'):
-        if not current_user.is_authenticated or not current_user.subscribed:
-            return Response(f"data: {_json.dumps({'error': 'Not authenticated'})}\n\n", content_type='text/event-stream', status=401)
-
-    your_team        = request.form.get("ht_your_team",    "").strip()
-    opp_team         = request.form.get("ht_opp_team",     "").strip()
-    box_raw          = request.form.get("ht_box_score",    "").strip()
-    gamelog_raw       = request.form.get("ht_game_log",     "").strip()
-    your_ratings_raw = request.form.get("ht_your_ratings", "").strip()
-    opp_ratings_raw  = request.form.get("ht_opp_ratings",  "").strip()
-    your_offense     = request.form.get("ht_your_offense", "").strip()
-    their_defense    = request.form.get("ht_their_defense","").strip()
-
-    if not your_team or not opp_team:
-        return Response(f"data: {_json.dumps({'error': 'Please enter both team names.'})}\n\n", content_type='text/event-stream')
-    if not box_raw and not gamelog_raw:
-        return Response(f"data: {_json.dumps({'error': 'Please paste at least a box score or game log.'})}\n\n", content_type='text/event-stream')
-
-    user_message = f"""Your Team: {your_team}
+        user_message = f"""Your Team: {your_team}
 Your Offense: {your_offense}
 Opponent Team: {opp_team}
 Their Defense: {their_defense}
@@ -3070,72 +2903,228 @@ Your Team Ratings:
 Opponent Team Ratings:
 {opp_ratings_raw}"""
 
-    # Parse halftime scores from box score (reuse halftime_route's logic)
-    your_score = None
-    opp_score = None
-    if box_raw and your_team and opp_team:
         try:
-            your_score, opp_score = _parse_halftime_scores(box_raw, your_team, opp_team)
-        except Exception:
-            pass
-
-    def generate():
-        full_text = ""
-        try:
-            api_key = os.environ.get("ANTHROPIC_API_KEY", "")
-            if not api_key:
-                yield f"data: {_json.dumps({'error': 'ANTHROPIC_API_KEY is not configured.'})}\n\n"
-                return
-            client = anthropic.Anthropic(api_key=api_key)
-            with client.messages.stream(
+            client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+            response = client.messages.create(
                 model="claude-sonnet-4-20250514",
                 max_tokens=1500,
-                system=HALFTIME_SYSTEM_PROMPT,
+                system=halftime_system_prompt,
                 messages=[{"role": "user", "content": user_message}],
-            ) as stream:
-                for text in stream.text_stream:
-                    full_text += text
-                    yield f"data: {_json.dumps({'chunk': text})}\n\n"
-            # Post-process the complete text
-            validated = validate_ai_output(full_text)
-            sanitized = _sanitize_halftime_html(validated)
-            done_data = {'done': sanitized, 'your_score': your_score, 'opp_score': opp_score}
-            yield f"data: {_json.dumps(done_data)}\n\n"
+            )
+            raw_result = validate_ai_output(response.content[0].text)
+            # Sanitize: only allow specific safe HTML tags
+            import re as _re
+            ALLOWED_TAGS = {'h3','h4','p','strong','em','ul','ol','li','div','span','br'}
+            ALLOWED_CLASSES = {'performers-grid','perf-col','gameplan-bullet'}
+            def _sanitize_html(html):
+                # Strip any <script>, <style>, <iframe>, on* attributes etc.
+                # Allow only whitelisted tags
+                html = _re.sub(r'<script[^>]*>.*?</script>', '', html, flags=_re.DOTALL | _re.IGNORECASE)
+                html = _re.sub(r'<style[^>]*>.*?</style>', '', html, flags=_re.DOTALL | _re.IGNORECASE)
+                html = _re.sub(r'<iframe[^>]*>.*?</iframe>', '', html, flags=_re.DOTALL | _re.IGNORECASE)
+                html = _re.sub(r'\bon\w+\s*=', '', html, flags=_re.IGNORECASE)
+                # Strip class attributes that aren't in our allowed list
+                def _filter_class(m):
+                    tag = m.group(1).lower()
+                    cls = m.group(2)
+                    if tag not in ALLOWED_TAGS:
+                        return ''
+                    classes = [c.strip() for c in cls.split() if c.strip() in ALLOWED_CLASSES]
+                    if classes:
+                        return f'<{m.group(1)} class="{" ".join(classes)}"'
+                    return f'<{m.group(1)}'
+                html = _re.sub(r'<(\w+)\s+class="([^"]*)"', _filter_class, html)
+                return html
+            ai_result = _sanitize_html(raw_result)
         except Exception as e:
-            print(f">>> HALFTIME STREAM ERROR: {type(e).__name__}: {e}", flush=True)
+            print(f">>> HALFTIME ANALYZE ERROR: {e}", flush=True)
             traceback.print_exc()
-            yield f"data: {_json.dumps({'error': f'AI analysis failed: {str(e)}'})}\n\n"
+            error = f"AI analysis failed: {str(e)}"
 
-    resp = Response(stream_with_context(generate()), content_type='text/event-stream')
-    resp.headers['Cache-Control'] = 'no-cache'
-    resp.headers['X-Accel-Buffering'] = 'no'
-    return resp
-
-
-@app.route("/halftime", methods=["POST"])
-@subscription_required
-def halftime_route():
-    your_team        = request.form.get("ht_your_team",    "").strip()
-    opp_team         = request.form.get("ht_opp_team",     "").strip()
-    box_raw          = request.form.get("ht_box_score",    "").strip()
-    gamelog_raw       = request.form.get("ht_game_log",     "").strip()
-    your_ratings_raw = request.form.get("ht_your_ratings", "").strip()
-    opp_ratings_raw  = request.form.get("ht_opp_ratings",  "").strip()
-    your_offense     = request.form.get("ht_your_offense", "").strip()
-    their_defense    = request.form.get("ht_their_defense","").strip()
-
-    error   = None
-    ai_result = None
-
-    if not your_team or not opp_team:
-        error = "Please enter both team names."
-    elif not box_raw and not gamelog_raw:
-        error = "Please paste at least a box score or game log."
-
+    # Parse halftime score from box score text
+    # WIS box score can come in multiple formats:
+    #
+    # FORMAT 1 — jammed single line (no separators):
+    #   "Stony Brook (18-0)31013#1Northern Iowa (18-0)7714"
+    #   Pattern: TeamName (Record)Q1 Q2 Q3 Q4 Total ... TeamName (Record)Q1 Q2 ...
+    #
+    # FORMAT 2 — vertical (each value on its own line):
+    #   Stony Brook (18-0)
+    #   3
+    #   10
+    #   13
+    #   #1
+    #   Northern Iowa (18-0)
+    #   7
+    #   7
+    #   14
+    #
+    # FORMAT 3 — pipe/tab separated:
+    #   Stony Brook (18-0) | 3 | 10 | 13
+    #
+    # Halftime = Q1 + Q2 (first two score numbers after each team).
+    # Records in parentheses like (18-0) are always ignored.
     your_score = None
     opp_score = None
     if box_raw and your_team and opp_team:
-        your_score, opp_score = _parse_halftime_scores(box_raw, your_team, opp_team)
+        print(f">>> SCORE PARSER: Looking for '{your_team}' and '{opp_team}'", flush=True)
+        print(f">>> SCORE PARSER: First 200 chars of box_raw: {box_raw[:200]!r}", flush=True)
+
+        def _split_jammed_digits(digits_str):
+            """Split a jammed digit string like '31013' into individual scores [3, 10, 13].
+            Scores are 0-99. Uses backtracking to find the best split where the last
+            number equals the sum of the previous ones (total = Q1+Q2+...)."""
+            results = []
+            def _bt(pos, current):
+                if pos == len(digits_str):
+                    if len(current) >= 2:
+                        results.append(list(current))
+                    return
+                # Try 2-digit first
+                if pos + 2 <= len(digits_str):
+                    two = digits_str[pos:pos+2]
+                    if two[0] != '0':
+                        current.append(int(two))
+                        _bt(pos + 2, current)
+                        current.pop()
+                # Try 1-digit
+                if pos + 1 <= len(digits_str):
+                    current.append(int(digits_str[pos]))
+                    _bt(pos + 1, current)
+                    current.pop()
+            _bt(0, [])
+            # Prefer splits where last number = sum of others (it's the game total)
+            best = None
+            for r in results:
+                if len(r) >= 3 and r[-1] == sum(r[:-1]):
+                    if best is None or len(r) > len(best):
+                        best = r
+            if not best:
+                for r in sorted(results, key=lambda x: -len(x)):
+                    if 2 <= len(r) <= 5:
+                        best = r
+                        break
+            return best
+
+        def _parse_jammed_scores(text, team1, team2):
+            """Parse scores from jammed format like 'Team1 (W-L)31013#1Team2 (W-L)7714'.
+            Returns (team1_quarters, team2_quarters) or (None, None)."""
+            t1_quarters = None
+            t2_quarters = None
+
+            for team, label in [(team1, 'YOUR'), (team2, 'OPP')]:
+                escaped = re.escape(team)
+                # Match: TeamName + optional (record) + jammed digits
+                m = re.search(escaped + r'\s*(?:\([^)]*\))?\s*(\d+)', text, re.IGNORECASE)
+                if m:
+                    digit_blob = m.group(1)
+                    # The digit blob might extend further — grab all consecutive digits from this position
+                    rest = text[m.start(1):]
+                    # Take digits up until we hit a letter or #
+                    full_digits = re.match(r'(\d+)', rest)
+                    if full_digits:
+                        digit_blob = full_digits.group(1)
+                    quarters = _split_jammed_digits(digit_blob)
+                    print(f">>> SCORE PARSER JAMMED: {label} team '{team}' -> blob='{digit_blob}', split={quarters}", flush=True)
+                    if label == 'YOUR':
+                        t1_quarters = quarters
+                    else:
+                        t2_quarters = quarters
+
+            return t1_quarters, t2_quarters
+
+        def _parse_vertical_scores(lines, team_lower, words):
+            """Parse scores from vertical format — team name line followed by number-only lines."""
+            for i, line in enumerate(lines):
+                line_lower = line.lower().strip()
+                if not line_lower:
+                    continue
+                # Strip records to match team name
+                clean = re.sub(r'\([^)]*\)', '', line_lower).strip()
+                if not clean:
+                    continue
+                if team_lower in line_lower or any(w in clean for w in words):
+                    # Check if this line ALSO has score numbers jammed onto it
+                    # e.g. "Stony Brook (18-0)31013" — digits right after )
+                    after_record = re.sub(r'^.*\)', '', line.strip())
+                    jammed_nums = re.findall(r'\d+', after_record)
+                    if jammed_nums:
+                        return None  # jammed format, not vertical — let other parser handle
+                    # Collect number-only lines below
+                    scores = []
+                    for j in range(i + 1, len(lines)):
+                        stripped = lines[j].strip()
+                        if not stripped:
+                            continue
+                        if re.match(r'^\d+$', stripped):
+                            scores.append(int(stripped))
+                        else:
+                            break
+                    if len(scores) >= 2:
+                        return scores
+            return None
+
+        def _parse_separated_scores(line, team_lower, words):
+            """Parse scores from pipe/tab separated format on a single line."""
+            line_lower = line.lower()
+            clean = re.sub(r'\([^)]*\)', '', line_lower)
+            if team_lower in line_lower or any(w in clean for w in words):
+                # Remove team name and record, get remaining numbers
+                cleaned = re.sub(r'\([^)]*\)', '', line)
+                nums = re.findall(r'\d+', cleaned)
+                # First number after team name should be Q1
+                if len(nums) >= 2:
+                    return [int(n) for n in nums]
+            return None
+
+        your_team_lower = your_team.lower().strip()
+        opp_team_lower = opp_team.lower().strip()
+        your_words = [w for w in your_team_lower.split() if len(w) >= 3]
+        opp_words = [w for w in opp_team_lower.split() if len(w) >= 3]
+
+        your_quarters = None
+        opp_quarters = None
+        lines = box_raw.splitlines()
+
+        # Strategy 1: Try jammed single-line format first
+        # Join all lines and look for the jammed pattern
+        joined = ' '.join(l.strip() for l in lines if l.strip())
+        # Check if it looks jammed: team name followed immediately by digits after )
+        if re.search(r'\)\s*\d', joined):
+            print(f">>> SCORE PARSER: Trying jammed format parser", flush=True)
+            your_quarters, opp_quarters = _parse_jammed_scores(joined, your_team, opp_team)
+
+        # Strategy 2: Try vertical format (number-only lines below team name)
+        if not your_quarters or not opp_quarters:
+            print(f">>> SCORE PARSER: Trying vertical format parser", flush=True)
+            if not your_quarters:
+                your_quarters = _parse_vertical_scores(lines, your_team_lower, your_words)
+                if your_quarters:
+                    print(f">>> SCORE PARSER: Vertical YOUR: {your_quarters}", flush=True)
+            if not opp_quarters:
+                opp_quarters = _parse_vertical_scores(lines, opp_team_lower, opp_words)
+                if opp_quarters:
+                    print(f">>> SCORE PARSER: Vertical OPP: {opp_quarters}", flush=True)
+
+        # Strategy 3: Try pipe/tab separated lines
+        if not your_quarters or not opp_quarters:
+            print(f">>> SCORE PARSER: Trying separated format parser", flush=True)
+            for line in lines:
+                if not your_quarters:
+                    your_quarters = _parse_separated_scores(line, your_team_lower, your_words)
+                if not opp_quarters:
+                    opp_quarters = _parse_separated_scores(line, opp_team_lower, opp_words)
+
+        # Halftime = Q1 + Q2 (first two numbers)
+        if your_quarters and len(your_quarters) >= 2 and opp_quarters and len(opp_quarters) >= 2:
+            your_score = your_quarters[0] + your_quarters[1]
+            opp_score = opp_quarters[0] + opp_quarters[1]
+            print(f">>> HALFTIME SCORE: {your_team} {your_score} (Q1={your_quarters[0]}, Q2={your_quarters[1]}) — "
+                  f"{opp_team} {opp_score} (Q1={opp_quarters[0]}, Q2={opp_quarters[1]})", flush=True)
+        else:
+            print(f">>> SCORE PARSER: FAILED. your_quarters={your_quarters}, opp_quarters={opp_quarters}", flush=True)
+
+    print(f">>> RENDER: your_score={your_score!r}, opp_score={opp_score!r}, ai_result={'yes' if ai_result else 'no'}", flush=True)
 
     return render_template(
         "halftime.html",

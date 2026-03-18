@@ -317,176 +317,78 @@
     </form>
   </div>
 
-  <div id="errorBanner" class="error-banner" style="display:none;"></div>
-  <div id="resultsSection" style="display:none;">
-    <div class="results-header">
-      <h2 id="resultsTitle"></h2>
-      <div class="meta">AI halftime analysis</div>
-    </div>
-    <div id="scoreboard" class="scoreboard" style="display:none;"></div>
-    <div id="streamSpinner" class="spinner-wrap visible" style="justify-content:center;margin-bottom:20px;">
-      <div class="spinner"></div>
-      <span class="spinner-text" id="streamSpinnerText">Analyzing first half stats...</span>
-    </div>
-    <div class="result-card" id="resultCard" style="display:none;">
-      <h2>Halftime Analysis</h2>
-      <div class="result-body" id="resultBody"></div>
-    </div>
+  {% if error %}
+  <div class="error-banner">{{ error }}</div>
+  {% endif %}
+
+  {% if ai_result %}
+  <div class="results-header">
+    <h2>{{ your_team }} vs {{ opp_team }}</h2>
+    <div class="meta">AI halftime analysis</div>
   </div>
+
+  <!-- DEBUG: your_score={{ your_score }}, opp_score={{ opp_score }} -->
+  <div class="scoreboard">
+    {% if your_score is defined and your_score is not none and opp_score is defined and opp_score is not none %}
+    <div class="score-team {% if your_score > opp_score %}winning{% elif your_score < opp_score %}losing{% else %}tied{% endif %}">
+      <div class="score-team-name">{{ your_team }}</div>
+      <div class="score-team-pts">{{ your_score }}</div>
+    </div>
+    <div class="score-divider">Halftime</div>
+    <div class="score-team {% if opp_score > your_score %}winning{% elif opp_score < your_score %}losing{% else %}tied{% endif %}">
+      <div class="score-team-name">{{ opp_team }}</div>
+      <div class="score-team-pts">{{ opp_score }}</div>
+    </div>
+    {% else %}
+    <div class="score-team tied">
+      <div class="score-team-name">{{ your_team }}</div>
+      <div class="score-team-pts">N/A</div>
+    </div>
+    <div class="score-divider">Halftime</div>
+    <div class="score-team tied">
+      <div class="score-team-name">{{ opp_team }}</div>
+      <div class="score-team-pts">N/A</div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="result-card">
+    <h2>Halftime Analysis</h2>
+    <div class="result-body">{{ ai_result | safe }}</div>
+  </div>
+  {% endif %}
 
 </div>
 <script>
-  // Mobile menu close on outside click
+  document.querySelector('form[action="/halftime"]').addEventListener('submit', function() {
+    var btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.textContent = 'Analyzing...';
+    btn.style.background = '#2d3348';
+    btn.style.color = '#64748b';
+    btn.style.cursor = 'not-allowed';
+    var spinner = document.createElement('div');
+    spinner.className = 'spinner-wrap visible';
+    spinner.innerHTML = '<div class="spinner"></div><span class="spinner-text" id="spinnerText">Analyzing first half stats...</span>';
+    btn.parentNode.insertBefore(spinner, btn.nextSibling);
+    var messages = [
+      'Analyzing first half stats...',
+      'Identifying key matchups...',
+      'Building your second half game plan...'
+    ];
+    var idx = 0;
+    setInterval(function() {
+      idx = (idx + 1) % messages.length;
+      var el = document.getElementById('spinnerText');
+      if (el) el.textContent = messages[idx];
+    }, 3000);
+  });
   document.addEventListener('click', function(e) {
     var menu = document.getElementById('mobileMenu');
     var hamburger = document.querySelector('.hamburger');
     if (menu && !menu.contains(e.target) && !hamburger.contains(e.target)) {
       menu.classList.remove('open');
     }
-  });
-
-  var spinnerMessages = [
-    'Analyzing first half stats...',
-    'Identifying key matchups...',
-    'Building your second half game plan...'
-  ];
-
-  document.querySelector('form[action="/halftime"]').addEventListener('submit', function(e) {
-    e.preventDefault();
-
-    var btn = document.getElementById('submitBtn');
-    var errorBanner = document.getElementById('errorBanner');
-    var resultsSection = document.getElementById('resultsSection');
-    var scoreboard = document.getElementById('scoreboard');
-    var spinner = document.getElementById('streamSpinner');
-    var spinnerText = document.getElementById('streamSpinnerText');
-    var resultCard = document.getElementById('resultCard');
-    var resultBody = document.getElementById('resultBody');
-    var resultsTitle = document.getElementById('resultsTitle');
-
-    var yourTeam = this.querySelector('[name="ht_your_team"]').value.trim();
-    var oppTeam = this.querySelector('[name="ht_opp_team"]').value.trim();
-
-    // Validation
-    errorBanner.style.display = 'none';
-    if (!yourTeam || !oppTeam) {
-      errorBanner.textContent = 'Please enter both team names.';
-      errorBanner.style.display = '';
-      return;
-    }
-    var boxScore = this.querySelector('[name="ht_box_score"]').value.trim();
-    var gameLog = this.querySelector('[name="ht_game_log"]').value.trim();
-    if (!boxScore && !gameLog) {
-      errorBanner.textContent = 'Please paste at least a box score or game log.';
-      errorBanner.style.display = '';
-      return;
-    }
-
-    // Disable button
-    btn.disabled = true;
-    btn.textContent = 'Analyzing...';
-    btn.style.background = '#2d3348';
-    btn.style.color = '#64748b';
-    btn.style.cursor = 'not-allowed';
-
-    // Show results section with spinner
-    resultsTitle.textContent = yourTeam + ' vs ' + oppTeam;
-    scoreboard.style.display = 'none';
-    scoreboard.innerHTML = '';
-    resultCard.style.display = 'none';
-    resultBody.innerHTML = '';
-    spinner.style.display = 'flex';
-    spinnerText.textContent = spinnerMessages[0];
-    resultsSection.style.display = '';
-
-    // Rotate spinner messages
-    var msgIdx = 0;
-    var msgInterval = setInterval(function() {
-      msgIdx = (msgIdx + 1) % spinnerMessages.length;
-      spinnerText.textContent = spinnerMessages[msgIdx];
-    }, 3000);
-
-    function resetBtn() {
-      btn.disabled = false;
-      btn.textContent = 'Get Halftime Adjustments';
-      btn.style.background = '';
-      btn.style.color = '';
-      btn.style.cursor = '';
-    }
-
-    var formData = new FormData(this);
-    var started = false;
-
-    fetch('/halftime-stream', { method: 'POST', body: formData })
-      .then(function(response) {
-        if (!response.ok) {
-          throw new Error('Server returned ' + response.status);
-        }
-        var reader = response.body.getReader();
-        var decoder = new TextDecoder();
-        var buffer = '';
-
-        function processChunk(result) {
-          if (result.done) {
-            clearInterval(msgInterval);
-            spinner.style.display = 'none';
-            resetBtn();
-            return;
-          }
-          buffer += decoder.decode(result.value, { stream: true });
-          var lines = buffer.split('\n');
-          buffer = lines.pop();
-
-          for (var i = 0; i < lines.length; i++) {
-            var line = lines[i].trim();
-            if (!line.startsWith('data: ')) continue;
-            var json;
-            try { json = JSON.parse(line.substring(6)); } catch(e) { continue; }
-
-            if (json.chunk) {
-              if (!started) {
-                started = true;
-                resultCard.style.display = '';
-                spinner.style.display = 'none';
-                clearInterval(msgInterval);
-              }
-              resultBody.innerHTML += json.chunk;
-            } else if (json.done) {
-              resultBody.innerHTML = json.done;
-              spinner.style.display = 'none';
-              clearInterval(msgInterval);
-              // Show scoreboard if scores were returned
-              if (json.your_score != null && json.opp_score != null) {
-                var ys = json.your_score, os = json.opp_score;
-                var yClass = ys > os ? 'winning' : ys < os ? 'losing' : 'tied';
-                var oClass = os > ys ? 'winning' : os < ys ? 'losing' : 'tied';
-                scoreboard.innerHTML =
-                  '<div class="score-team ' + yClass + '"><div class="score-team-name">' + yourTeam + '</div><div class="score-team-pts">' + ys + '</div></div>' +
-                  '<div class="score-divider">Halftime</div>' +
-                  '<div class="score-team ' + oClass + '"><div class="score-team-name">' + oppTeam + '</div><div class="score-team-pts">' + os + '</div></div>';
-                scoreboard.style.display = '';
-              }
-              resetBtn();
-            } else if (json.error) {
-              spinner.style.display = 'none';
-              clearInterval(msgInterval);
-              errorBanner.textContent = json.error;
-              errorBanner.style.display = '';
-              resetBtn();
-            }
-          }
-          return reader.read().then(processChunk);
-        }
-
-        return reader.read().then(processChunk);
-      })
-      .catch(function(err) {
-        clearInterval(msgInterval);
-        spinner.style.display = 'none';
-        errorBanner.textContent = 'Connection error: ' + err.message;
-        errorBanner.style.display = '';
-        resetBtn();
-      });
   });
 </script>
 </body>
