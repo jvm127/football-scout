@@ -3008,28 +3008,40 @@ Opponent Team Ratings:
 
         def _parse_jammed_scores(text, team1, team2):
             """Parse scores from jammed format like 'Team1 (W-L)31013#1Team2 (W-L)7714'.
+            Uses the opposing team name as a boundary to isolate each team's digit blob.
             Returns (team1_quarters, team2_quarters) or (None, None)."""
             t1_quarters = None
             t2_quarters = None
 
-            for team, label in [(team1, 'YOUR'), (team2, 'OPP')]:
+            for team, other_team, label in [(team1, team2, 'YOUR'), (team2, team1, 'OPP')]:
                 escaped = re.escape(team)
-                # Match: TeamName + optional (record) + jammed digits
-                m = re.search(escaped + r'\s*(?:\([^)]*\))?\s*(\d+)', text, re.IGNORECASE)
-                if m:
-                    digit_blob = m.group(1)
-                    # The digit blob might extend further — grab all consecutive digits from this position
-                    rest = text[m.start(1):]
-                    # Take digits up until we hit a letter or #
-                    full_digits = re.match(r'(\d+)', rest)
-                    if full_digits:
-                        digit_blob = full_digits.group(1)
-                    quarters = _split_jammed_digits(digit_blob)
-                    print(f">>> SCORE PARSER JAMMED: {label} team '{team}' -> blob='{digit_blob}', split={quarters}", flush=True)
-                    if label == 'YOUR':
-                        t1_quarters = quarters
-                    else:
-                        t2_quarters = quarters
+                # Find where this team name appears
+                team_match = re.search(escaped, text, re.IGNORECASE)
+                if not team_match:
+                    continue
+                after_team = text[team_match.end():]
+
+                # Find where the OTHER team name starts (to set a boundary)
+                other_escaped = re.escape(other_team)
+                other_match = re.search(other_escaped, after_team, re.IGNORECASE)
+                if other_match:
+                    segment = after_team[:other_match.start()]
+                else:
+                    segment = after_team
+
+                # Strip all parenthesized groups (FL), (9-2), etc. and non-digit prefixes like #23
+                segment_clean = re.sub(r'\([^)]*\)', '', segment)
+                segment_clean = re.sub(r'#\d+', '', segment_clean)
+                # Extract the digit blob — all consecutive digits after cleanup
+                digit_blob = ''.join(re.findall(r'\d+', segment_clean))
+                if not digit_blob:
+                    continue
+                quarters = _split_jammed_digits(digit_blob)
+                print(f">>> SCORE PARSER JAMMED: {label} team '{team}' -> segment='{segment.strip()}', blob='{digit_blob}', split={quarters}", flush=True)
+                if label == 'YOUR':
+                    t1_quarters = quarters
+                else:
+                    t2_quarters = quarters
 
             return t1_quarters, t2_quarters
 
