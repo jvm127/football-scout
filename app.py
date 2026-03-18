@@ -1451,64 +1451,6 @@ def _parse_player_stat_line(name_raw, pos, stat_text, team_name):
     }
 
 
-def trim_box_for_api(text):
-    """Strip defensive stat tables from box score text before sending to API.
-    Keeps: score header, team stats, passing, rushing, receiving, kicking FG/XP lines."""
-    lines = text.splitlines()
-    out = []
-    skip = False
-    for line in lines:
-        ll = line.lower().strip()
-        # Start skipping on defensive section headers
-        if re.search(r'defensive|defense\b', ll) and not re.search(r'\d', ll[:5]):
-            skip = True
-            continue
-        # Stop skipping when we hit the next non-defensive section
-        if skip and re.search(r'(passing|rushing|receiving|kicking|team\s*stats|punting)', ll) and not re.search(r'\d', ll[:5]):
-            skip = False
-        if not skip:
-            out.append(line)
-    return '\n'.join(out)
-
-
-def trim_gamelog_for_api(text):
-    """Keep only scoring plays and the first 50 play-by-play lines."""
-    lines = text.splitlines()
-    scoring = []
-    plays = []
-    in_scoring = False
-    for line in lines:
-        ll = line.lower().strip()
-        if not ll:
-            continue
-        # Detect scoring section header
-        if 'scoring' in ll and not re.search(r'\d{2,}', ll):
-            in_scoring = True
-            scoring.append(line)
-            continue
-        # Detect play-by-play section header
-        if re.search(r'play.by.play|play by play', ll):
-            in_scoring = False
-            plays.append(line)
-            continue
-        if in_scoring:
-            scoring.append(line)
-        else:
-            # Scoring plays anywhere (TD, FG, PAT/XP lines)
-            if re.search(r'\bTD\b|\btouchdown\b|\bfield goal\b|\bFG\b|\bPAT\b|\bXP\b', ll):
-                scoring.append(line)
-            elif len(plays) < 51:  # header + 50 plays
-                plays.append(line)
-    result = []
-    if scoring:
-        result.extend(scoring)
-    if plays:
-        if result:
-            result.append('')
-        result.extend(plays)
-    return '\n'.join(result)
-
-
 def parse_box_score(text, your_team, opp_team):
     """Return (your_stats, their_stats, box_players) from pasted box score.
 
@@ -2944,19 +2886,16 @@ OUTPUT SECTIONS IN ORDER:
 - Score situation urgency if losing by 2+ scores
 Never include generic advice. Every item must have a specific reason."""
 
-        trimmed_box = trim_box_for_api(box_raw)
-        trimmed_log = trim_gamelog_for_api(gamelog_raw)
-
         user_message = f"""Your Team: {your_team}
 Your Offense: {your_offense}
 Opponent Team: {opp_team}
 Their Defense: {their_defense}
 
 Box Score & Team Stats:
-{trimmed_box}
+{box_raw}
 
 Game Log:
-{trimmed_log}
+{gamelog_raw}
 
 Your Team Ratings:
 {your_ratings_raw}
@@ -2965,20 +2904,13 @@ Opponent Team Ratings:
 {opp_ratings_raw}"""
 
         try:
-            api_key = os.environ.get("ANTHROPIC_API_KEY", "")
-            print(f">>> HALFTIME API: key present={bool(api_key)}, key length={len(api_key)}, key prefix={api_key[:7] + '...' if len(api_key) > 7 else '(empty)'}", flush=True)
-            print(f">>> HALFTIME API: user_message length={len(user_message)}, trimmed_box length={len(trimmed_box)}, trimmed_log length={len(trimmed_log)}", flush=True)
-            if not api_key:
-                raise ValueError("ANTHROPIC_API_KEY environment variable is not set or empty")
-            client = anthropic.Anthropic(api_key=api_key)
-            print(f">>> HALFTIME API: Calling claude-sonnet-4-20250514 with max_tokens=800...", flush=True)
+            client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
             response = client.messages.create(
                 model="claude-sonnet-4-20250514",
-                max_tokens=800,
+                max_tokens=1500,
                 system=halftime_system_prompt,
                 messages=[{"role": "user", "content": user_message}],
             )
-            print(f">>> HALFTIME API: Response received, stop_reason={response.stop_reason}, content_length={len(response.content[0].text) if response.content else 0}", flush=True)
             raw_result = validate_ai_output(response.content[0].text)
             # Sanitize: only allow specific safe HTML tags
             import re as _re
@@ -3005,9 +2937,9 @@ Opponent Team Ratings:
                 return html
             ai_result = _sanitize_html(raw_result)
         except Exception as e:
-            print(f">>> HALFTIME ANALYZE ERROR: {type(e).__name__}: {e}", flush=True)
+            print(f">>> HALFTIME ANALYZE ERROR: {e}", flush=True)
             traceback.print_exc()
-            error = f"AI analysis failed ({type(e).__name__}): {str(e)}"
+            error = f"AI analysis failed: {str(e)}"
 
     # Parse halftime score from box score text
     # WIS box score can come in multiple formats:
@@ -3076,40 +3008,28 @@ Opponent Team Ratings:
 
         def _parse_jammed_scores(text, team1, team2):
             """Parse scores from jammed format like 'Team1 (W-L)31013#1Team2 (W-L)7714'.
-            Uses the opposing team name as a boundary to isolate each team's digit blob.
             Returns (team1_quarters, team2_quarters) or (None, None)."""
             t1_quarters = None
             t2_quarters = None
 
-            for team, other_team, label in [(team1, team2, 'YOUR'), (team2, team1, 'OPP')]:
+            for team, label in [(team1, 'YOUR'), (team2, 'OPP')]:
                 escaped = re.escape(team)
-                # Find where this team name appears
-                team_match = re.search(escaped, text, re.IGNORECASE)
-                if not team_match:
-                    continue
-                after_team = text[team_match.end():]
-
-                # Find where the OTHER team name starts (to set a boundary)
-                other_escaped = re.escape(other_team)
-                other_match = re.search(other_escaped, after_team, re.IGNORECASE)
-                if other_match:
-                    segment = after_team[:other_match.start()]
-                else:
-                    segment = after_team
-
-                # Strip all parenthesized groups (FL), (9-2), etc. and non-digit prefixes like #23
-                segment_clean = re.sub(r'\([^)]*\)', '', segment)
-                segment_clean = re.sub(r'#\d+', '', segment_clean)
-                # Extract the digit blob — all consecutive digits after cleanup
-                digit_blob = ''.join(re.findall(r'\d+', segment_clean))
-                if not digit_blob:
-                    continue
-                quarters = _split_jammed_digits(digit_blob)
-                print(f">>> SCORE PARSER JAMMED: {label} team '{team}' -> segment='{segment.strip()}', blob='{digit_blob}', split={quarters}", flush=True)
-                if label == 'YOUR':
-                    t1_quarters = quarters
-                else:
-                    t2_quarters = quarters
+                # Match: TeamName + optional (record) + jammed digits
+                m = re.search(escaped + r'\s*(?:\([^)]*\))?\s*(\d+)', text, re.IGNORECASE)
+                if m:
+                    digit_blob = m.group(1)
+                    # The digit blob might extend further — grab all consecutive digits from this position
+                    rest = text[m.start(1):]
+                    # Take digits up until we hit a letter or #
+                    full_digits = re.match(r'(\d+)', rest)
+                    if full_digits:
+                        digit_blob = full_digits.group(1)
+                    quarters = _split_jammed_digits(digit_blob)
+                    print(f">>> SCORE PARSER JAMMED: {label} team '{team}' -> blob='{digit_blob}', split={quarters}", flush=True)
+                    if label == 'YOUR':
+                        t1_quarters = quarters
+                    else:
+                        t2_quarters = quarters
 
             return t1_quarters, t2_quarters
 
