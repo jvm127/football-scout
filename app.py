@@ -3143,34 +3143,29 @@ Opponent Team Ratings:
 @app.route("/game-analysis", methods=["GET"])
 @subscription_required
 def game_analysis():
-    return render_template("game_analysis.html", your_team='', opp_team='', box_raw='',
-                           your_ratings_raw='', opp_ratings_raw='',
-                           your_offense='', their_defense='',
-                           error=None)
+    return render_template("game_analysis.html", your_team='', opp_team='',
+                           box_raw='', gamelog_raw='', error=None)
 
 @app.route("/game-analysis", methods=["POST"])
 @subscription_required
 def game_analysis_route():
-    your_team        = request.form.get("ga_your_team",    "").strip()
-    opp_team         = request.form.get("ga_opp_team",     "").strip()
-    box_raw          = request.form.get("ga_box_score",    "").strip()
-    your_ratings_raw = request.form.get("ga_your_ratings", "").strip()
-    opp_ratings_raw  = request.form.get("ga_opp_ratings",  "").strip()
-    your_offense     = request.form.get("ga_your_offense", "").strip()
-    their_defense    = request.form.get("ga_their_defense","").strip()
+    your_team   = request.form.get("ga_your_team",  "").strip()
+    opp_team    = request.form.get("ga_opp_team",   "").strip()
+    box_raw     = request.form.get("ga_box_score",  "").strip()
+    gamelog_raw  = request.form.get("ga_game_log",   "").strip()
 
     error   = None
     ai_result = None
 
     if not your_team or not opp_team:
         error = "Please enter both team names."
-    elif not box_raw:
-        error = "Please paste the box score."
+    elif not box_raw and not gamelog_raw:
+        error = "Please paste at least a box score or game log."
     else:
-        game_analysis_prompt = """You are an expert WhatIfSports sim football analyst and sports journalist. You will receive full-game box score data and team ratings and write a post-game analysis in the style of a sports news article.
+        game_analysis_prompt = """You are an expert WhatIfSports sim football analyst and sports journalist. You will receive full-game box score data and game log and write a post-game analysis in the style of a sports news article.
 
 SIM FOOTBALL CONTEXT:
-This is text-based sim football on WhatIfSports, not real football. All analysis should be grounded in the box score stats provided.
+This is text-based sim football on WhatIfSports, not real football. All analysis should be grounded in the box score and game log data provided. Derive all insights from the stats — do not ask for or reference team ratings.
 
 VOICE AND PERSONALITY:
 Write like a professional sports journalist covering a big game. Be vivid, dramatic, and authoritative. Paint the narrative of how the game unfolded. Reference specific plays, stats, and players by name. Make the reader feel like they watched the game.
@@ -3180,8 +3175,9 @@ CRITICAL RULES:
 - MATH MUST BE CORRECT — verify all stat comparisons before writing. The team with MORE points won. Double check the final score.
 - SCORE ACCURACY — always state the final score correctly. The team with more points is the winner. Never say a team "won" when their score is lower.
 - TOP PERFORMERS FORMATTING — never put a colon before stat lines. Write "5 rec, 89 yds" not ": 5 rec, 89 yds". No colon prefix on any stat line.
-- Do not invent plays, drives, or events not supported by the box score data. Stick to what the numbers show.
+- Do not invent plays, drives, or events not supported by the data. Stick to what the numbers show.
 - OVERPOWERING LANGUAGE — never use "overpowers", "dominates", or "overwhelms" for any stat difference less than 20 points.
+- SACKS BELONG TO THE DEFENSE — "Sacked-Yds 3-21" listed under a team's stats means that team's QB was sacked 3 times for 21 yards lost.
 
 OUTPUT FORMAT — respond with clean HTML fragments (no <html>, <head>, or <body> tags). Use these elements:
 - <h3> for section headers
@@ -3203,21 +3199,16 @@ Based on actual game stats.
 
 <h3>By the Numbers</h3> — 4-6 notable stats or stat comparisons from the game, each wrapped in <div class="stat-highlight">. Examples: total yards comparison, turnover margin, third down efficiency, time of possession, biggest individual performances. Each should tell part of the story.
 
-<h3>Takeaways</h3> — 3-4 bullet points (<ul><li>) summarizing the key lessons from this game. What did each team do well? What cost the losing team the game? What ratings matchups played out as expected or were surprising?"""
+<h3>Takeaways</h3> — 3-4 bullet points (<ul><li>) summarizing the key lessons from this game. What did each team do well? What cost the losing team the game?"""
 
         user_message = f"""Your Team: {your_team}
-Your Offense: {your_offense}
 Opponent Team: {opp_team}
-Their Defense: {their_defense}
 
 Box Score & Team Stats:
 {box_raw}
 
-Your Team Ratings:
-{your_ratings_raw}
-
-Opponent Team Ratings:
-{opp_ratings_raw}"""
+Game Log:
+{gamelog_raw}"""
 
         try:
             client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
@@ -3256,9 +3247,7 @@ Opponent Team Ratings:
     return render_template(
         "game_analysis.html",
         your_team=your_team, opp_team=opp_team,
-        box_raw=box_raw,
-        your_ratings_raw=your_ratings_raw, opp_ratings_raw=opp_ratings_raw,
-        your_offense=your_offense, their_defense=their_defense,
+        box_raw=box_raw, gamelog_raw=gamelog_raw,
         ai_result=ai_result, error=error,
     )
 

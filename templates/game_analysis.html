@@ -249,29 +249,11 @@
             <label>Your Team</label>
             <input type="text" name="ga_your_team" value="{{ your_team }}"/>
           </div>
-          <div class="field">
-            <label>Your Offense</label>
-            <select name="ga_your_offense" style="background:#0f1117;border:1px solid #2d3348;color:#e2e8f0;padding:10px 14px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;width:100%;">
-              <option value="">-- Select --</option>
-              {% for o in ['I Formation','Pro','Wishbone','Notre Dame Box','Shotgun','Trips'] %}
-              <option value="{{ o }}" {% if your_offense == o %}selected{% endif %}>{{ o }}</option>
-              {% endfor %}
-            </select>
-          </div>
         </div>
         <div class="ht-team-col">
           <div class="field">
             <label>Opponent Team</label>
             <input type="text" name="ga_opp_team" value="{{ opp_team }}"/>
-          </div>
-          <div class="field">
-            <label>Opponent Defense</label>
-            <select name="ga_their_defense" style="background:#0f1117;border:1px solid #2d3348;color:#e2e8f0;padding:10px 14px;border-radius:8px;font-size:14px;font-family:inherit;outline:none;width:100%;">
-              <option value="">-- Select --</option>
-              {% for d in ['3-4','4-3','4-4','5-2','Nickel','Dime'] %}
-              <option value="{{ d }}" {% if their_defense == d %}selected{% endif %}>{{ d }}</option>
-              {% endfor %}
-            </select>
           </div>
         </div>
       </div>
@@ -280,15 +262,9 @@
           <label>Box Score &amp; Team Stats</label>
           <textarea name="ga_box_score" rows="12">{{ box_raw }}</textarea>
         </div>
-      </div>
-      <div class="ht-textareas">
         <div class="field">
-          <label>Your Team Ratings</label>
-          <textarea name="ga_your_ratings" rows="8" placeholder="Pos&#9;A&#9;Spd&#9;Str&#9;Blk&#9;Tkl&#9;Tot&#10;QB&#9;80&#9;75&#9;65&#9;50&#9;55&#9;88&#10;RB&#9;82&#9;86&#9;78&#9;62&#9;55&#9;88&#10;...">{{ your_ratings_raw }}</textarea>
-        </div>
-        <div class="field">
-          <label>Opponent Team Ratings</label>
-          <textarea name="ga_opp_ratings" rows="8" placeholder="Pos&#9;A&#9;Spd&#9;Str&#9;Blk&#9;Tkl&#9;Tot&#10;QB&#9;72&#9;68&#9;55&#9;40&#9;45&#9;85&#10;RB&#9;85&#9;88&#9;75&#9;60&#9;50&#9;90&#10;...">{{ opp_ratings_raw }}</textarea>
+          <label>Game Log</label>
+          <textarea name="ga_game_log" rows="12">{{ gamelog_raw }}</textarea>
         </div>
       </div>
       <button type="submit" class="btn-halftime" id="submitBtn">Analyze Game</button>
