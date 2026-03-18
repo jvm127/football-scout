@@ -2890,11 +2890,15 @@ def _sanitize_halftime_html(html):
 
 
 @app.route("/halftime-stream", methods=["POST"])
-@subscription_required
 def halftime_stream():
     """Stream the Anthropic API response via SSE so the sync worker isn't blocked."""
     from flask import Response, stream_with_context
     import json as _json
+
+    # Auth check — return SSE error instead of redirect (which breaks fetch)
+    if not session.get('internal_access'):
+        if not current_user.is_authenticated or not current_user.subscribed:
+            return Response(f"data: {_json.dumps({'error': 'Not authenticated'})}\n\n", content_type='text/event-stream', status=401)
 
     your_team        = request.form.get("ht_your_team",    "").strip()
     opp_team         = request.form.get("ht_opp_team",     "").strip()
