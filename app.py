@@ -3144,7 +3144,7 @@ Opponent Team Ratings:
 @subscription_required
 def game_analysis():
     return render_template("game_analysis.html", your_team='', opp_team='',
-                           box_raw='', gamelog_raw='', error=None)
+                           box_raw='', gamelog_raw='', context='', error=None)
 
 @app.route("/game-analysis", methods=["POST"])
 @subscription_required
@@ -3153,6 +3153,7 @@ def game_analysis_route():
     opp_team    = request.form.get("ga_opp_team",   "").strip()
     box_raw     = request.form.get("ga_box_score",  "").strip()
     gamelog_raw  = request.form.get("ga_game_log",   "").strip()
+    context     = request.form.get("ga_context",    "").strip()
 
     error   = None
     ai_result = None
@@ -3165,7 +3166,7 @@ def game_analysis_route():
         game_analysis_prompt = """You are an expert WhatIfSports sim football analyst and sports journalist. You will receive full-game box score data and game log and write a post-game analysis in the style of a sports news article.
 
 SIM FOOTBALL CONTEXT:
-This is text-based sim football on WhatIfSports, not real football. All analysis should be grounded in the box score and game log data provided. Derive all insights from the stats — do not ask for or reference team ratings.
+This is text-based sim football on WhatIfSports, not real football. All analysis should be grounded in the box score and game log data provided. Derive all insights from the stats — do not ask for or reference team ratings. If additional context is provided (e.g. playoff round, win streak, rivalry), weave it naturally into the narrative to add drama and stakes.
 
 VOICE AND PERSONALITY:
 Write like a professional sports journalist covering a big game. Be vivid, dramatic, and authoritative. Paint the narrative of how the game unfolded. Reference specific plays, stats, and players by name. Make the reader feel like they watched the game.
@@ -3201,6 +3202,7 @@ Based on actual game stats.
 
 <h3>Takeaways</h3> — 3-4 bullet points (<ul><li>) summarizing the key lessons from this game. What did each team do well? What cost the losing team the game?"""
 
+        context_block = f"\n\nAdditional Context:\n{context}" if context else ""
         user_message = f"""Your Team: {your_team}
 Opponent Team: {opp_team}
 
@@ -3208,7 +3210,7 @@ Box Score & Team Stats:
 {box_raw}
 
 Game Log:
-{gamelog_raw}"""
+{gamelog_raw}{context_block}"""
 
         try:
             client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
@@ -3248,7 +3250,7 @@ Game Log:
         "game_analysis.html",
         your_team=your_team, opp_team=opp_team,
         box_raw=box_raw, gamelog_raw=gamelog_raw,
-        ai_result=ai_result, error=error,
+        context=context, ai_result=ai_result, error=error,
     )
 
 

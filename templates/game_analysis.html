@@ -299,6 +299,10 @@
           <textarea name="ga_game_log" rows="12">{{ gamelog_raw }}</textarea>
         </div>
       </div>
+      <div class="field" style="margin-bottom:16px;">
+        <label>Additional Context (optional)</label>
+        <textarea name="ga_context" rows="3" placeholder="e.g. Second round playoff game, team going for 38 wins in a row, rivalry matchup, etc.">{{ context }}</textarea>
+      </div>
       <button type="submit" class="btn-halftime" id="submitBtn">Analyze Game</button>
     </form>
   </div>
