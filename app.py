@@ -2658,6 +2658,20 @@ def validate_ai_output(text):
             print(f">>> VALIDATE: Removed plain-text formation change: {match[:100]!r}", flush=True)
         text = _re.sub(pattern, '', text, flags=_re.IGNORECASE | _re.MULTILINE)
 
+    # 2b. Remove "not available" / limitation language (e.g. "Shotgun not available — Wishbone personnel only")
+    NOT_AVAILABLE_PATTERNS = [
+        r'<p>[^<]*not\s+available[^<]*</p>',
+        r'<p>[^<]*personnel\s+only[^<]*</p>',
+        r'<p>[^<]*(?:cannot|can\'t|don\'t|do\s+not)\s+(?:use|run|throw|pass|switch)[^<]*</p>',
+        r'<div class="gameplan-bullet">[^<]*not\s+available[^<]*</div>',
+        r'<li>[^<]*not\s+available[^<]*</li>',
+    ]
+    for pattern in NOT_AVAILABLE_PATTERNS:
+        matches = _re.findall(pattern, text, flags=_re.IGNORECASE)
+        for match in matches:
+            print(f">>> VALIDATE: Removed 'not available' language: {match[:100]!r}", flush=True)
+        text = _re.sub(pattern, '', text, flags=_re.IGNORECASE)
+
     # 3. Flag cross-position analysis (TE in RB context, RB in TE context)
     # Look for "RB" recommendations that reference TE ratings or vice versa
     def _clean_cross_position(m):
@@ -2782,17 +2796,34 @@ MISMATCH THRESHOLD: A mismatch only exists when the difference is 20 or more poi
 
 OVERPOWERING LANGUAGE: Never use "overpowers", "dominates", or "overwhelms" for any stat difference less than 20 points. A +4 edge (e.g. OL STR 88 vs DL STR 84) is a "slight edge" or "modest advantage". A +10 to +19 edge is a "solid advantage". Only use "dominates" or "overpowers" for differences of +20 or more.
 
+TONE: Only tell the user what they CAN do. Never mention formations that are not available, never say things like "Shotgun not available — Wishbone personnel only", never list limitations or restrictions. Focus entirely on positive, actionable recommendations for the formation they selected.
+
+PLAYER NAME FORMAT: Always format player names as "Name (POS, Team)" — e.g. "Marcus Williams (WR, Michigan)". Use this format consistently throughout all sections.
+
+OUTPUT FORMAT — respond with clean HTML fragments (no <html>, <head>, or <body> tags). Use these elements:
+- <h3> for section headers
+- <p> for paragraphs
+- <strong> for emphasis
+- <ul><li> for bullet lists
+- <div class="performers-grid"> with two <div class="perf-col"> inside for the two-column Standout Players layout
+- Inside each perf-col, use <h4>OFFENSE</h4> and <h4>DEFENSE</h4> subheaders, then <p> for each player
+- <div class="gameplan-bullet"> for each game plan recommendation
+Do NOT use markdown syntax (no **, no ##, no -). Output raw HTML only.
+
 OUTPUT SECTIONS IN ORDER:
 
-STANDOUT PLAYERS — parse individual player names and TOT ratings from the raw data
-Your team: top 2 offensive players by TOT, top 2 defensive players by TOT with one sentence each
-Opponent: same format, add 'Watch out for [name]' for their defensive standouts
-FORMATION MATCHUP — analyze your offense vs their defense personnel. Call out specific mismatches like '3 WRs vs only 3 DBs means one WR gets a LB in coverage'
-BIGGEST ADVANTAGES — list only edges of +20 or more using the 8 meaningful matchups. Write specific sim football advice with actual numbers.
-DANGER ZONES — opponent edges of +20 or more. Give specific advice to neutralize.
-RUN GAME PLAN — recommend inside vs outside percentage based on matchups and defense. For Shotgun say passing only — no RB on field. Factor in defense: Nickel/Dime = run more, 5-2/4-4 = spread them out.
-PASSING TARGETS — show recommended target percentages for each player on the field based on the formation. Use individual player names and stats. WRs get at least 50% in Shotgun/Trips. RB capped at 20% max (30% only if RB AGI vs LB AGI edge is +25 or more). Show reasoning with actual TOT numbers.
-GAME PLAN SUMMARY — 3-4 bullet points summarizing the most important things to do. Specific and actionable, no generic advice."""
+<h3>Standout Players</h3> — wrapped in <div class="performers-grid">. Two <div class="perf-col"> columns: one for your team, one for opponent. Inside each perf-col, use <h4>OFFENSE</h4> then <p> tags for top 2 offensive players by TOT with one sentence each. Then <h4>DEFENSE</h4> then <p> tags for top 2 defensive players by TOT. For opponent defensive standouts, add 'Watch out for [name]' framing.
+
+<h3>Formation Matchup</h3> — analyze your offense vs their defense personnel. Call out specific mismatches like '3 WRs vs only 3 DBs means one WR gets a LB in coverage'. Use <p> tags.
+
+<h3>Biggest Advantages</h3> — list only edges of +20 or more using the 8 meaningful matchups. Write specific sim football advice with actual numbers. Use <ul><li> for each advantage.
+
+<h3>Danger Zones</h3> — opponent edges of +20 or more. Give specific advice to neutralize. Use <ul><li> for each danger zone.
+
+<h3>Game Plan</h3> — combine run game, passing targets, and summary into one section. 5-7 specific actionable items, each wrapped in <div class="gameplan-bullet">. Include:
+- Run game: inside vs outside percentage based on matchups and defense. Factor in defense: Nickel/Dime = run more, 5-2/4-4 = spread them out.
+- Passing targets: recommended target percentages for each player on the field based on the formation. Use individual player names and stats. WRs get at least 50%% in Shotgun/Trips. RB capped at 20%% max (30%% only if RB AGI vs LB AGI edge is +25 or more). Show reasoning with actual TOT numbers.
+- Key strategic priorities — specific and actionable, no generic advice."""
 
         user_message = f"""Your Team: {your_team}
 Your Offense: {your_offense}
@@ -2816,7 +2847,28 @@ Opponent Team Ratings:
                 system=strategy_system_prompt,
                 messages=[{"role": "user", "content": user_message}],
             )
-            ai_result = validate_ai_output(response.content[0].text)
+            raw_result = validate_ai_output(response.content[0].text)
+            # Sanitize: only allow specific safe HTML tags
+            import re as _re
+            ALLOWED_TAGS = {'h3','h4','p','strong','em','ul','ol','li','div','span','br'}
+            ALLOWED_CLASSES = {'performers-grid','perf-col','gameplan-bullet'}
+            def _sanitize_html(html):
+                html = _re.sub(r'<script[^>]*>.*?</script>', '', html, flags=_re.DOTALL | _re.IGNORECASE)
+                html = _re.sub(r'<style[^>]*>.*?</style>', '', html, flags=_re.DOTALL | _re.IGNORECASE)
+                html = _re.sub(r'<iframe[^>]*>.*?</iframe>', '', html, flags=_re.DOTALL | _re.IGNORECASE)
+                html = _re.sub(r'\bon\w+\s*=', '', html, flags=_re.IGNORECASE)
+                def _filter_class(m):
+                    tag = m.group(1).lower()
+                    cls = m.group(2)
+                    if tag not in ALLOWED_TAGS:
+                        return ''
+                    classes = [c.strip() for c in cls.split() if c.strip() in ALLOWED_CLASSES]
+                    if classes:
+                        return f'<{m.group(1)} class="{" ".join(classes)}"'
+                    return f'<{m.group(1)}'
+                html = _re.sub(r'<(\w+)\s+class="([^"]*)"', _filter_class, html)
+                return html
+            ai_result = _sanitize_html(raw_result)
         except Exception as e:
             print(f">>> STRATEGY ANALYZE ERROR: {e}", flush=True)
             traceback.print_exc()
