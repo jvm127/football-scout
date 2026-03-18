@@ -2876,7 +2876,10 @@ OUTPUT SECTIONS IN ORDER:
 
 <h3>First Half Summary</h3> — 6-8 sentences written like a dramatic color commentator. Include current score, what worked and what did not for each team with specific stats and player names (with position and team). End with what the game is hinging on. Be vivid and intense.
 
-<h3>Top Performers — First Half</h3> — wrapped in <div class="performers-grid">. Two <div class="perf-col"> columns: one for each team. Top 2 offensive and top 2 defensive players per team based on actual stats. Show stat lines.
+<h3>Top Performers — First Half</h3> — wrapped in <div class="performers-grid">. Two <div class="perf-col"> columns: one for each team. Inside each perf-col, format as follows:
+<h4>OFFENSE</h4> (all caps, gray subheader), then a blank line, then 2 offensive players (name, position, stats) in white text — one per <p> tag.
+Then <h4>DEFENSE</h4> (all caps, gray subheader with margin-top for spacing), then a blank line, then 2 defensive players in white text — one per <p> tag.
+Top players based on actual first half stats. Show stat lines.
 
 <h3>Second Half Game Plan</h3> — for the user's team only. 5-7 specific actionable items, each wrapped in <div class="gameplan-bullet">. Each must reference actual first half data or ratings. Include:
 - Best run direction (outside vs inside) with actual ypc from game log

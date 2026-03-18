@@ -171,10 +171,17 @@
       background: #161926; border: 1px solid #2d3348; border-radius: 10px;
       padding: 18px 20px;
     }
-    .perf-col h4, .perf-col strong:first-child {
+    .perf-col h4 {
       font-size: 12px; font-weight: 700; color: #94a3b8;
-      text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px;
-      display: block;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      margin: 0 0 10px 0;
+    }
+    .perf-col h4 + p { margin-top: 0; }
+    .perf-col h4:nth-of-type(2), .perf-col h4 ~ h4 {
+      margin-top: 18px;
+    }
+    .perf-col p {
+      color: #e2e8f0; margin: 4px 0; font-size: 14px;
     }
     .gameplan-bullet {
       background: #161926; border: 1px solid #2d3348; border-left: 4px solid #22c55e;
@@ -325,31 +332,6 @@
   <div class="results-header">
     <h2>{{ your_team }} vs {{ opp_team }}</h2>
     <div class="meta">AI halftime analysis</div>
-  </div>
-
-  <!-- DEBUG: your_score={{ your_score }}, opp_score={{ opp_score }} -->
-  <div class="scoreboard">
-    {% if your_score is defined and your_score is not none and opp_score is defined and opp_score is not none %}
-    <div class="score-team {% if your_score > opp_score %}winning{% elif your_score < opp_score %}losing{% else %}tied{% endif %}">
-      <div class="score-team-name">{{ your_team }}</div>
-      <div class="score-team-pts">{{ your_score }}</div>
-    </div>
-    <div class="score-divider">Halftime</div>
-    <div class="score-team {% if opp_score > your_score %}winning{% elif opp_score < your_score %}losing{% else %}tied{% endif %}">
-      <div class="score-team-name">{{ opp_team }}</div>
-      <div class="score-team-pts">{{ opp_score }}</div>
-    </div>
-    {% else %}
-    <div class="score-team tied">
-      <div class="score-team-name">{{ your_team }}</div>
-      <div class="score-team-pts">N/A</div>
-    </div>
-    <div class="score-divider">Halftime</div>
-    <div class="score-team tied">
-      <div class="score-team-name">{{ opp_team }}</div>
-      <div class="score-team-pts">N/A</div>
-    </div>
-    {% endif %}
   </div>
 
   <div class="result-card">
