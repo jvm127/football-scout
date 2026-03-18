@@ -317,52 +317,22 @@
     </form>
   </div>
 
-  {% if error %}
-  <div class="error-banner">{{ error }}</div>
-  {% endif %}
-
-  {% if your_team and opp_team and (box_raw or gamelog_raw) %}
-  <div class="results-header">
-    <h2>{{ your_team }} vs {{ opp_team }}</h2>
-    <div class="meta">AI halftime analysis</div>
-  </div>
-
-  <div class="scoreboard">
-    {% if your_score is defined and your_score is not none and opp_score is defined and opp_score is not none %}
-    <div class="score-team {% if your_score > opp_score %}winning{% elif your_score < opp_score %}losing{% else %}tied{% endif %}">
-      <div class="score-team-name">{{ your_team }}</div>
-      <div class="score-team-pts">{{ your_score }}</div>
+  <div id="errorBanner" class="error-banner" style="display:none;"></div>
+  <div id="resultsSection" style="display:none;">
+    <div class="results-header">
+      <h2 id="resultsTitle"></h2>
+      <div class="meta">AI halftime analysis</div>
     </div>
-    <div class="score-divider">Halftime</div>
-    <div class="score-team {% if opp_score > your_score %}winning{% elif opp_score < your_score %}losing{% else %}tied{% endif %}">
-      <div class="score-team-name">{{ opp_team }}</div>
-      <div class="score-team-pts">{{ opp_score }}</div>
+    <div id="scoreboard" class="scoreboard" style="display:none;"></div>
+    <div id="streamSpinner" class="spinner-wrap visible" style="justify-content:center;margin-bottom:20px;">
+      <div class="spinner"></div>
+      <span class="spinner-text" id="streamSpinnerText">Analyzing first half stats...</span>
     </div>
-    {% else %}
-    <div class="score-team tied">
-      <div class="score-team-name">{{ your_team }}</div>
-      <div class="score-team-pts">N/A</div>
+    <div class="result-card" id="resultCard" style="display:none;">
+      <h2>Halftime Analysis</h2>
+      <div class="result-body" id="resultBody"></div>
     </div>
-    <div class="score-divider">Halftime</div>
-    <div class="score-team tied">
-      <div class="score-team-name">{{ opp_team }}</div>
-      <div class="score-team-pts">N/A</div>
-    </div>
-    {% endif %}
   </div>
-
-  <div id="streamSpinner" class="spinner-wrap visible" style="justify-content:center;margin-bottom:20px;">
-    <div class="spinner"></div>
-    <span class="spinner-text" id="streamSpinnerText">Analyzing first half stats...</span>
-  </div>
-
-  <div class="result-card" id="resultCard" style="display:none;">
-    <h2>Halftime Analysis</h2>
-    <div class="result-body" id="resultBody"></div>
-  </div>
-
-  <div class="error-banner" id="streamError" style="display:none;"></div>
-  {% endif %}
 
 </div>
 <script>
@@ -375,43 +345,77 @@
     }
   });
 
-  // Spinner rotation messages
   var spinnerMessages = [
     'Analyzing first half stats...',
     'Identifying key matchups...',
     'Building your second half game plan...'
   ];
 
-  // Form submit: disable button + show spinner while page loads
-  document.querySelector('form[action="/halftime"]').addEventListener('submit', function() {
+  document.querySelector('form[action="/halftime"]').addEventListener('submit', function(e) {
+    e.preventDefault();
+
     var btn = document.getElementById('submitBtn');
+    var errorBanner = document.getElementById('errorBanner');
+    var resultsSection = document.getElementById('resultsSection');
+    var scoreboard = document.getElementById('scoreboard');
+    var spinner = document.getElementById('streamSpinner');
+    var spinnerText = document.getElementById('streamSpinnerText');
+    var resultCard = document.getElementById('resultCard');
+    var resultBody = document.getElementById('resultBody');
+    var resultsTitle = document.getElementById('resultsTitle');
+
+    var yourTeam = this.querySelector('[name="ht_your_team"]').value.trim();
+    var oppTeam = this.querySelector('[name="ht_opp_team"]').value.trim();
+
+    // Validation
+    errorBanner.style.display = 'none';
+    if (!yourTeam || !oppTeam) {
+      errorBanner.textContent = 'Please enter both team names.';
+      errorBanner.style.display = '';
+      return;
+    }
+    var boxScore = this.querySelector('[name="ht_box_score"]').value.trim();
+    var gameLog = this.querySelector('[name="ht_game_log"]').value.trim();
+    if (!boxScore && !gameLog) {
+      errorBanner.textContent = 'Please paste at least a box score or game log.';
+      errorBanner.style.display = '';
+      return;
+    }
+
+    // Disable button
     btn.disabled = true;
     btn.textContent = 'Analyzing...';
     btn.style.background = '#2d3348';
     btn.style.color = '#64748b';
     btn.style.cursor = 'not-allowed';
-  });
 
-  // Auto-stream AI analysis after page loads with form data
-  (function() {
-    var spinner = document.getElementById('streamSpinner');
-    if (!spinner) return; // No results section = initial page load
-
-    var resultCard = document.getElementById('resultCard');
-    var resultBody = document.getElementById('resultBody');
-    var streamError = document.getElementById('streamError');
-    var spinnerText = document.getElementById('streamSpinnerText');
+    // Show results section with spinner
+    resultsTitle.textContent = yourTeam + ' vs ' + oppTeam;
+    scoreboard.style.display = 'none';
+    scoreboard.innerHTML = '';
+    resultCard.style.display = 'none';
+    resultBody.innerHTML = '';
+    spinner.style.display = 'flex';
+    spinnerText.textContent = spinnerMessages[0];
+    resultsSection.style.display = '';
 
     // Rotate spinner messages
     var msgIdx = 0;
     var msgInterval = setInterval(function() {
       msgIdx = (msgIdx + 1) % spinnerMessages.length;
-      if (spinnerText) spinnerText.textContent = spinnerMessages[msgIdx];
+      spinnerText.textContent = spinnerMessages[msgIdx];
     }, 3000);
 
-    // Collect form data from the page inputs
-    var form = document.querySelector('form[action="/halftime"]');
-    var formData = new FormData(form);
+    function resetBtn() {
+      btn.disabled = false;
+      btn.textContent = 'Get Halftime Adjustments';
+      btn.style.background = '';
+      btn.style.color = '';
+      btn.style.cursor = '';
+    }
+
+    var formData = new FormData(this);
+    var started = false;
 
     fetch('/halftime-stream', { method: 'POST', body: formData })
       .then(function(response) {
@@ -422,18 +426,16 @@
         var decoder = new TextDecoder();
         var buffer = '';
 
-        // Show result card as soon as chunks arrive
-        var started = false;
-
         function processChunk(result) {
           if (result.done) {
             clearInterval(msgInterval);
             spinner.style.display = 'none';
+            resetBtn();
             return;
           }
           buffer += decoder.decode(result.value, { stream: true });
           var lines = buffer.split('\n');
-          buffer = lines.pop(); // Keep incomplete line in buffer
+          buffer = lines.pop();
 
           for (var i = 0; i < lines.length; i++) {
             var line = lines[i].trim();
@@ -450,15 +452,27 @@
               }
               resultBody.innerHTML += json.chunk;
             } else if (json.done) {
-              // Replace with final sanitized + validated HTML
               resultBody.innerHTML = json.done;
               spinner.style.display = 'none';
               clearInterval(msgInterval);
+              // Show scoreboard if scores were returned
+              if (json.your_score != null && json.opp_score != null) {
+                var ys = json.your_score, os = json.opp_score;
+                var yClass = ys > os ? 'winning' : ys < os ? 'losing' : 'tied';
+                var oClass = os > ys ? 'winning' : os < ys ? 'losing' : 'tied';
+                scoreboard.innerHTML =
+                  '<div class="score-team ' + yClass + '"><div class="score-team-name">' + yourTeam + '</div><div class="score-team-pts">' + ys + '</div></div>' +
+                  '<div class="score-divider">Halftime</div>' +
+                  '<div class="score-team ' + oClass + '"><div class="score-team-name">' + oppTeam + '</div><div class="score-team-pts">' + os + '</div></div>';
+                scoreboard.style.display = '';
+              }
+              resetBtn();
             } else if (json.error) {
               spinner.style.display = 'none';
               clearInterval(msgInterval);
-              streamError.style.display = '';
-              streamError.textContent = json.error;
+              errorBanner.textContent = json.error;
+              errorBanner.style.display = '';
+              resetBtn();
             }
           }
           return reader.read().then(processChunk);
@@ -469,10 +483,11 @@
       .catch(function(err) {
         clearInterval(msgInterval);
         spinner.style.display = 'none';
-        streamError.style.display = '';
-        streamError.textContent = 'Connection error: ' + err.message;
+        errorBanner.textContent = 'Connection error: ' + err.message;
+        errorBanner.style.display = '';
+        resetBtn();
       });
-  })();
+  });
 </script>
 </body>
 </html>
