@@ -1451,6 +1451,64 @@ def _parse_player_stat_line(name_raw, pos, stat_text, team_name):
     }
 
 
+def trim_box_for_api(text):
+    """Strip defensive stat tables from box score text before sending to API.
+    Keeps: score header, team stats, passing, rushing, receiving, kicking FG/XP lines."""
+    lines = text.splitlines()
+    out = []
+    skip = False
+    for line in lines:
+        ll = line.lower().strip()
+        # Start skipping on defensive section headers
+        if re.search(r'defensive|defense\b', ll) and not re.search(r'\d', ll[:5]):
+            skip = True
+            continue
+        # Stop skipping when we hit the next non-defensive section
+        if skip and re.search(r'(passing|rushing|receiving|kicking|team\s*stats|punting)', ll) and not re.search(r'\d', ll[:5]):
+            skip = False
+        if not skip:
+            out.append(line)
+    return '\n'.join(out)
+
+
+def trim_gamelog_for_api(text):
+    """Keep only scoring plays and the first 50 play-by-play lines."""
+    lines = text.splitlines()
+    scoring = []
+    plays = []
+    in_scoring = False
+    for line in lines:
+        ll = line.lower().strip()
+        if not ll:
+            continue
+        # Detect scoring section header
+        if 'scoring' in ll and not re.search(r'\d{2,}', ll):
+            in_scoring = True
+            scoring.append(line)
+            continue
+        # Detect play-by-play section header
+        if re.search(r'play.by.play|play by play', ll):
+            in_scoring = False
+            plays.append(line)
+            continue
+        if in_scoring:
+            scoring.append(line)
+        else:
+            # Scoring plays anywhere (TD, FG, PAT/XP lines)
+            if re.search(r'\bTD\b|\btouchdown\b|\bfield goal\b|\bFG\b|\bPAT\b|\bXP\b', ll):
+                scoring.append(line)
+            elif len(plays) < 51:  # header + 50 plays
+                plays.append(line)
+    result = []
+    if scoring:
+        result.extend(scoring)
+    if plays:
+        if result:
+            result.append('')
+        result.extend(plays)
+    return '\n'.join(result)
+
+
 def parse_box_score(text, your_team, opp_team):
     """Return (your_stats, their_stats, box_players) from pasted box score.
 
@@ -2886,16 +2944,19 @@ OUTPUT SECTIONS IN ORDER:
 - Score situation urgency if losing by 2+ scores
 Never include generic advice. Every item must have a specific reason."""
 
+        trimmed_box = trim_box_for_api(box_raw)
+        trimmed_log = trim_gamelog_for_api(gamelog_raw)
+
         user_message = f"""Your Team: {your_team}
 Your Offense: {your_offense}
 Opponent Team: {opp_team}
 Their Defense: {their_defense}
 
 Box Score & Team Stats:
-{box_raw}
+{trimmed_box}
 
 Game Log:
-{gamelog_raw}
+{trimmed_log}
 
 Your Team Ratings:
 {your_ratings_raw}
@@ -2907,7 +2968,7 @@ Opponent Team Ratings:
             client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
             response = client.messages.create(
                 model="claude-sonnet-4-20250514",
-                max_tokens=1500,
+                max_tokens=800,
                 system=halftime_system_prompt,
                 messages=[{"role": "user", "content": user_message}],
             )
