@@ -1451,58 +1451,6 @@ def _parse_player_stat_line(name_raw, pos, stat_text, team_name):
     }
 
 
-def trim_box_for_api(text):
-    """Strip defensive stats and punting from box score. Keep team stats, passing, rushing, receiving, kicking FG/XP."""
-    lines = text.splitlines()
-    out = []
-    skip = False
-    for line in lines:
-        ll = line.lower().strip()
-        if re.search(r'defensive|defense\b', ll) and not re.search(r'\d', ll[:5]):
-            skip = True
-            continue
-        if skip and re.search(r'(passing|rushing|receiving|kicking|team\s*stats|punting)', ll) and not re.search(r'\d', ll[:5]):
-            skip = False
-        if not skip:
-            out.append(line)
-    return '\n'.join(out)
-
-
-def trim_gamelog_for_api(text):
-    """Keep scoring plays + first 50 play-by-play lines."""
-    lines = text.splitlines()
-    scoring = []
-    plays = []
-    in_scoring = False
-    for line in lines:
-        ll = line.lower().strip()
-        if not ll:
-            continue
-        if 'scoring' in ll and not re.search(r'\d{2,}', ll):
-            in_scoring = True
-            scoring.append(line)
-            continue
-        if re.search(r'play.by.play|play by play', ll):
-            in_scoring = False
-            plays.append(line)
-            continue
-        if in_scoring:
-            scoring.append(line)
-        else:
-            if re.search(r'\bTD\b|\btouchdown\b|\bfield goal\b|\bFG\b|\bPAT\b|\bXP\b', ll):
-                scoring.append(line)
-            elif len(plays) < 51:
-                plays.append(line)
-    result = []
-    if scoring:
-        result.extend(scoring)
-    if plays:
-        if result:
-            result.append('')
-        result.extend(plays)
-    return '\n'.join(result)
-
-
 def parse_box_score(text, your_team, opp_team):
     """Return (your_stats, their_stats, box_players) from pasted box score.
 
@@ -2866,61 +2814,100 @@ def halftime_route():
     elif not box_raw and not gamelog_raw:
         error = "Please paste at least a box score or game log."
     else:
-        halftime_system_prompt = """Expert WhatIfSports sim football halftime analyst and dramatic color commentator. Provide a second half game plan from first half data and ratings.
+        halftime_system_prompt = """You are an expert WhatIfSports sim football halftime analyst AND a dramatic color commentator. You will receive first half game data and team ratings and provide a detailed second half game plan.
 
-CONTEXT: Text-based sim football. Only decisions: run inside/outside, pass targets, play calls within current formation. No audibles, no formation changes, no substitutions mid-game.
+SIM FOOTBALL CONTEXT — READ FIRST:
+This is text-based sim football, not real football. All recommendations must work within the constraints of a text-based sim game. There are no audibles, no pre-snap reads, no physical adjustments, no formation changes mid-game, no player substitutions during a drive. The only decisions available are: run inside, run outside, pass (which receivers to target), and which plays to call within the selected formation. Never recommend anything that requires physical action, real football strategy that does not apply to text sim, or changes that cannot be made in a text-based game.
 
-VOICE: Dramatic and energetic. Reference team names, records, game magnitude. Never invent facts not in the data.
+VOICE AND PERSONALITY:
+Write with drama, energy, and personality. You CAN reference team names, mascots, records, rivalry context, and the magnitude of the game. Paint the picture — make the coach FEEL the moment. However, you CANNOT invent specific facts that are not in the data. If both teams are undefeated based on the data, you can say "two undefeated powerhouses colliding." You CANNOT make up historical context, championship references, or specific facts not provided. Facts must be real, storytelling can be dramatic.
 
-FORMATIONS — Offense: I/Pro=1RB,2WR,1TE | Wishbone=1FB,2RB,1TE,1WR | ND Box=2RB,1WR,2TE | Shotgun=4WR,1TE(no RB) | Trips=1RB,3WR,1TE
-Defense: 3-4=3DL,4LB,4DB | 4-3=4DL,3LB,4DB | 4-4=4DL,4LB,3DB | 5-2=5DL,2LB,4DB | Nickel=4DL,2LB,5DB | Dime=3DL,2LB,6DB
+FORMATION PERSONNEL:
+I Formation: 1 RB, 2 WR, 1 TE
+Pro: 1 RB, 2 WR, 1 TE
+Wishbone: 1 FB, 2 RB, 1 TE, 1 WR
+Notre Dame Box: 2 RB, 1 WR, 2 TE
+Shotgun: 4 WR, 1 TE (no RB — do not include RB in passing targets or run game)
+Trips: 1 RB, 3 WR, 1 TE
+DEFENSE PERSONNEL:
+3-4: 3 DL, 4 LB, 4 DB
+4-3: 4 DL, 3 LB, 4 DB
+4-4: 4 DL, 4 LB, 3 DB
+5-2: 5 DL, 2 LB, 4 DB
+Nickel: 4 DL, 2 LB, 5 DB
+Dime: 3 DL, 2 LB, 6 DB
 
-RULES:
-- Never recommend formation changes. Play-call advice only within selected formation.
-- Every player: Name (POS, Team). No exceptions.
-- Never compare across position groups (RB vs DL, WR vs LB). Keep position analysis separate.
-- Shotgun = passing only, no RB. Nickel/Dime = recommend running more.
-- Mismatch = 20+ point rating difference only. Below 20 = even matchup.
-- Language: <20 diff = "slight edge" or "modest advantage". 10-19 = "solid advantage". 20+ = "dominates".
-- Verify math: higher number wins. Team with MORE points is winning.
-- Don't contradict data: if passing works (>50% comp), keep passing. If runs avg 3.0+ ypc, don't abandon.
-- Pick ONE run direction (inside vs outside) based on higher ypc. Never recommend both.
-- Sacked-Yds under a team = that team's QB was sacked (offensive problem, not defensive credit).
-- This is HALFTIME — only first half played. Never say "tale of two halves" or imply second half happened.
-- Top Performers: no colon before stat lines. Write "5 rec, 89 yds" not ": 5 rec, 89 yds".
+CRITICAL RULES:
+- NEVER recommend switching formations, using different receiver sets, or any formation variation. Players CANNOT change formations mid-game in this sim. Do not suggest "X-wide receiver sets", "spread formations", "go to shotgun", etc. Only give play-calling advice within the formation already selected.
+- EVERY player mentioned MUST include position and team in parentheses. Example: Roy Hogan (RB, Stony Brook). No exceptions.
+- Never compare RB vs DL, WR vs LB, or include QB protection matchups.
+- For Shotgun: no RB on field, passing only.
+- If Nickel or Dime defense: recommend running more.
+- Never include motivational filler — every recommendation must be specific and backed by data.
+- NO MIXING POSITION ANALYSIS — when analyzing an RB, use only RB stats and matchups. When analyzing a TE, use only TE stats and matchups. Do not bring in one position's ratings to support another position's recommendation. Keep each position analysis clean and separate.
+- MATH MUST BE CORRECT — before writing any comparison, verify which number is higher. If YOUR stat is 88 and THEIR stat is 84, that is a +4 advantage FOR YOU — do not say they overpower you. Never say a stat "overpowers" or "significantly overpowers" unless the edge is +15 or more. Double check every single comparison before writing.
+- DO NOT CONTRADICT THE DATA — if the passing game is working well (high completion %, good yardage), do not recommend abandoning it. If inside runs average 3.0+ ypc, that is decent — do not say to abandon them. Only recommend stopping something if the numbers clearly show it is failing (below 3.0 ypc for runs, below 50% completion for passes). Every recommendation must be logically consistent with the actual first half stats.
+- SCORE ACCURACY — always state the score correctly. If Team A has 13 points and Team B has 14 points, then Team A is LOSING by 1 point and Team B is WINNING by 1 point. The team with MORE points is winning. The team with FEWER points is losing. Double check who is winning before writing the summary. Never say a team "leads" when their score is lower than the opponent's.
+- NO "TALE OF TWO HALVES" — this is a HALFTIME report. Only the first half has been played. The second half has NOT happened yet. Never use phrases like "tale of two halves", "game of two halves", "two different halves", or any language that implies both halves have already been played. You are analyzing ONE half of data and recommending adjustments for the upcoming second half.
+- MISMATCH THRESHOLD — a mismatch only exists when the difference is 20 or more points. If YOUR stat is 767 and THEIR stat is 768 that is NOT a mismatch — it is an even matchup. Never say to exploit a matchup where your rating is lower than or equal to the opponent. Never recommend targeting a position as a mismatch unless your rating is at least 20 points higher than their corresponding defender rating. This applies to ALL matchups including TE TOT vs LB TOT — if the TE TOT is not at least 20 higher than LB TOT, do not recommend exploiting the TE as a mismatch.
+- SACKS BELONG TO THE DEFENSE — "Sacked-Yds 3-21" listed under a team's stats means that team's QB was sacked 3 times for 21 yards lost. Sacks are a DEFENSIVE stat credited to the opposing defense. If Stony Brook shows "Sacked-Yds 3-21" that means Stony Brook's offense has a pass protection problem — their QB was sacked 3 times. It does NOT mean Stony Brook's defense recorded sacks. Always check which team the sack stat belongs to before writing any recommendation about pass rush or QB protection. If YOUR team has sacks listed, YOUR offense is struggling with protection. If THEIR team has sacks listed, THEIR defense is getting to your QB.
+- TOP PERFORMERS FORMATTING — in the Top Performers section, never put a colon before stat lines. Write "5 rec, 89 yds" not ": 5 rec, 89 yds". No colon prefix on any stat line.
+- ONE RUN DIRECTION — calculate average yards per carry for inside runs and outside runs separately from the game log. Recommend ONLY the direction with higher yards per carry. Never recommend both inside AND outside running in the same game plan. Pick one and commit to it with the data to back it up.
+- OVERPOWERING LANGUAGE — never use "overpowers", "dominates", or "overwhelms" for any stat difference less than 20 points. A +4 edge (e.g. OL STR 88 vs DL STR 84) is a "slight edge" or "modest advantage". A +10 to +19 edge is a "solid advantage". Only use "dominates" or "overpowers" for differences of +20 or more.
 
-MATCHUPS (only these 8): OL BLK vs DL STR, OL STR vs DL STR, RB SPD vs LB SPD (if +15), RB STR vs LB STR, WR SPD vs DB SPD, WR AGI vs DB AGI, TE TOT vs LB TOT, TE SPD vs DB SPD
+ANALYSIS RULES:
+- Read the game log carefully and identify actual play patterns — what run directions worked, what pass routes converted, which players performed
+- Use the ratings to identify matchup advantages
+- Combine what actually happened in the first half WITH the ratings to give the most accurate second half plan
+- Only use these 8 meaningful matchups:
+  RUN GAME: OL BLK vs DL STR (run blocking edge), OL STR vs DL STR (power run edge), RB SPD vs LB SPD (outside run, only if +15 or more), RB STR vs LB STR (short yardage edge)
+  PASSING GAME: WR SPD vs DB SPD, WR AGI vs DB AGI, TE TOT vs LB TOT, TE SPD vs DB SPD
 
-OUTPUT: Clean HTML only (no markdown). Use <h3>, <p>, <strong>, <ul><li>, <div class="performers-grid"> with <div class="perf-col">, <div class="gameplan-bullet">.
+OUTPUT FORMAT — respond with clean HTML fragments (no <html>, <head>, or <body> tags). Use these elements:
+- <h3> for section headers
+- <p> for paragraphs
+- <strong> for bold/emphasis
+- <ul><li> for bullet lists
+- <div class="performers-grid"> with two <div class="perf-col"> inside for the two-column Top Performers layout
+- <div class="gameplan-bullet"> for each game plan recommendation
+Do NOT use markdown syntax (no **, no ##, no -). Output raw HTML only.
 
-SECTIONS:
-<h3>First Half Summary</h3> — 4-6 dramatic sentences. Score, what worked/failed, key players with stats.
-<h3>Top Performers</h3> — <div class="performers-grid"> with two <div class="perf-col">. Top 2 offensive + 1 defensive per team.
-<h3>Second Half Game Plan</h3> — 4-6 <div class="gameplan-bullet"> items. Best run direction with ypc, best pass target, formation exploitation, key players to target. Every item backed by data."""
+OUTPUT SECTIONS IN ORDER:
 
-        trimmed_box = trim_box_for_api(box_raw)
-        trimmed_log = trim_gamelog_for_api(gamelog_raw)
+<h3>First Half Summary</h3> — 6-8 sentences written like a dramatic color commentator. Include current score, what worked and what did not for each team with specific stats and player names (with position and team). End with what the game is hinging on. Be vivid and intense.
 
-        user_message = f"""Your Team: {your_team} ({your_offense})
-Opponent: {opp_team} ({their_defense})
+<h3>Top Performers — First Half</h3> — wrapped in <div class="performers-grid">. Two <div class="perf-col"> columns: one for each team. Top 2 offensive and top 2 defensive players per team based on actual stats. Show stat lines.
 
-Box Score:
-{trimmed_box}
+<h3>Second Half Game Plan</h3> — for the user's team only. 5-7 specific actionable items, each wrapped in <div class="gameplan-bullet">. Each must reference actual first half data or ratings. Include:
+- Best run direction (outside vs inside) with actual ypc from game log
+- Best passing target with catches and yards from game log
+- Formation vs defense exploitation based on personnel (within the CURRENT formation only)
+- Which players to target more based on first half performance AND ratings matchup
+- Score situation urgency if losing by 2+ scores
+Never include generic advice. Every item must have a specific reason."""
+
+        user_message = f"""Your Team: {your_team}
+Your Offense: {your_offense}
+Opponent Team: {opp_team}
+Their Defense: {their_defense}
+
+Box Score & Team Stats:
+{box_raw}
 
 Game Log:
-{trimmed_log}
+{gamelog_raw}
 
-Your Ratings:
+Your Team Ratings:
 {your_ratings_raw}
 
-Opponent Ratings:
+Opponent Team Ratings:
 {opp_ratings_raw}"""
 
         try:
             client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
             response = client.messages.create(
-                model="claude-haiku-4-5-20251001",
-                max_tokens=800,
+                model="claude-sonnet-4-20250514",
+                max_tokens=1500,
                 system=halftime_system_prompt,
                 messages=[{"role": "user", "content": user_message}],
             )
@@ -3021,40 +3008,28 @@ Opponent Ratings:
 
         def _parse_jammed_scores(text, team1, team2):
             """Parse scores from jammed format like 'Team1 (W-L)31013#1Team2 (W-L)7714'.
-            Uses the opposing team name as a boundary to isolate each team's digit blob.
             Returns (team1_quarters, team2_quarters) or (None, None)."""
             t1_quarters = None
             t2_quarters = None
 
-            for team, other_team, label in [(team1, team2, 'YOUR'), (team2, team1, 'OPP')]:
+            for team, label in [(team1, 'YOUR'), (team2, 'OPP')]:
                 escaped = re.escape(team)
-                # Find where this team name appears
-                team_match = re.search(escaped, text, re.IGNORECASE)
-                if not team_match:
-                    continue
-                after_team = text[team_match.end():]
-
-                # Find where the OTHER team name starts (to set a boundary)
-                other_escaped = re.escape(other_team)
-                other_match = re.search(other_escaped, after_team, re.IGNORECASE)
-                if other_match:
-                    segment = after_team[:other_match.start()]
-                else:
-                    segment = after_team
-
-                # Strip all parenthesized groups (FL), (9-2), etc. and rank prefixes like #23
-                segment_clean = re.sub(r'\([^)]*\)', '', segment)
-                segment_clean = re.sub(r'#\d+', '', segment_clean)
-                # Extract the digit blob — all consecutive digits after cleanup
-                digit_blob = ''.join(re.findall(r'\d+', segment_clean))
-                if not digit_blob:
-                    continue
-                quarters = _split_jammed_digits(digit_blob)
-                print(f">>> SCORE PARSER JAMMED: {label} team '{team}' -> segment='{segment.strip()}', blob='{digit_blob}', split={quarters}", flush=True)
-                if label == 'YOUR':
-                    t1_quarters = quarters
-                else:
-                    t2_quarters = quarters
+                # Match: TeamName + optional (record) + jammed digits
+                m = re.search(escaped + r'\s*(?:\([^)]*\))?\s*(\d+)', text, re.IGNORECASE)
+                if m:
+                    digit_blob = m.group(1)
+                    # The digit blob might extend further — grab all consecutive digits from this position
+                    rest = text[m.start(1):]
+                    # Take digits up until we hit a letter or #
+                    full_digits = re.match(r'(\d+)', rest)
+                    if full_digits:
+                        digit_blob = full_digits.group(1)
+                    quarters = _split_jammed_digits(digit_blob)
+                    print(f">>> SCORE PARSER JAMMED: {label} team '{team}' -> blob='{digit_blob}', split={quarters}", flush=True)
+                    if label == 'YOUR':
+                        t1_quarters = quarters
+                    else:
+                        t2_quarters = quarters
 
             return t1_quarters, t2_quarters
 
