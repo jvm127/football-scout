@@ -2794,27 +2794,7 @@ def halftime_advisor():
                            your_offense='', their_defense='',
                            report={}, error=None)
 
-@app.route("/halftime", methods=["POST"])
-@subscription_required
-def halftime_route():
-    your_team        = request.form.get("ht_your_team",    "").strip()
-    opp_team         = request.form.get("ht_opp_team",     "").strip()
-    box_raw          = request.form.get("ht_box_score",    "").strip()
-    gamelog_raw       = request.form.get("ht_game_log",     "").strip()
-    your_ratings_raw = request.form.get("ht_your_ratings", "").strip()
-    opp_ratings_raw  = request.form.get("ht_opp_ratings",  "").strip()
-    your_offense     = request.form.get("ht_your_offense", "").strip()
-    their_defense    = request.form.get("ht_their_defense","").strip()
-
-    error   = None
-    ai_result = None
-
-    if not your_team or not opp_team:
-        error = "Please enter both team names."
-    elif not box_raw and not gamelog_raw:
-        error = "Please paste at least a box score or game log."
-    else:
-        halftime_system_prompt = """You are an expert WhatIfSports sim football halftime analyst AND a dramatic color commentator. You will receive first half game data and team ratings and provide a detailed second half game plan.
+HALFTIME_SYSTEM_PROMPT = """You are an expert WhatIfSports sim football halftime analyst AND a dramatic color commentator. You will receive first half game data and team ratings and provide a detailed second half game plan.
 
 SIM FOOTBALL CONTEXT — READ FIRST:
 This is text-based sim football, not real football. All recommendations must work within the constraints of a text-based sim game. There are no audibles, no pre-snap reads, no physical adjustments, no formation changes mid-game, no player substitutions during a drive. The only decisions available are: run inside, run outside, pass (which receivers to target), and which plays to call within the selected formation. Never recommend anything that requires physical action, real football strategy that does not apply to text sim, or changes that cannot be made in a text-based game.
@@ -2886,7 +2866,51 @@ OUTPUT SECTIONS IN ORDER:
 - Score situation urgency if losing by 2+ scores
 Never include generic advice. Every item must have a specific reason."""
 
-        user_message = f"""Your Team: {your_team}
+
+def _sanitize_halftime_html(html):
+    """Sanitize AI HTML output — allow only safe tags and classes."""
+    import re as _re
+    ALLOWED_TAGS = {'h3','h4','p','strong','em','ul','ol','li','div','span','br'}
+    ALLOWED_CLASSES = {'performers-grid','perf-col','gameplan-bullet'}
+    html = _re.sub(r'<script[^>]*>.*?</script>', '', html, flags=_re.DOTALL | _re.IGNORECASE)
+    html = _re.sub(r'<style[^>]*>.*?</style>', '', html, flags=_re.DOTALL | _re.IGNORECASE)
+    html = _re.sub(r'<iframe[^>]*>.*?</iframe>', '', html, flags=_re.DOTALL | _re.IGNORECASE)
+    html = _re.sub(r'\bon\w+\s*=', '', html, flags=_re.IGNORECASE)
+    def _filter_class(m):
+        tag = m.group(1).lower()
+        cls = m.group(2)
+        if tag not in ALLOWED_TAGS:
+            return ''
+        classes = [c.strip() for c in cls.split() if c.strip() in ALLOWED_CLASSES]
+        if classes:
+            return f'<{m.group(1)} class="{" ".join(classes)}"'
+        return f'<{m.group(1)}'
+    html = _re.sub(r'<(\w+)\s+class="([^"]*)"', _filter_class, html)
+    return html
+
+
+@app.route("/halftime-stream", methods=["POST"])
+@subscription_required
+def halftime_stream():
+    """Stream the Anthropic API response via SSE so the sync worker isn't blocked."""
+    from flask import Response, stream_with_context
+    import json as _json
+
+    your_team        = request.form.get("ht_your_team",    "").strip()
+    opp_team         = request.form.get("ht_opp_team",     "").strip()
+    box_raw          = request.form.get("ht_box_score",    "").strip()
+    gamelog_raw       = request.form.get("ht_game_log",     "").strip()
+    your_ratings_raw = request.form.get("ht_your_ratings", "").strip()
+    opp_ratings_raw  = request.form.get("ht_opp_ratings",  "").strip()
+    your_offense     = request.form.get("ht_your_offense", "").strip()
+    their_defense    = request.form.get("ht_their_defense","").strip()
+
+    if not your_team or not opp_team:
+        return Response(f"data: {_json.dumps({'error': 'Please enter both team names.'})}\n\n", content_type='text/event-stream')
+    if not box_raw and not gamelog_raw:
+        return Response(f"data: {_json.dumps({'error': 'Please paste at least a box score or game log.'})}\n\n", content_type='text/event-stream')
+
+    user_message = f"""Your Team: {your_team}
 Your Offense: {your_offense}
 Opponent Team: {opp_team}
 Their Defense: {their_defense}
@@ -2903,43 +2927,54 @@ Your Team Ratings:
 Opponent Team Ratings:
 {opp_ratings_raw}"""
 
+    def generate():
+        full_text = ""
         try:
-            client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
-            response = client.messages.create(
+            api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+            if not api_key:
+                yield f"data: {_json.dumps({'error': 'ANTHROPIC_API_KEY is not configured.'})}\n\n"
+                return
+            client = anthropic.Anthropic(api_key=api_key)
+            with client.messages.stream(
                 model="claude-sonnet-4-20250514",
                 max_tokens=1500,
-                system=halftime_system_prompt,
+                system=HALFTIME_SYSTEM_PROMPT,
                 messages=[{"role": "user", "content": user_message}],
-            )
-            raw_result = validate_ai_output(response.content[0].text)
-            # Sanitize: only allow specific safe HTML tags
-            import re as _re
-            ALLOWED_TAGS = {'h3','h4','p','strong','em','ul','ol','li','div','span','br'}
-            ALLOWED_CLASSES = {'performers-grid','perf-col','gameplan-bullet'}
-            def _sanitize_html(html):
-                # Strip any <script>, <style>, <iframe>, on* attributes etc.
-                # Allow only whitelisted tags
-                html = _re.sub(r'<script[^>]*>.*?</script>', '', html, flags=_re.DOTALL | _re.IGNORECASE)
-                html = _re.sub(r'<style[^>]*>.*?</style>', '', html, flags=_re.DOTALL | _re.IGNORECASE)
-                html = _re.sub(r'<iframe[^>]*>.*?</iframe>', '', html, flags=_re.DOTALL | _re.IGNORECASE)
-                html = _re.sub(r'\bon\w+\s*=', '', html, flags=_re.IGNORECASE)
-                # Strip class attributes that aren't in our allowed list
-                def _filter_class(m):
-                    tag = m.group(1).lower()
-                    cls = m.group(2)
-                    if tag not in ALLOWED_TAGS:
-                        return ''
-                    classes = [c.strip() for c in cls.split() if c.strip() in ALLOWED_CLASSES]
-                    if classes:
-                        return f'<{m.group(1)} class="{" ".join(classes)}"'
-                    return f'<{m.group(1)}'
-                html = _re.sub(r'<(\w+)\s+class="([^"]*)"', _filter_class, html)
-                return html
-            ai_result = _sanitize_html(raw_result)
+            ) as stream:
+                for text in stream.text_stream:
+                    full_text += text
+                    yield f"data: {_json.dumps({'chunk': text})}\n\n"
+            # Post-process the complete text
+            validated = validate_ai_output(full_text)
+            sanitized = _sanitize_halftime_html(validated)
+            yield f"data: {_json.dumps({'done': sanitized})}\n\n"
         except Exception as e:
-            print(f">>> HALFTIME ANALYZE ERROR: {e}", flush=True)
+            print(f">>> HALFTIME STREAM ERROR: {type(e).__name__}: {e}", flush=True)
             traceback.print_exc()
-            error = f"AI analysis failed: {str(e)}"
+            yield f"data: {_json.dumps({'error': f'AI analysis failed: {str(e)}'})}\n\n"
+
+    return Response(stream_with_context(generate()), content_type='text/event-stream')
+
+
+@app.route("/halftime", methods=["POST"])
+@subscription_required
+def halftime_route():
+    your_team        = request.form.get("ht_your_team",    "").strip()
+    opp_team         = request.form.get("ht_opp_team",     "").strip()
+    box_raw          = request.form.get("ht_box_score",    "").strip()
+    gamelog_raw       = request.form.get("ht_game_log",     "").strip()
+    your_ratings_raw = request.form.get("ht_your_ratings", "").strip()
+    opp_ratings_raw  = request.form.get("ht_opp_ratings",  "").strip()
+    your_offense     = request.form.get("ht_your_offense", "").strip()
+    their_defense    = request.form.get("ht_their_defense","").strip()
+
+    error   = None
+    ai_result = None
+
+    if not your_team or not opp_team:
+        error = "Please enter both team names."
+    elif not box_raw and not gamelog_raw:
+        error = "Please paste at least a box score or game log."
 
     # Parse halftime score from box score text
     # WIS box score can come in multiple formats:
@@ -3008,28 +3043,36 @@ Opponent Team Ratings:
 
         def _parse_jammed_scores(text, team1, team2):
             """Parse scores from jammed format like 'Team1 (W-L)31013#1Team2 (W-L)7714'.
+            Uses opposing team name as boundary to isolate each team's digit segment.
             Returns (team1_quarters, team2_quarters) or (None, None)."""
             t1_quarters = None
             t2_quarters = None
 
-            for team, label in [(team1, 'YOUR'), (team2, 'OPP')]:
+            for team, other_team, label in [(team1, team2, 'YOUR'), (team2, team1, 'OPP')]:
                 escaped = re.escape(team)
-                # Match: TeamName + optional (record) + jammed digits
-                m = re.search(escaped + r'\s*(?:\([^)]*\))?\s*(\d+)', text, re.IGNORECASE)
-                if m:
-                    digit_blob = m.group(1)
-                    # The digit blob might extend further — grab all consecutive digits from this position
-                    rest = text[m.start(1):]
-                    # Take digits up until we hit a letter or #
-                    full_digits = re.match(r'(\d+)', rest)
-                    if full_digits:
-                        digit_blob = full_digits.group(1)
-                    quarters = _split_jammed_digits(digit_blob)
-                    print(f">>> SCORE PARSER JAMMED: {label} team '{team}' -> blob='{digit_blob}', split={quarters}", flush=True)
-                    if label == 'YOUR':
-                        t1_quarters = quarters
-                    else:
-                        t2_quarters = quarters
+                team_match = re.search(escaped, text, re.IGNORECASE)
+                if not team_match:
+                    continue
+                after_team = text[team_match.end():]
+                # Use the other team's name as the boundary
+                other_escaped = re.escape(other_team)
+                other_match = re.search(other_escaped, after_team, re.IGNORECASE)
+                if other_match:
+                    segment = after_team[:other_match.start()]
+                else:
+                    segment = after_team
+                # Strip ALL parenthesized groups (record, location, etc.) and rankings
+                segment_clean = re.sub(r'\([^)]*\)', '', segment)
+                segment_clean = re.sub(r'#\d+', '', segment_clean)
+                digit_blob = ''.join(re.findall(r'\d+', segment_clean))
+                if not digit_blob:
+                    continue
+                quarters = _split_jammed_digits(digit_blob)
+                print(f">>> SCORE PARSER JAMMED: {label} team '{team}' -> segment='{segment.strip()}', blob='{digit_blob}', split={quarters}", flush=True)
+                if label == 'YOUR':
+                    t1_quarters = quarters
+                else:
+                    t2_quarters = quarters
 
             return t1_quarters, t2_quarters
 
