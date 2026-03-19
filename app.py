@@ -2837,11 +2837,11 @@ OUTPUT SECTIONS IN ORDER:
 <h3>Target Distribution</h3> — one <div class="gameplan-bullet"> per targeted player, ordered by highest target percentage first. Each entry format: <strong>Name (POS, Team) — WR1 / 30%%</strong> as the bold header (role label and percentage), then 2-3 sentences explaining WHY they get that specific percentage based on their matchup advantage, TOT rating, and the defensive weakness they exploit. The percentages MUST reflect the EXACT formation personnel — a Wishbone (1 WR) should never recommend heavy WR targets, a Shotgun (0 RB) should never recommend any RB targets. Star players with higher TOT ratings and better matchup advantages should dominate the target share — do NOT distribute evenly.
 
 <h3>Game Prediction</h3> — write this like a pre-game prediction column, NOT bullet points. Use <p> tags for narrative paragraphs. Structure:
-1. A narrative paragraph (4-6 sentences) predicting how the game will unfold based on everything analyzed above — who controls the tempo, which side of the ball wins, when momentum shifts, how it ends.
-2. A paragraph highlighting 2-3 key players to watch from EACH team and what you predict they'll do statistically (e.g. "expect 120+ rushing yards and 2 TDs from...").
-3. One sentence identifying the specific matchup that will determine the outcome.
-4. End with the final score prediction displayed as: <div class="score-prediction"><strong>Final Score: [Your Team] [X], [Opponent] [Y]</strong></div>
-Make it vivid, confident, and specific — not hedging or generic."""
+1. FIRST, immediately after the h3 header, display the predicted final score prominently: <div class="score-prediction"><strong>[YOUR TEAM] [X], [OPPONENT] [Y]</strong></div> — use the actual team names in ALL CAPS and realistic score numbers.
+2. Then a narrative paragraph (4-6 sentences) predicting how the game will unfold based on everything analyzed above — who controls the tempo, which side of the ball wins, when momentum shifts, how it ends.
+3. A paragraph highlighting 2-3 key players to watch from EACH team and what you predict they'll do statistically (e.g. "expect 120+ rushing yards and 2 TDs from...").
+4. One sentence identifying the specific matchup that will determine the outcome.
+Make it vivid, confident, and specific — not hedging or generic. IMPORTANT: This section must be complete — do not cut it short."""
 
         stats_block = ""
         if your_stats_raw:
@@ -2868,7 +2868,7 @@ Opponent Team Ratings:
             )
             response = client.messages.create(
                 model="claude-haiku-4-5-20251001",
-                max_tokens=4000,
+                max_tokens=6000,
                 system=strategy_system_prompt,
                 messages=[{"role": "user", "content": user_message}],
             )
