@@ -2809,6 +2809,14 @@ Trips: 3 WR, 1 RB, 1 TE
 Notre Dame Box: 1 WR, 2 RB, 2 TE
 Wishbone: 1 WR, 1 TE, 1 FB, 2 RB
 Shotgun: 4 WR, 1 TE, 0 RB (no RB on field — zero RB targets, zero RB runs)
+
+STRICT FORMATION RULE — NEVER VIOLATE: Only recommend targets for players physically on the field. Personnel by formation:
+- Pro / I Formation: WR1, WR2, TE1, RB1, RB2 ONLY. WR3 and WR4 DO NOT EXIST.
+- Notre Dame Box: WR1, TE1, TE2, RB1, RB2 ONLY. No WR2, WR3, WR4.
+- Wishbone: WR1, TE1, RB1, RB2, FB ONLY. No WR2, WR3, WR4.
+- Trips: WR1, WR2, WR3, TE1, RB1 ONLY. No WR4, no RB2.
+- Shotgun: WR1, WR2, WR3, WR4, TE1 ONLY. No RBs at all.
+If you recommend a WR3 for Pro formation or an RB for Shotgun, that is a critical error. Count the personnel before generating any target distribution.
 DEFENSE PERSONNEL:
 3-4: 3 DL, 4 LB, 4 DB
 4-3: 4 DL, 3 LB, 4 DB
