@@ -3353,10 +3353,10 @@ OUTPUT SECTIONS IN ORDER:
 
 <h3>Game Recap</h3> — 8-12 sentences written like a sports news article. Lead with the final score and the winning team. Describe the flow of the game — who jumped out early, any momentum shifts, how it ended. Reference specific stats (passing yards, rushing yards, turnovers, sacks) and name the players who made the biggest impact. Be vivid and dramatic but factual.
 
-<h3>Key Performers</h3> — wrapped in <div class="performers-grid">. Two <div class="perf-col"> columns: one for each team. Inside each perf-col, format as follows:
+<h3>Key Performers</h3> — wrapped in <div class="performers-grid">. Two <div class="perf-col"> columns. The FIRST (left) column is ALWAYS the user's team (Your Team). The SECOND (right) column is ALWAYS the opponent. Start each perf-col with an <h4> containing the team name in all caps (e.g. <h4>STONY BROOK</h4>). Inside each perf-col, format as follows:
 <h4>OFFENSE</h4> (all caps, gray subheader), then 2 offensive players (name, position, stats) in white text — one per <p> tag.
 Then <h4>DEFENSE</h4> (all caps, gray subheader with margin-top for spacing), then 2 defensive players in white text — one per <p> tag.
-Based on actual game stats.
+Based on actual game stats. IMPORTANT: Your Team = left column, Opponent = right column. Never reverse this order.
 
 <h3>By the Numbers</h3> — 4-6 notable stats or stat comparisons from the game, each wrapped in <div class="stat-highlight">. Examples: total yards comparison, turnover margin, third down efficiency, time of possession, biggest individual performances. Each should tell part of the story.
 
