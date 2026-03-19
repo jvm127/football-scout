@@ -2836,7 +2836,14 @@ OUTPUT SECTIONS IN ORDER:
 
 <h3>Target Distribution</h3> — a single <div class="gameplan-bullet"> showing recommended passing target percentage for EVERY eligible receiver on the field based on the EXACT formation personnel listed above. Label each target by role AND player name — e.g. "WR1 (Smith): 30%%, WR2 (Davis): 25%%, TE1 (Foster): 20%%, RB1 (Johnson): 15%%, RB2 (Williams): 10%%". The percentages MUST reflect the actual number of skill players on the field for the selected formation — a Wishbone (1 WR) should never recommend heavy WR targets, a Shotgun (0 RB) should never recommend any RB targets. Star players with higher TOT ratings and better matchup advantages should dominate the target share — do NOT distribute evenly. Explain the reasoning in 2-3 sentences referencing specific TOT ratings and matchup edges.
 
-<h3>Running Distribution</h3> — 3-5 items, each a <div class="gameplan-bullet">. Cover: which backs to use and why, when to run inside vs outside, down and distance tendencies (e.g. "1st down: 60%% inside, 40%% outside"), and goal line package recommendations. Each item gets a <strong>bold header</strong> and 2-3 sentences of detail."""
+<h3>Running Distribution</h3> — 3-5 items, each a <div class="gameplan-bullet">. Cover: which backs to use and why, when to run inside vs outside, down and distance tendencies (e.g. "1st down: 60%% inside, 40%% outside"), and goal line package recommendations. Each item gets a <strong>bold header</strong> and 2-3 sentences of detail.
+
+<h3>Game Prediction</h3> — write this like a pre-game prediction column, NOT bullet points. Use <p> tags for narrative paragraphs. Structure:
+1. A narrative paragraph (4-6 sentences) predicting how the game will unfold based on everything analyzed above — who controls the tempo, which side of the ball wins, when momentum shifts, how it ends.
+2. A paragraph highlighting 2-3 key players to watch from EACH team and what you predict they'll do statistically (e.g. "expect 120+ rushing yards and 2 TDs from...").
+3. One sentence identifying the specific matchup that will determine the outcome.
+4. End with the final score prediction displayed as: <div class="score-prediction"><strong>Final Score: [Your Team] [X], [Opponent] [Y]</strong></div>
+Make it vivid, confident, and specific — not hedging or generic."""
 
         stats_block = ""
         if your_stats_raw:
@@ -2871,7 +2878,7 @@ Opponent Team Ratings:
             # Sanitize: only allow specific safe HTML tags
             import re as _re
             ALLOWED_TAGS = {'h3','h4','p','strong','em','ul','ol','li','div','span','br'}
-            ALLOWED_CLASSES = {'performers-grid','perf-col','gameplan-bullet'}
+            ALLOWED_CLASSES = {'performers-grid','perf-col','gameplan-bullet','score-prediction'}
             def _sanitize_html(html):
                 # Strip markdown code fences (```html, ```, etc.)
                 html = _re.sub(r'```\w*\n?', '', html)
