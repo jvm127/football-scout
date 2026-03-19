@@ -2829,7 +2829,7 @@ OUTPUT SECTIONS IN ORDER:
 
 <h3>Formation Matchup</h3> — analyze your offense vs their defense personnel. Call out specific mismatches like '3 WRs vs only 3 DBs means one WR gets a LB in coverage'. Use <p> tags.
 
-<h3>Biggest Advantages</h3> — list only edges of +20 or more using the 8 meaningful matchups. Write specific sim football advice with actual numbers. Use <ul><li> for each advantage.
+<h3>Biggest Advantages</h3> — list at least 6 advantages using the 8 meaningful matchups (include edges of any size, not just +20). Each advantage should be a <div class="gameplan-bullet"> with a <strong>bold header</strong> (e.g. "OL BLK vs DL STR — Run Blocking Edge") followed by 2-3 sentences of tactical detail explaining exactly how to exploit this advantage in the sim game. Reference actual rating numbers and specific player names. Do NOT use a simple one-liner list — each advantage needs a full writeup.
 
 <h3>Danger Zones</h3> — opponent edges of +20 or more. Give specific advice to neutralize. Use <ul><li> for each danger zone.
 
@@ -2863,7 +2863,7 @@ Opponent Team Ratings:
             )
             response = client.messages.create(
                 model="claude-haiku-4-5-20251001",
-                max_tokens=800,
+                max_tokens=2000,
                 system=strategy_system_prompt,
                 messages=[{"role": "user", "content": user_message}],
             )
@@ -2873,6 +2873,8 @@ Opponent Team Ratings:
             ALLOWED_TAGS = {'h3','h4','p','strong','em','ul','ol','li','div','span','br'}
             ALLOWED_CLASSES = {'performers-grid','perf-col','gameplan-bullet'}
             def _sanitize_html(html):
+                # Strip markdown code fences (```html, ```, etc.)
+                html = _re.sub(r'```\w*\n?', '', html)
                 html = _re.sub(r'<script[^>]*>.*?</script>', '', html, flags=_re.DOTALL | _re.IGNORECASE)
                 html = _re.sub(r'<style[^>]*>.*?</style>', '', html, flags=_re.DOTALL | _re.IGNORECASE)
                 html = _re.sub(r'<iframe[^>]*>.*?</iframe>', '', html, flags=_re.DOTALL | _re.IGNORECASE)
