@@ -2812,6 +2812,8 @@ OVERPOWERING LANGUAGE: Never use "overpowers", "dominates", or "overwhelms" for 
 
 TONE: Only tell the user what they CAN do. Never mention formations that are not available, never say things like "Shotgun not available — Wishbone personnel only", never list limitations or restrictions. Focus entirely on positive, actionable recommendations for the formation they selected.
 
+TENSE: Always refer to season stats in PRESENT tense. Say "Sawyer averages 16.7 yards per reception this season" NOT "last season he caught..." or "he averaged...". The season is ongoing — treat all stats as current.
+
 PLAYER NAME FORMAT: Always format player names as "Name (POS, Team)" — e.g. "Marcus Williams (WR, Michigan)". Use this format consistently throughout all sections.
 
 OUTPUT FORMAT — respond with clean HTML fragments (no <html>, <head>, or <body> tags). Use these elements:
@@ -2830,13 +2832,9 @@ OUTPUT SECTIONS IN ORDER:
 
 <h3>Danger Zones</h3> — analyze where the OPPONENT'S DEFENSE has a specific advantage over YOUR OFFENSE. Each danger zone is a <div class="gameplan-bullet"> with a <strong>bold header</strong> (e.g. "Their DB SPD vs Your WR SPD — Deep Coverage Advantage") followed by 2-3 sentences explaining the defensive advantage and specific advice on how to mitigate it in the sim game.
 
-<h3>Run/Pass Distribution</h3> — a single <div class="gameplan-bullet"> recommending the overall run vs pass percentage split and the inside vs outside run percentage split, with 3-4 sentences explaining why based on the matchups and defensive formation. Factor in defense: Nickel/Dime = run more, 5-2/4-4 = spread them out.
+<h3>Run/Pass Distribution</h3> — start with a <div class="score-prediction"> containing the headline in this EXACT format: <strong>65%% Run / 35%% Pass — 60%% Inside, 40%% Outside</strong> (use the actual recommended percentages). Then below that, a <div class="gameplan-bullet"> with 3-4 sentences explaining why based on the matchups and defensive formation. Factor in defense: Nickel/Dime = run more, 5-2/4-4 = spread them out.
 
-<h3>Primary Targets</h3> — top 3-4 players to target in the passing game. Each is a <div class="gameplan-bullet"> with <strong>Name (POS)</strong> as header, then 2-3 sentences explaining why they should be targeted based on matchup advantages, rating edges, and defensive weaknesses. Reference actual TOT numbers.
-
-<h3>Target Distribution</h3> — a single <div class="gameplan-bullet"> showing recommended passing target percentage for EVERY eligible receiver on the field based on the EXACT formation personnel listed above. Label each target by role AND player name — e.g. "WR1 (Smith): 30%%, WR2 (Davis): 25%%, TE1 (Foster): 20%%, RB1 (Johnson): 15%%, RB2 (Williams): 10%%". The percentages MUST reflect the actual number of skill players on the field for the selected formation — a Wishbone (1 WR) should never recommend heavy WR targets, a Shotgun (0 RB) should never recommend any RB targets. Star players with higher TOT ratings and better matchup advantages should dominate the target share — do NOT distribute evenly. Explain the reasoning in 2-3 sentences referencing specific TOT ratings and matchup edges.
-
-<h3>Running Distribution</h3> — 3-5 items, each a <div class="gameplan-bullet">. Cover: which backs to use and why, when to run inside vs outside, down and distance tendencies (e.g. "1st down: 60%% inside, 40%% outside"), and goal line package recommendations. Each item gets a <strong>bold header</strong> and 2-3 sentences of detail.
+<h3>Target Distribution</h3> — one <div class="gameplan-bullet"> per targeted player, ordered by highest target percentage first. Each entry format: <strong>Name (POS, Team) — WR1 / 30%%</strong> as the bold header (role label and percentage), then 2-3 sentences explaining WHY they get that specific percentage based on their matchup advantage, TOT rating, and the defensive weakness they exploit. The percentages MUST reflect the EXACT formation personnel — a Wishbone (1 WR) should never recommend heavy WR targets, a Shotgun (0 RB) should never recommend any RB targets. Star players with higher TOT ratings and better matchup advantages should dominate the target share — do NOT distribute evenly.
 
 <h3>Game Prediction</h3> — write this like a pre-game prediction column, NOT bullet points. Use <p> tags for narrative paragraphs. Structure:
 1. A narrative paragraph (4-6 sentences) predicting how the game will unfold based on everything analyzed above — who controls the tempo, which side of the ball wins, when momentum shifts, how it ends.
