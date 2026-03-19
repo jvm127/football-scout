@@ -2363,6 +2363,10 @@ def internal_access():
     session['internal_access'] = True
     return redirect(url_for('dashboard_page'))
 
+@app.route("/health")
+def health_check():
+    return {"status": "ok"}, 200
+
 @app.route("/")
 def landing():
     if session.get('internal_access'):

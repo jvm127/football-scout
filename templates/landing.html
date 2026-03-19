@@ -101,7 +101,13 @@
 
     .hero-video {
       max-width: 640px;
-      margin: 36px auto 0;
+      margin: 56px auto 0;
+    }
+    .hero-video-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #e2e8f0;
+      margin-bottom: 16px;
     }
     .hero-video iframe {
       width: 100%;
@@ -118,6 +124,11 @@
       gap: 24px;
     }
     @media (max-width: 700px) { .features-grid { grid-template-columns: 1fr; } }
+    .features-grid.three-col {
+      grid-template-columns: repeat(3, 1fr);
+    }
+    @media (max-width: 900px) { .features-grid.three-col { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 700px) { .features-grid.three-col { grid-template-columns: 1fr; } }
 
     .feature-card {
       background: #1e2130;
@@ -254,32 +265,43 @@
       <a href="/signup" class="hero-cta">Get Started</a>
       {% if landing_video_url %}
       <div class="hero-video">
+        <p class="hero-video-title">See It In Action — Watch How WIS Cheat Code Works</p>
         <iframe src="{{ landing_video_url }}" allowfullscreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>
       </div>
       {% endif %}
     </div>
 
     <div class="features">
-      <div class="features-grid">
+      <div class="features-grid three-col">
         <div class="feature-card">
-          <div class="feature-icon">&#127944;</div>
-          <h3>Play Tendency Scout</h3>
-          <p>See your opponent's run/pass tendencies broken down by down, distance, and formation. Know exactly what they like to call in every situation before the game starts.</p>
+          <div class="feature-icon">&#128737;</div>
+          <h3>Defensive Game Planning</h3>
+          <p>Paste your opponent's play-by-play CSV. See their run/pass tendencies broken down by down, distance, and formation so you know exactly what to expect before the game.</p>
         </div>
         <div class="feature-card">
-          <div class="feature-icon">&#9878;</div>
-          <h3>Pre-Game Matchup Analyzer <span class="badge-ai">AI Powered</span></h3>
-          <p>Paste both team ratings and select your formation and their defense. AI analyzes every meaningful matchup, identifies mismatches, recommends passing target percentages by player name, and gives you a complete game plan with run/pass splits.</p>
+          <div class="feature-icon">&#127944;</div>
+          <h3>Offensive Game Planning <span class="badge-ai">AI Powered</span></h3>
+          <p>Paste both team ratings and select your formation. AI identifies every meaningful matchup, recommends target percentages by player name, run/pass splits, and gives you a complete game plan.</p>
         </div>
         <div class="feature-card">
           <div class="feature-icon">&#9201;</div>
           <h3>Halftime Advisor <span class="badge-ai">AI Powered</span></h3>
-          <p>Paste the box score and game log at halftime. AI reads the actual play-by-play, identifies what is working and what is not, and gives you specific second half adjustments with player names and percentages.</p>
+          <p>Paste the box score and game log at halftime. AI reads the actual play-by-play, identifies what's working and what's not, and gives specific second half adjustments with player names.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#128200;</div>
+          <h3>Post Game Analysis <span class="badge-ai">AI Powered</span></h3>
+          <p>Paste the final box score and game log. AI writes a full sports news article recap with key performers, stats, and takeaways. Export to PDF.</p>
         </div>
         <div class="feature-card">
           <div class="feature-icon">&#127891;</div>
           <h3>Recruiting Evaluator <span class="badge-ai">AI Powered</span></h3>
-          <p>Paste your recruiting board. AI filters by division rules, distance limits, and school exclusions automatically. Players are ranked and tiered by position attributes with strengths and red flags. Export results to CSV.</p>
+          <p>Paste your recruiting board. AI filters by division rules, distance limits, and school exclusions automatically. Players are ranked and tiered by position with strengths and red flags.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#127909;</div>
+          <h3>Training Videos</h3>
+          <p>Access coaching and strategy videos to improve your WIS game.</p>
         </div>
       </div>
     </div>
