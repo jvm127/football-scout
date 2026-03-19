@@ -2353,14 +2353,14 @@ def build_halftime_report(your_team, opp_team, your_stats, their_stats, plays, b
 def internal_access():
     session.permanent = True
     session['internal_access'] = True
-    return redirect(url_for('offensive_page'))
+    return redirect(url_for('dashboard_page'))
 
 @app.route("/")
 def landing():
     if session.get('internal_access'):
-        return redirect(url_for('offensive_page'))
+        return redirect(url_for('dashboard_page'))
     if current_user.is_authenticated and current_user.subscribed:
-        return redirect(url_for('offensive_page'))
+        return redirect(url_for('dashboard_page'))
     return render_template("landing.html")
 
 @app.route("/signup", methods=["GET", "POST"])
@@ -2402,7 +2402,7 @@ def login():
     user = User(**dict(row))
     login_user(user)
     if user.subscribed:
-        return redirect(url_for('offensive_page'))
+        return redirect(url_for('dashboard_page'))
     return redirect(url_for('checkout'))
 
 @app.route("/logout")
@@ -2444,7 +2444,7 @@ def payment_success():
             conn.close()
         except Exception:
             pass
-    return redirect(url_for('offensive_page'))
+    return redirect(url_for('dashboard_page'))
 
 @app.route("/cancel")
 @login_required
@@ -2532,6 +2532,12 @@ def cancel_subscription():
 @tool_required('scout')
 def scout_page():
     return render_template("index.html")
+
+
+@app.route("/dashboard", methods=["GET"])
+@subscription_required
+def dashboard_page():
+    return render_template("dashboard.html")
 
 
 @app.route("/offensive", methods=["GET"])
