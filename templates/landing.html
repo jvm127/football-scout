@@ -99,6 +99,17 @@
     }
     .hero-cta:hover { background: #3b57e8; }
 
+    .hero-video {
+      max-width: 640px;
+      margin: 36px auto 0;
+    }
+    .hero-video iframe {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      border: none;
+      border-radius: 12px;
+    }
+
     /* ── Features ── */
     .features { padding: 40px 0 60px; }
     .features-grid {
@@ -241,6 +252,11 @@
       <h2>The <span>Unfair Advantage</span><br/>in WhatIfSports Football</h2>
       <p>Scout opponents, analyze matchups, evaluate recruits, and dominate halftime — all powered by AI and real play-by-play data.</p>
       <a href="/signup" class="hero-cta">Get Started</a>
+      {% if landing_video_url %}
+      <div class="hero-video">
+        <iframe src="{{ landing_video_url }}" allowfullscreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>
+      </div>
+      {% endif %}
     </div>
 
     <div class="features">
@@ -275,8 +291,10 @@
         <div class="price-amount">$7 <span>/month</span></div>
         <ul class="price-features">
           <li><span class="check">&#10003;</span> Play tendency scouting by formation</li>
-          <li><span class="check">&#10003;</span> AI-powered pre-game matchup analysis</li>
+          <li><span class="check">&#10003;</span> AI-powered offensive game planning</li>
+          <li><span class="check">&#10003;</span> AI-powered defensive game planning</li>
           <li><span class="check">&#10003;</span> AI-powered halftime adjustments</li>
+          <li><span class="check">&#10003;</span> AI-powered post-game analysis with PDF export</li>
           <li><span class="check">&#10003;</span> AI-powered recruiting evaluator</li>
           <li><span class="check">&#10003;</span> Export recruiting rankings to CSV</li>
           <li><span class="check">&#10003;</span> All future updates included</li>

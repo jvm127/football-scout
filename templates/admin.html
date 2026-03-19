@@ -75,6 +75,19 @@
   </div>
 
   <div class="card">
+    <h2>Landing Page Video</h2>
+    <p style="font-size:12px;color:#64748b;margin-bottom:14px;">Paste a YouTube or Loom URL to show on the landing page below the Get Started button. Leave blank and save to remove it.</p>
+    <form method="POST">
+      <input type="hidden" name="action" value="set_landing_video"/>
+      <div class="field">
+        <label for="landing_video_url">Video URL</label>
+        <input type="text" id="landing_video_url" name="landing_video_url" value="{{ landing_video_url }}" placeholder="https://www.youtube.com/watch?v=... or https://www.loom.com/share/..."/>
+      </div>
+      <button type="submit" class="btn btn-primary">Save</button>
+    </form>
+  </div>
+
+  <div class="card">
     <h2>Add Video</h2>
     <form method="POST">
       <input type="hidden" name="action" value="add"/>

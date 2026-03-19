@@ -93,6 +93,10 @@ def init_db():
         FOREIGN KEY (user_id) REFERENCES users(id),
         UNIQUE(user_id, tool_name)
     )''')
+    conn.execute('''CREATE TABLE IF NOT EXISTS site_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+    )''')
     conn.commit()
     conn.close()
 
@@ -110,6 +114,10 @@ def to_embed_url(url):
     m = re.search(r'(?:vimeo\.com/)(\d+)', url)
     if m:
         return f'https://player.vimeo.com/video/{m.group(1)}'
+    # Loom
+    m = re.search(r'loom\.com/(?:share|embed)/([\w-]+)', url)
+    if m:
+        return f'https://www.loom.com/embed/{m.group(1)}'
     return url
 
 # ─── Flask-Login ──────────────────────────────────────────────────────────────
@@ -2361,7 +2369,11 @@ def landing():
         return redirect(url_for('dashboard_page'))
     if current_user.is_authenticated and current_user.subscribed:
         return redirect(url_for('dashboard_page'))
-    return render_template("landing.html")
+    conn = get_db()
+    row = conn.execute("SELECT value FROM site_settings WHERE key = 'landing_video_url'").fetchone()
+    conn.close()
+    landing_video_url = row['value'] if row else None
+    return render_template("landing.html", landing_video_url=landing_video_url)
 
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
@@ -4067,7 +4079,17 @@ def training():
 @app.route("/admin", methods=["GET", "POST"])
 def admin():
     action = request.form.get("action", "")
-    if action == "add" and request.method == "POST":
+    if action == "set_landing_video" and request.method == "POST":
+        landing_url = request.form.get("landing_video_url", "").strip()
+        conn = get_db()
+        if landing_url:
+            embed_url = to_embed_url(landing_url)
+            conn.execute("INSERT OR REPLACE INTO site_settings (key, value) VALUES ('landing_video_url', ?)", (embed_url,))
+        else:
+            conn.execute("DELETE FROM site_settings WHERE key = 'landing_video_url'")
+        conn.commit()
+        conn.close()
+    elif action == "add" and request.method == "POST":
         title = request.form.get("title", "").strip()
         description = request.form.get("description", "").strip()
         video_url = request.form.get("video_url", "").strip()
@@ -4089,8 +4111,10 @@ def admin():
 
     conn = get_db()
     videos = conn.execute('SELECT * FROM videos ORDER BY display_order ASC, created_at DESC').fetchall()
+    row = conn.execute("SELECT value FROM site_settings WHERE key = 'landing_video_url'").fetchone()
     conn.close()
-    return render_template("admin.html", videos=videos)
+    landing_video_url = row['value'] if row else ''
+    return render_template("admin.html", videos=videos, landing_video_url=landing_video_url)
 
 @app.route("/admin/reorder", methods=["POST"])
 def admin_reorder():
