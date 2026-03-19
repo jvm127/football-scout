@@ -4107,7 +4107,7 @@ def admin_reorder():
 TOOL_LABELS = {
     'scout': 'Offensive & Defensive Game Planning',
     'halftime': 'Halftime Advisor',
-    'game_analysis': 'Game Analysis',
+    'game_analysis': 'Post Game Analysis',
     'recruiting': 'Recruiting Evaluator',
 }
 

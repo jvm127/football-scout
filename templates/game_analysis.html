@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Game Analysis — {{ your_team }} vs {{ opp_team }}</title>
+  <title>Post Game Analysis — {{ your_team }} vs {{ opp_team }}</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -253,9 +253,9 @@
       <a href="/offensive" class="nav-link">Offensive</a>
       <a href="/scout" class="nav-link">Defensive</a>
       <a href="/halftime-advisor" class="nav-link">Halftime</a>
-      <a href="/game-analysis" class="nav-link">Game Analysis</a>
+      <a href="/game-analysis" class="nav-link">Post Game Analysis</a>
       <a href="/recruiting" class="nav-link">Recruiting</a>
-      <a href="/training" class="nav-link">Training</a>
+      <a href="/training" class="nav-link">Training Videos</a>
       <a href="/account" class="nav-link">My Account</a>
       <a href="/logout" class="nav-link">Log Out</a>
     </div>
@@ -266,16 +266,16 @@
       <a href="/offensive">Offensive</a>
       <a href="/scout">Defensive</a>
       <a href="/halftime-advisor">Halftime</a>
-      <a href="/game-analysis">Game Analysis</a>
+      <a href="/game-analysis">Post Game Analysis</a>
       <a href="/recruiting">Recruiting</a>
-      <a href="/training">Training</a>
+      <a href="/training">Training Videos</a>
       <a href="/account">My Account</a>
       <a href="/logout">Log Out</a>
     </div>
   </header>
 
   <div class="input-card">
-    <h2>Game Analysis</h2>
+    <h2>Post Game Analysis</h2>
     <form method="POST" action="/game-analysis">
       <div class="ht-team-grid">
         <div class="ht-team-col">
@@ -321,7 +321,7 @@
     </div>
 
     <div class="result-card">
-      <h2>Game Analysis</h2>
+      <h2>Post Game Analysis</h2>
       <div class="result-body">{{ ai_result | safe }}</div>
     </div>
   </div>

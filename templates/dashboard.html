@@ -53,6 +53,18 @@
     }
     .nav-link:hover { color: #e2e8f0; border-color: #4f6ef7; background: #1e2130; }
 
+    .logo-wrap {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .bottom-nav {
+      display: flex;
+      gap: 6px;
+      padding: 24px;
+      justify-content: flex-start;
+    }
+
     .tool-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -144,9 +156,8 @@
   </div>
 
   <div class="container">
-    <div class="nav-bar">
-      <a href="/account" class="nav-link">My Account</a>
-      <a href="/logout" class="nav-link">Log Out</a>
+    <div class="logo-wrap">
+      <img src="https://assets.cdn.filesafe.space/hT14gzW082yuiAZaRY8l/media/69b751fdad02763a460b988c.png" alt="WIS Cheat Code" style="width:180px;height:auto;"/>
     </div>
 
     <div class="tool-grid">
@@ -160,15 +171,20 @@
         <span class="tool-btn-text">Halftime<br>Advisor</span>
       </a>
       <a href="/game-analysis" class="tool-btn">
-        <span class="tool-btn-text">Game<br>Analysis</span>
+        <span class="tool-btn-text">Post Game<br>Analysis</span>
       </a>
       <a href="/recruiting" class="tool-btn">
         <span class="tool-btn-text">Recruiting<br>Evaluator</span>
       </a>
       <a href="/training" class="tool-btn">
-        <span class="tool-btn-text">Training</span>
+        <span class="tool-btn-text">Training<br>Videos</span>
       </a>
     </div>
+  </div>
+
+  <div class="bottom-nav">
+    <a href="/account" class="nav-link">My Account</a>
+    <a href="/logout" class="nav-link">Log Out</a>
   </div>
 
 </body>
