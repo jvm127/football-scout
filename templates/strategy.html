@@ -245,6 +245,30 @@
       <div class="strategy-grid">
         <div class="strategy-col">
           <div class="field">
+            <label for="your_team">Your Team</label>
+            <input type="text" id="your_team" name="your_team"
+                   value="{{ your_team }}"/>
+          </div>
+          <div class="field">
+            <label for="your_offense">Your Offense</label>
+            <select id="your_offense" name="your_offense">
+              <option value="">-- Select --</option>
+              {% for o in ['I Formation','Pro','Wishbone','Notre Dame Box','Shotgun','Trips'] %}
+              <option value="{{ o }}" {% if your_offense == o %}selected{% endif %}>{{ o }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="field">
+            <label for="your_ratings">Your Team Ratings</label>
+            <textarea id="your_ratings" name="your_ratings" rows="10">{{ your_ratings_raw }}</textarea>
+          </div>
+          <div class="field">
+            <label for="your_stats">Your Team Statistics</label>
+            <textarea id="your_stats" name="your_stats" rows="8" placeholder="Paste season stats — rushing yards, passing yards, turnovers, etc.">{{ your_stats_raw }}</textarea>
+          </div>
+        </div>
+        <div class="strategy-col">
+          <div class="field">
             <label for="opponent_team">Opponent Team</label>
             <input type="text" id="opponent_team" name="opponent_team"
                    value="{{ opponent_team }}"/>
@@ -262,25 +286,9 @@
             <label for="opponent_ratings">Opponent Team Ratings</label>
             <textarea id="opponent_ratings" name="opponent_ratings" rows="10">{{ opponent_ratings_raw }}</textarea>
           </div>
-        </div>
-        <div class="strategy-col">
           <div class="field">
-            <label for="your_team">Your Team</label>
-            <input type="text" id="your_team" name="your_team"
-                   value="{{ your_team }}"/>
-          </div>
-          <div class="field">
-            <label for="your_offense">Your Offense</label>
-            <select id="your_offense" name="your_offense">
-              <option value="">-- Select --</option>
-              {% for o in ['I Formation','Pro','Wishbone','Notre Dame Box','Shotgun','Trips'] %}
-              <option value="{{ o }}" {% if your_offense == o %}selected{% endif %}>{{ o }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="field">
-            <label for="your_ratings">Your Team Ratings</label>
-            <textarea id="your_ratings" name="your_ratings" rows="10">{{ your_ratings_raw }}</textarea>
+            <label for="opponent_stats">Opponent Statistics</label>
+            <textarea id="opponent_stats" name="opponent_stats" rows="8" placeholder="Paste season stats — points allowed, rushing defense, turnovers forced, etc.">{{ opponent_stats_raw }}</textarea>
           </div>
         </div>
       </div>
@@ -303,7 +311,6 @@
   </div>
 
   <div class="result-card">
-    <h2>Strategy Analysis</h2>
     <div class="result-body">{{ ai_result | safe }}</div>
   </div>
   {% endif %}

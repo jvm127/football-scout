@@ -2541,6 +2541,7 @@ def offensive_page():
                            opponent_team='', your_team='',
                            opponent_ratings_raw='', your_ratings_raw='',
                            your_offense='', their_defense='',
+                           your_stats_raw='', opponent_stats_raw='',
                            ai_result=None, error=None)
 
 
@@ -2756,6 +2757,8 @@ def strategy_route():
     your_ratings_raw     = request.form.get("your_ratings", "").strip()
     your_offense         = request.form.get("your_offense", "").strip()
     their_defense        = request.form.get("their_defense", "").strip()
+    your_stats_raw       = request.form.get("your_stats", "").strip()
+    opponent_stats_raw   = request.form.get("opponent_stats", "").strip()
 
     error = None
     ai_result = None
@@ -2775,6 +2778,7 @@ You will receive:
 Your team name and offense formation
 Opponent team name and defense formation
 Raw player ratings for both teams
+Season statistics for both teams (if provided) — use these to identify trends, strengths, and weaknesses that should inform the game plan. For example, if the opponent gives up a lot of rushing yards, lean into the run game. If your team has a high turnover rate, emphasize ball security.
 
 FORMATION PERSONNEL:
 I Formation: 1 RB, 2 WR, 1 TE
@@ -2815,14 +2819,13 @@ OUTPUT FORMAT — respond with clean HTML fragments (no <html>, <head>, or <body
 - <p> for paragraphs
 - <strong> for emphasis
 - <ul><li> for bullet lists
-- <div class="performers-grid"> with two <div class="perf-col"> inside for the two-column Standout Players layout
-- Inside each perf-col, use <h4>OFFENSE</h4> and <h4>DEFENSE</h4> subheaders, then <p> for each player
+- <div class="perf-col"> for the Standout Players list (single column, your team only)
 - <div class="gameplan-bullet"> for each game plan recommendation
 Do NOT use markdown syntax (no **, no ##, no -). Output raw HTML only.
 
 OUTPUT SECTIONS IN ORDER:
 
-<h3>Standout Players</h3> — wrapped in <div class="performers-grid">. Two <div class="perf-col"> columns: one for your team, one for opponent. Inside each perf-col, use <h4>OFFENSE</h4> then <p> tags for top 2 offensive players by TOT with one sentence each. Then <h4>DEFENSE</h4> then <p> tags for top 2 defensive players by TOT. For opponent defensive standouts, add 'Watch out for [name]' framing.
+<h3>Standout Players</h3> — your team's top 5 offensive players by TOT rating. Do NOT use performers-grid or two-column layout. Use a single <div class="perf-col"> with <p> tags for each player. Each player entry should include: <strong>Name (POS, Team)</strong> on the first line, then a short blurb about their skills and what makes them effective, and if season statistics were provided, include their key stats (e.g. "142 carries, 876 yds, 6.2 avg, 12 TD"). Only include offensive players from YOUR team. Do not include defensive players or opponent players.
 
 <h3>Formation Matchup</h3> — analyze your offense vs their defense personnel. Call out specific mismatches like '3 WRs vs only 3 DBs means one WR gets a LB in coverage'. Use <p> tags.
 
@@ -2835,6 +2838,12 @@ OUTPUT SECTIONS IN ORDER:
 - Passing targets: recommended target percentages for each player on the field based on the formation. Use individual player names and stats. WRs get at least 50%% in Shotgun/Trips. RB capped at 20%% max (30%% only if RB AGI vs LB AGI edge is +25 or more). Show reasoning with actual TOT numbers.
 - Key strategic priorities — specific and actionable, no generic advice."""
 
+        stats_block = ""
+        if your_stats_raw:
+            stats_block += f"\nYour Team Season Statistics:\n{your_stats_raw}\n"
+        if opponent_stats_raw:
+            stats_block += f"\nOpponent Season Statistics:\n{opponent_stats_raw}\n"
+
         user_message = f"""Your Team: {your_team}
 Your Offense: {your_offense}
 Opponent Team: {opponent_team}
@@ -2844,7 +2853,8 @@ Your Team Ratings:
 {your_ratings_raw}
 
 Opponent Team Ratings:
-{opponent_ratings_raw}"""
+{opponent_ratings_raw}
+{stats_block}"""
 
         try:
             client = anthropic.Anthropic(
@@ -2852,8 +2862,8 @@ Opponent Team Ratings:
                 timeout=90.0,
             )
             response = client.messages.create(
-                model="claude-sonnet-4-20250514",
-                max_tokens=2000,
+                model="claude-haiku-4-5-20251001",
+                max_tokens=800,
                 system=strategy_system_prompt,
                 messages=[{"role": "user", "content": user_message}],
             )
@@ -2892,6 +2902,8 @@ Opponent Team Ratings:
         your_ratings_raw=your_ratings_raw,
         your_offense=your_offense,
         their_defense=their_defense,
+        your_stats_raw=your_stats_raw,
+        opponent_stats_raw=opponent_stats_raw,
         ai_result=ai_result,
         error=error,
     )
