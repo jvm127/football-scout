@@ -246,6 +246,36 @@
       margin-left: auto;
     }
     .btn-export:hover { background: #047857; border-color: #34d399; }
+
+    .btn-pdf {
+      display: none; align-items: center; gap: 8px;
+      background: #1e2130; border: 1px solid #2d3348; color: #94a3b8;
+      padding: 10px 20px; border-radius: 8px; font-size: 13px;
+      font-weight: 600; font-family: inherit; cursor: pointer;
+      margin-top: 20px;
+      transition: color 0.15s, border-color 0.15s, background 0.15s;
+    }
+    .btn-pdf:hover { color: #e2e8f0; border-color: #4f6ef7; background: #252a3d; }
+    .btn-pdf.visible { display: inline-flex; }
+
+    @media print {
+      body { background: #fff; color: #000; padding: 0; }
+      header, .eval-card, .sort-bar, .btn-pdf, .page-subtitle { display: none !important; }
+      .page-title { color: #000; }
+      .container { max-width: 100%; }
+      .section-header { color: #000; border-bottom-color: #ccc; }
+      .tier-header { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+      .player-card { background: #fff; border-color: #ccc; break-inside: avoid; }
+      .player-name { color: #000; }
+      .player-rank { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+      .stat-item { color: #666; }
+      .stat-item strong { color: #000; }
+      .attr-badge { background: #f5f5f5; border: 1px solid #ccc; }
+      .attr-badge .attr-name { color: #666; }
+      .attr-badge .attr-val { color: #000; }
+      .sf-col.strengths ul li { color: #166534; }
+      .sf-col.red-flags ul li { color: #991b1b; }
+    }
   </style>
 </head>
 <body>
@@ -347,6 +377,7 @@
   </div>
 
   <div id="resultsArea"></div>
+  <button class="btn-pdf" id="pdfBtn" onclick="window.print()">Export to PDF</button>
 
 </div>
 
@@ -649,6 +680,7 @@
     errorEl.classList.remove('visible');
     resultsArea.innerHTML = '';
     document.getElementById('sortBar').classList.remove('visible');
+    document.getElementById('pdfBtn').classList.remove('visible');
     document.getElementById('sortSelect').value = 'ai_ranked';
     _lastResultData = null;
     btn.disabled = true;
@@ -701,6 +733,7 @@
         }
         renderResults(parsedResult);
         document.getElementById('sortBar').classList.add('visible');
+        document.getElementById('pdfBtn').classList.add('visible');
       }
     } catch (e) {
       errorEl.textContent = 'Error: ' + e.message;
