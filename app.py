@@ -2780,13 +2780,13 @@ Opponent team name and defense formation
 Raw player ratings for both teams
 Season statistics for both teams (if provided) — use these to identify trends, strengths, and weaknesses that should inform the game plan. For example, if the opponent gives up a lot of rushing yards, lean into the run game. If your team has a high turnover rate, emphasize ball security.
 
-FORMATION PERSONNEL:
-I Formation: 1 RB, 2 WR, 1 TE
-Pro: 1 RB, 2 WR, 1 TE
-Wishbone: 1 FB, 2 RB, 1 TE, 1 WR
-Notre Dame Box: 2 RB, 1 WR, 2 TE
-Shotgun: 4 WR, 1 TE (no RB — do not include RB in passing targets or run game)
-Trips: 1 RB, 3 WR, 1 TE
+FORMATION PERSONNEL (EXACT — you MUST use these for target distribution):
+Pro: 2 WR, 2 RB, 1 TE
+I Formation: 2 WR, 2 RB, 1 TE
+Trips: 3 WR, 1 RB, 1 TE
+Notre Dame Box: 1 WR, 2 RB, 2 TE
+Wishbone: 1 WR, 1 TE, 1 FB, 2 RB
+Shotgun: 4 WR, 1 TE, 0 RB (no RB on field — zero RB targets, zero RB runs)
 DEFENSE PERSONNEL:
 3-4: 3 DL, 4 LB, 4 DB
 4-3: 4 DL, 3 LB, 4 DB
@@ -2824,7 +2824,7 @@ Do NOT use markdown syntax (no **, no ##, no -). Do NOT use <ul><li>. Output raw
 
 OUTPUT SECTIONS IN ORDER:
 
-<h3>Standout Players</h3> — two columns using <div class="performers-grid">. Left <div class="perf-col">: YOUR team's top 3 offensive players by TOT. Right <div class="perf-col">: OPPONENT's top 3 defensive players by TOT. Each player: <strong>Name (POS, Team)</strong>, then a writeup of their key attributes and what makes them effective, and if season statistics were provided include their key stats.
+<h3>Standout Players</h3> — two columns using <div class="performers-grid">. Left column: YOUR team's top 3 offensive players by TOT. Right column: OPPONENT's top 3 defensive players by TOT. Each column is a div (no class needed). Inside each column, each individual player gets their OWN separate <div class="gameplan-bullet"> card. Each player card: <strong>Name (POS, Team)</strong> as a bold header, then a writeup of their key attributes and what makes them effective, and if season statistics were provided include their key stats.
 
 <h3>Biggest Advantages</h3> — at least 6 advantages using the 8 meaningful matchups (include edges of any size, not just +20). Each advantage is a <div class="gameplan-bullet"> with a <strong>bold header</strong> (e.g. "OL BLK vs DL STR — Run Blocking Edge") followed by 3-4 sentences of detailed tactical advice explaining exactly how to exploit this in the sim game. Reference actual rating numbers and specific player names. Every advantage needs a full writeup, not a one-liner.
 
@@ -2834,7 +2834,7 @@ OUTPUT SECTIONS IN ORDER:
 
 <h3>Primary Targets</h3> — top 3-4 players to target in the passing game. Each is a <div class="gameplan-bullet"> with <strong>Name (POS)</strong> as header, then 2-3 sentences explaining why they should be targeted based on matchup advantages, rating edges, and defensive weaknesses. Reference actual TOT numbers.
 
-<h3>Target Distribution</h3> — a single <div class="gameplan-bullet"> showing recommended passing target percentage by position (e.g. WR1: 30%%, WR2: 25%%, TE: 20%%, RB: 15%%, WR3: 10%%). WRs get at least 50%% in Shotgun/Trips. RB capped at 20%% max. Explain the reasoning in 2-3 sentences.
+<h3>Target Distribution</h3> — a single <div class="gameplan-bullet"> showing recommended passing target percentage for EVERY eligible receiver on the field based on the EXACT formation personnel listed above. Label each target by role AND player name — e.g. "WR1 (Smith): 30%%, WR2 (Davis): 25%%, TE1 (Foster): 20%%, RB1 (Johnson): 15%%, RB2 (Williams): 10%%". The percentages MUST reflect the actual number of skill players on the field for the selected formation — a Wishbone (1 WR) should never recommend heavy WR targets, a Shotgun (0 RB) should never recommend any RB targets. Star players with higher TOT ratings and better matchup advantages should dominate the target share — do NOT distribute evenly. Explain the reasoning in 2-3 sentences referencing specific TOT ratings and matchup edges.
 
 <h3>Running Distribution</h3> — 3-5 items, each a <div class="gameplan-bullet">. Cover: which backs to use and why, when to run inside vs outside, down and distance tendencies (e.g. "1st down: 60%% inside, 40%% outside"), and goal line package recommendations. Each item gets a <strong>bold header</strong> and 2-3 sentences of detail."""
 
