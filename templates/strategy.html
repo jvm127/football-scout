@@ -207,6 +207,39 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
     .spinner-text { font-size: 13px; color: #94a3b8; }
+
+    .btn-export {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: #1e2130; border: 1px solid #2d3348; color: #94a3b8;
+      padding: 10px 20px; border-radius: 8px; font-size: 13px;
+      font-weight: 600; font-family: inherit; cursor: pointer;
+      margin-top: 20px;
+      transition: color 0.15s, border-color 0.15s, background 0.15s;
+    }
+    .btn-export:hover { color: #e2e8f0; border-color: #4f6ef7; background: #252a3d; }
+
+    @media print {
+      body { background: #fff; color: #000; padding: 0; }
+      header, .input-card, .error-banner, .btn-export, .spinner-wrap { display: none !important; }
+      #printableResults { display: block; }
+      .container { max-width: 100%; }
+      .results-header h2 { color: #000; }
+      .results-header .meta { color: #666; }
+      .result-card { background: #fff; border: 1px solid #ccc; padding: 24px; }
+      .result-body { color: #000; }
+      .result-body h3 { color: #333; border-bottom-color: #ccc; }
+      .result-body strong { color: #000; }
+      .result-body ul li { background: #f5f5f5; border-color: #ccc; border-left-color: #f59e0b; color: #333; }
+      .result-body ul li strong { color: #000; }
+      .performers-grid { grid-template-columns: 1fr 1fr; }
+      .perf-col { background: #f5f5f5; border-color: #ccc; }
+      .perf-col h4 { color: #666; }
+      .perf-col p { color: #000; }
+      .gameplan-bullet { background: #f5f5f5; border-color: #ccc; border-left-color: #22c55e; color: #333; }
+      .gameplan-bullet strong { color: #000; }
+      .score-prediction { background: #f5f5f5; border-color: #f59e0b; color: #333; }
+      .score-prediction strong { color: #333; }
+    }
   </style>
 </head>
 <body>
@@ -308,16 +341,19 @@
 
   <!-- AI Results -->
   {% if ai_result %}
-  <div class="results-header">
-    <h2>{{ your_team }} vs {{ opponent_team }}</h2>
-    <div class="meta">
-      AI strategy analysis{% if your_offense %} — {{ your_offense }}{% endif %}{% if their_defense %} vs {{ their_defense }}{% endif %}
+  <div id="printableResults">
+    <div class="results-header">
+      <h2>{{ your_team }} vs {{ opponent_team }}</h2>
+      <div class="meta">
+        AI strategy analysis{% if your_offense %} — {{ your_offense }}{% endif %}{% if their_defense %} vs {{ their_defense }}{% endif %}
+      </div>
+    </div>
+
+    <div class="result-card">
+      <div class="result-body">{{ ai_result | safe }}</div>
     </div>
   </div>
-
-  <div class="result-card">
-    <div class="result-body">{{ ai_result | safe }}</div>
-  </div>
+  <button class="btn-export" onclick="window.print()">Export to PDF</button>
   {% endif %}
 
 </div>
