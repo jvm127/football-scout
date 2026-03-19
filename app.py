@@ -2814,7 +2814,7 @@ TONE: Only tell the user what they CAN do. Never mention formations that are not
 
 TENSE: Always refer to season stats in PRESENT tense. Say "Sawyer averages 16.7 yards per reception this season" NOT "last season he caught..." or "he averaged...". The season is ongoing — treat all stats as current.
 
-PLAYER NAME FORMAT: Always format player names as "Name (POS, Team)" — e.g. "Marcus Williams (WR, Michigan)". Use this format consistently throughout all sections.
+PLAYER NAME FORMAT: EVERY player mentioned ANYWHERE in the entire output must be formatted as "Name (POS, Team)" — e.g. "Marcus Williams (WR, Michigan)". This applies not just to the primary subject of each card, but also to every player mentioned in writeups, comparisons, matchup descriptions, and predictions. For example write "against Steve Velez (DB, Minnesota) and Michael Hartley (DB, Minnesota)" not just their bare names. No player name should ever appear without their position and team in parentheses.
 
 OUTPUT FORMAT — respond with clean HTML fragments (no <html>, <head>, or <body> tags). Use these elements:
 - <h3> for section headers
