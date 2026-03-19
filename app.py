@@ -2818,25 +2818,25 @@ OUTPUT FORMAT — respond with clean HTML fragments (no <html>, <head>, or <body
 - <h3> for section headers
 - <p> for paragraphs
 - <strong> for emphasis
-- <ul><li> for bullet lists
-- <div class="perf-col"> for the Standout Players list (single column, your team only)
-- <div class="gameplan-bullet"> for each game plan recommendation
-Do NOT use markdown syntax (no **, no ##, no -). Output raw HTML only.
+- <div class="performers-grid"> with two <div class="perf-col"> for two-column layouts
+- <div class="gameplan-bullet"> for styled card items in all sections (advantages, danger zones, targets, running distribution)
+Do NOT use markdown syntax (no **, no ##, no -). Do NOT use <ul><li>. Output raw HTML only.
 
 OUTPUT SECTIONS IN ORDER:
 
-<h3>Standout Players</h3> — your team's top 5 offensive players by TOT rating. Do NOT use performers-grid or two-column layout. Use a single <div class="perf-col"> with <p> tags for each player. Each player entry should include: <strong>Name (POS, Team)</strong> on the first line, then a short blurb about their skills and what makes them effective, and if season statistics were provided, include their key stats (e.g. "142 carries, 876 yds, 6.2 avg, 12 TD"). Only include offensive players from YOUR team. Do not include defensive players or opponent players.
+<h3>Standout Players</h3> — two columns using <div class="performers-grid">. Left <div class="perf-col">: YOUR team's top 3 offensive players by TOT. Right <div class="perf-col">: OPPONENT's top 3 defensive players by TOT. Each player: <strong>Name (POS, Team)</strong>, then a writeup of their key attributes and what makes them effective, and if season statistics were provided include their key stats.
 
-<h3>Formation Matchup</h3> — analyze your offense vs their defense personnel. Call out specific mismatches like '3 WRs vs only 3 DBs means one WR gets a LB in coverage'. Use <p> tags.
+<h3>Biggest Advantages</h3> — at least 6 advantages using the 8 meaningful matchups (include edges of any size, not just +20). Each advantage is a <div class="gameplan-bullet"> with a <strong>bold header</strong> (e.g. "OL BLK vs DL STR — Run Blocking Edge") followed by 3-4 sentences of detailed tactical advice explaining exactly how to exploit this in the sim game. Reference actual rating numbers and specific player names. Every advantage needs a full writeup, not a one-liner.
 
-<h3>Biggest Advantages</h3> — list at least 6 advantages using the 8 meaningful matchups (include edges of any size, not just +20). Each advantage should be a <div class="gameplan-bullet"> with a <strong>bold header</strong> (e.g. "OL BLK vs DL STR — Run Blocking Edge") followed by 2-3 sentences of tactical detail explaining exactly how to exploit this advantage in the sim game. Reference actual rating numbers and specific player names. Do NOT use a simple one-liner list — each advantage needs a full writeup.
+<h3>Danger Zones</h3> — analyze where the OPPONENT'S DEFENSE has a specific advantage over YOUR OFFENSE. Each danger zone is a <div class="gameplan-bullet"> with a <strong>bold header</strong> (e.g. "Their DB SPD vs Your WR SPD — Deep Coverage Advantage") followed by 2-3 sentences explaining the defensive advantage and specific advice on how to mitigate it in the sim game.
 
-<h3>Danger Zones</h3> — opponent edges of +20 or more. Give specific advice to neutralize. Use <ul><li> for each danger zone.
+<h3>Run/Pass Distribution</h3> — a single <div class="gameplan-bullet"> recommending the overall run vs pass percentage split and the inside vs outside run percentage split, with 3-4 sentences explaining why based on the matchups and defensive formation. Factor in defense: Nickel/Dime = run more, 5-2/4-4 = spread them out.
 
-<h3>Game Plan</h3> — combine run game, passing targets, and summary into one section. 5-7 specific actionable items, each wrapped in <div class="gameplan-bullet">. Include:
-- Run game: inside vs outside percentage based on matchups and defense. Factor in defense: Nickel/Dime = run more, 5-2/4-4 = spread them out.
-- Passing targets: recommended target percentages for each player on the field based on the formation. Use individual player names and stats. WRs get at least 50%% in Shotgun/Trips. RB capped at 20%% max (30%% only if RB AGI vs LB AGI edge is +25 or more). Show reasoning with actual TOT numbers.
-- Key strategic priorities — specific and actionable, no generic advice."""
+<h3>Primary Targets</h3> — top 3-4 players to target in the passing game. Each is a <div class="gameplan-bullet"> with <strong>Name (POS)</strong> as header, then 2-3 sentences explaining why they should be targeted based on matchup advantages, rating edges, and defensive weaknesses. Reference actual TOT numbers.
+
+<h3>Target Distribution</h3> — a single <div class="gameplan-bullet"> showing recommended passing target percentage by position (e.g. WR1: 30%%, WR2: 25%%, TE: 20%%, RB: 15%%, WR3: 10%%). WRs get at least 50%% in Shotgun/Trips. RB capped at 20%% max. Explain the reasoning in 2-3 sentences.
+
+<h3>Running Distribution</h3> — 3-5 items, each a <div class="gameplan-bullet">. Cover: which backs to use and why, when to run inside vs outside, down and distance tendencies (e.g. "1st down: 60%% inside, 40%% outside"), and goal line package recommendations. Each item gets a <strong>bold header</strong> and 2-3 sentences of detail."""
 
         stats_block = ""
         if your_stats_raw:
@@ -2863,7 +2863,7 @@ Opponent Team Ratings:
             )
             response = client.messages.create(
                 model="claude-haiku-4-5-20251001",
-                max_tokens=2000,
+                max_tokens=4000,
                 system=strategy_system_prompt,
                 messages=[{"role": "user", "content": user_message}],
             )
