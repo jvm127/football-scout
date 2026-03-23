@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from datetime import timedelta
 from flask_mail import Mail, Message
@@ -157,23 +157,43 @@ def load_user(user_id):
         return User(**dict(row))
     return None
 
+def _is_json_request():
+    """Check if the current request expects a JSON response."""
+    return (request.content_type and 'application/json' in request.content_type) or \
+           request.headers.get('X-Requested-With') == 'XMLHttpRequest' or \
+           request.method == 'POST'
+
+
 def subscription_required(f):
-    """Decorator: user must be logged in AND subscribed, OR have internal access."""
+    """Decorator: user must be logged in AND subscribed, OR have internal access.
+    Returns JSON errors for API/AJAX requests instead of HTML redirects."""
     from functools import wraps
     @wraps(f)
     def decorated(*args, **kwargs):
         if session.get('internal_access'):
             return f(*args, **kwargs)
         if not current_user.is_authenticated:
+            if _is_json_request():
+                print(f">>> AUTH BLOCKED: {request.path} — not authenticated (JSON response)", flush=True)
+                return jsonify(error="Authentication required"), 401
             return redirect(url_for('landing'))
         if not current_user.subscribed:
+            if _is_json_request():
+                print(f">>> AUTH BLOCKED: {request.path} — not subscribed (JSON response)", flush=True)
+                return jsonify(error="Subscription required"), 403
             return redirect(url_for('landing'))
         return f(*args, **kwargs)
     return decorated
+    """Check if the current request expects a JSON response."""
+    return (request.content_type and 'application/json' in request.content_type) or \
+           request.headers.get('X-Requested-With') == 'XMLHttpRequest' or \
+           request.method == 'POST'
+
 
 def tool_required(tool_name):
     """Decorator: user must have access to the specific tool.
-    Checks subscription first, then tool-level permissions."""
+    Checks subscription first, then tool-level permissions.
+    Returns JSON errors for API/AJAX requests instead of HTML redirects."""
     from functools import wraps
     def decorator(f):
         @wraps(f)
@@ -181,10 +201,19 @@ def tool_required(tool_name):
             if session.get('internal_access'):
                 return f(*args, **kwargs)
             if not current_user.is_authenticated:
+                if _is_json_request():
+                    print(f">>> AUTH BLOCKED: {request.path} — not authenticated (JSON response)", flush=True)
+                    return jsonify(error="Authentication required"), 401
                 return redirect(url_for('landing'))
             if not current_user.subscribed:
+                if _is_json_request():
+                    print(f">>> AUTH BLOCKED: {request.path} — not subscribed (JSON response)", flush=True)
+                    return jsonify(error="Subscription required"), 403
                 return redirect(url_for('landing'))
             if not current_user.has_tool(tool_name):
+                if _is_json_request():
+                    print(f">>> AUTH BLOCKED: {request.path} — no access to {tool_name} (JSON response)", flush=True)
+                    return jsonify(error=f"No access to {tool_name}"), 403
                 return render_template("no_access.html", tool_name=tool_name), 403
             return f(*args, **kwargs)
         return decorated
@@ -3380,6 +3409,7 @@ Game Log:
 @app.route("/recruiting")
 @tool_required('recruiting')
 def recruiting():
+    print(f">>> RECRUITING: GET /recruiting — serving page", flush=True)
     return render_template("recruiting.html")
 
 # ─── Recruiting: D1-AA school exclusion list ─────────────────────────────────
@@ -3816,8 +3846,8 @@ def format_players_for_claude(players, tag=''):
 @app.route("/recruiting/analyze", methods=["POST"])
 @tool_required('recruiting')
 def recruiting_analyze():
-    from flask import jsonify
     import json as _json
+    print(f">>> RECRUITING: POST /recruiting/analyze — analyzing players", flush=True)
     data = request.get_json()
     division = data.get("division", "")
     position = data.get("position", "")

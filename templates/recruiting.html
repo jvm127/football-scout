@@ -695,7 +695,20 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ division: division, position: position, player_data: playerData }),
       });
-      var data = await resp.json();
+      var contentType = resp.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        console.error('Expected JSON but got:', contentType, '| status:', resp.status);
+        throw new Error(resp.status === 401 ? 'Session expired — please refresh the page and log in again.'
+          : resp.status === 403 ? 'Access denied — your subscription may have expired.'
+          : 'Server returned an unexpected response. Please try again.');
+      }
+      var data;
+      try {
+        data = await resp.json();
+      } catch (parseErr) {
+        console.error('Failed to parse response as JSON:', parseErr);
+        throw new Error('Server returned invalid data. Please try again.');
+      }
       if (!resp.ok) throw new Error(data.error || 'HTTP ' + resp.status);
 
       // Render AI result — backend may return parsed JSON object or raw text string
