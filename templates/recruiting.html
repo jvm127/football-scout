@@ -347,7 +347,10 @@
       <label for="playerData">Paste Player Data Here</label>
       <textarea id="playerData" placeholder="Paste the player data from your recruiting board..."></textarea>
     </div>
-    <button class="btn-evaluate" id="evaluateBtn" onclick="evaluatePlayers()">Evaluate Players</button>
+    <div style="display:flex;gap:10px;align-items:center;">
+      <button class="btn-evaluate" id="evaluateBtn" onclick="evaluatePlayers()">Evaluate Players</button>
+      <button type="button" class="btn-evaluate" style="background:#2d3348;color:#94a3b8;" onclick="document.getElementById('playerData').value='';document.getElementById('playerData').focus();">Clear</button>
+    </div>
     <div class="spinner-wrap" id="spinnerWrap">
       <div class="spinner"></div>
       <span class="spinner-text">Analyzing — this may take a moment...</span>
