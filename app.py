@@ -4012,7 +4012,7 @@ SECTION RULES:
         client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
         response = client.messages.create(
             model="claude-sonnet-4-20250514",
-            max_tokens=4096,
+            max_tokens=16000,
             system=system_prompt,
             messages=[{"role": "user", "content": user_message}],
         )
