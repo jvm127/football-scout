@@ -2829,6 +2829,8 @@ MISMATCH THRESHOLD: A mismatch only exists when the difference is 20 or more poi
 
 OVERPOWERING LANGUAGE: Never use "overpowers", "dominates", or "overwhelms" for any stat difference less than 20 points. A +4 edge (e.g. OL STR 88 vs DL STR 84) is a "slight edge" or "modest advantage". A +10 to +19 edge is a "solid advantage". Only use "dominates" or "overpowers" for differences of +20 or more.
 
+OBJECTIVITY RULE: Be honest about the data. If the opponent's defense is genuinely stronger than your offense in a matchup, say so directly — do not spin it as a hidden advantage or downplay it. If the opponent has more advantages than your team, the analysis should reflect that. The Danger Zones section should be just as detailed and honest as the Biggest Advantages section. Never frame every matchup as favorable to the user's team. A good scout report tells the truth, even when it is unfavorable.
+
 TONE: Only tell the user what they CAN do. Never mention formations that are not available, never say things like "Shotgun not available — Wishbone personnel only", never list limitations or restrictions. Focus entirely on positive, actionable recommendations for the formation they selected.
 
 TENSE: Always refer to season stats in PRESENT tense. Say "Sawyer averages 16.7 yards per reception this season" NOT "last season he caught..." or "he averaged...". The season is ongoing — treat all stats as current.
@@ -2856,11 +2858,17 @@ OUTPUT SECTIONS IN ORDER:
 <h3>Target Distribution</h3> — one <div class="gameplan-bullet"> per targeted player, ordered by highest target percentage first. Each entry format: <strong>Name (POS, Team) — WR1 / 30%</strong> as the bold header (role label and percentage with single percent sign), then 2-3 sentences explaining WHY they get that specific percentage based on their matchup advantage, TOT rating, and the defensive weakness they exploit. The percentages MUST reflect the EXACT formation personnel — a Wishbone (1 WR) should never recommend heavy WR targets, a Shotgun (0 RB) should never recommend any RB targets. Star players with higher TOT ratings and better matchup advantages should dominate the target share — do NOT distribute evenly. Use single percent signs only (30% not 30%%).
 
 <h3>Game Prediction</h3> — write this like a pre-game prediction column, NOT bullet points. Use <p> tags for narrative paragraphs. Structure:
-1. FIRST, immediately after the h3 header, display the predicted final score prominently: <div class="score-prediction"><strong>[YOUR TEAM] [X], [OPPONENT] [Y]</strong></div> — use the actual team names in ALL CAPS and realistic score numbers.
-2. Then a narrative paragraph (4-6 sentences) predicting how the game will unfold based on everything analyzed above — who controls the tempo, which side of the ball wins, when momentum shifts, how it ends.
-3. A paragraph highlighting 2-3 key players to watch from EACH team and what you predict they'll do statistically (e.g. "expect 120+ rushing yards and 2 TDs from...").
-4. One sentence identifying the specific matchup that will determine the outcome.
-Make it vivid, confident, and specific — not hedging or generic. IMPORTANT: This section must be complete — do not cut it short."""
+1. FIRST, immediately after the h3 header, display the predicted final score prominently: <div class="score-prediction"><strong>[YOUR TEAM] [X], [OPPONENT] [Y]</strong></div> — use the actual team names in ALL CAPS.
+2. SCORE DERIVATION (CRITICAL): The predicted score MUST be derived from the actual data analyzed above. Do NOT default to a generic score like 31-17. Follow this process:
+   - Count how many of the 8 meaningful matchups each side wins (rating advantage of +10 or more).
+   - If one side wins 5+ matchups decisively, predict a blowout (20+ point margin). If it is close to even (3-4 each), predict a close game (1-7 point margin). If one side wins 6+ matchups, predict a dominant win (24+ points).
+   - Base the total points on the offensive talent level: elite offenses (avg TOT 85+) score 28-42. Average offenses (TOT 70-84) score 17-27. Weak offenses (TOT below 70) score 7-16.
+   - Factor in season stats if provided: high-scoring teams should be predicted to score more, strong defenses should suppress opponent scoring.
+   - The two scores must be DIFFERENT from each other and reflect the specific balance of this matchup. Never predict the same score for different matchups.
+3. Then a narrative paragraph (4-6 sentences) predicting how the game will unfold based on everything analyzed above — who controls the tempo, which side of the ball wins, when momentum shifts, how it ends. If the opponent is the stronger team based on the data, predict them to win — do not force a victory for the user's team.
+4. A paragraph highlighting 2-3 key players to watch from EACH team and what you predict they'll do statistically (e.g. "expect 120+ rushing yards and 2 TDs from...").
+5. One sentence identifying the specific matchup that will determine the outcome.
+Make it vivid, confident, and specific — not hedging or generic. If the data says the user's team will lose, predict the loss honestly. IMPORTANT: This section must be complete — do not cut it short."""
 
         stats_block = ""
         if your_stats_raw:
