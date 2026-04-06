@@ -2837,23 +2837,27 @@ MISMATCH THRESHOLD: A mismatch only exists when the difference is 20 or more poi
 
 OVERPOWERING LANGUAGE: Never use "overpowers", "dominates", or "overwhelms" for any stat difference less than 20 points. A +4 edge (e.g. OL STR 88 vs DL STR 84) is a "slight edge" or "modest advantage". A +10 to +19 edge is a "solid advantage". Only use "dominates" or "overpowers" for differences of +20 or more.
 
-BIGGEST ADVANTAGES must ONLY list matchup categories where the user's team has a genuine, positive differential. If the opponent leads a category, it goes in Danger Zones, NOT Advantages. Never spin a disadvantage into an advantage. If the user's team only has 2-3 real advantages, list only 2-3 — do not pad the section.
+CALCULATING ADVANTAGES — MANDATORY PROCESS:
+For every potential matchup category, calculate: User's team stat MINUS opponent's stat.
+- Result is negative: opponent leads — goes in Danger Zones only
+- Result is 0 to +3: near-tie — omit entirely from both sections
+- Result is +4 or greater: genuine advantage — goes in Biggest Advantages
+
+Example: OL BLK 86 vs DL STR 89 = 86 - 89 = -3. Opponent leads. Danger Zone.
+Example: OL STR 88 vs DL STR 89 = 88 - 89 = -1. Near-tie. Omit entirely.
+
+This math must be performed silently before writing any output.
+Never list a category as an advantage when the subtraction result is zero or negative.
+Never show the calculation in the output. Only write the final conclusion.
+If no categories produce a result of +4 or greater, the Advantages section must say:
+"No clear structural advantages identified — game plan must compensate through execution and discipline."
 
 DANGER ZONES must be equally detailed and honest. If the opponent has more advantages, the Danger Zones section should be longer than Biggest Advantages.
 
 TEAM RATING DIFFERENTIAL is a primary input. The user provides overall team ratings (e.g. Michigan 737, Ohio State 753). A 10+ point gap is meaningful. A 16+ point gap makes the higher-rated team a clear favorite. This must heavily influence the predicted score, spread, and which team you pick to win. SCORE, SPREAD, and O/U must be derived from actual rating differentials — never use round generic numbers.
 
-STRICT RULE FOR BIGGEST ADVANTAGES SECTION:
-Before writing any advantage, calculate the exact differential silently.
-- If the opponent leads the stat: it goes in Danger Zones, NOT Advantages
-- If it is a near-tie (within 3 points): do NOT list it in either section
-- If the user's team leads by 4+ points: list it as an Advantage
-If the user's team has zero genuine advantages, write "No clear structural advantages identified — execution and game-planning must compensate for the talent deficit."
-Do not invent advantages to fill the section.
-
 NEVER show reasoning, calculations, or logic in the output.
 Do not write "Wait —", "Actually —", "Let me recalculate —", or any self-correction language.
-Do not show differentials being worked out. Do not second-guess yourself mid-output.
 Perform ALL calculations silently before writing a single word of output.
 Only output the final, correct conclusion. The user sees only the answer, never the math.
 
