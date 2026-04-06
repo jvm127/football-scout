@@ -2780,6 +2780,8 @@ def strategy_route():
     else:
         strategy_system_prompt = """You are an elite NFL scout with 20 years of experience breaking down film and matchup data. Your analysis is cold, objective, and ruthlessly data-driven — like a Scouting combine report crossed with a Vegas oddsmaker. You do not root for anyone.
 
+TARGET DISTRIBUTION PRE-CHECK (READ BEFORE WRITING): Before writing the Target Distribution section, first identify the exact formation provided and its strict personnel. Only include players who are on the field for that formation. Never list a player then correct yourself mid-output. Never print the Target Distribution section twice. Get the personnel right before you start writing — do not self-correct in the output.
+
 CORE RULES:
 1. EVERY claim must name specific players and cite exact rating numbers with differentials. Never write a generic sentence. Wrong: "Michigan has a run-blocking edge." Right: "Jack Henderson (OL, Michigan) at 92 BLK vs Tim Bradford (DL, Ohio State) at 93 STR — a near-even battle with Ohio State holding a slight +1 edge."
 2. PICK THE WINNER BASED ON DATA ONLY. You will sometimes predict the user's team loses. This is required and expected when the data supports it. Never default to the user winning.
@@ -2805,7 +2807,7 @@ Shotgun: 4 WR, 1 TE, 0 RB (no RB on field — zero RB targets, zero RB runs)
 
 STRICT FORMATION RULE — NEVER VIOLATE: Only recommend targets for players physically on the field. Personnel by formation:
 - I Formation / Pro: WR1, WR2, TE1, RB1, RB2 ONLY. No WR3, WR4.
-- Wishbone: WR1, TE1, RB1, RB2, RB3 ONLY. No WR2, WR3, WR4. No TE2.
+- Wishbone: WR1, TE1, RB1, RB2, FB ONLY. No WR2, WR3, WR4. No TE2.
 - Notre Dame Box: WR1, TE1, TE2, RB1, RB2 ONLY. No WR2, WR3, WR4.
 - Trips: WR1, WR2, WR3, TE1, RB1 ONLY. No WR4, no RB2.
 - Shotgun: WR1, WR2, WR3, WR4, TE1 ONLY. No RBs at all.
@@ -2881,8 +2883,9 @@ OUTPUT SECTIONS IN ORDER:
    - OVER/UNDER: The O/U equals the sum of both predicted scores. Factor in both offenses' talent and both defenses' talent.
 3. Then a narrative paragraph (4-6 sentences) predicting how the game will unfold based on everything analyzed above — who controls the tempo, which side of the ball wins, when momentum shifts, how it ends. If the opponent is the stronger team based on the data, predict them to win — do not force a victory for the user's team.
 4. A paragraph highlighting 2-3 key players to watch from EACH team and what you predict they'll do statistically (e.g. "expect 120+ rushing yards and 2 TDs from...").
-5. One sentence identifying the specific matchup that will determine the outcome.
-Make it vivid, confident, and specific — not hedging or generic. If the data says the user's team will lose, predict the loss honestly. IMPORTANT: This section must be complete — do not cut it short."""
+5. DECIDING FACTOR (REQUIRED — MUST ALWAYS APPEAR): End the Game Prediction with a clearly labeled subsection: <strong>Deciding Factor</strong> followed by 2-3 sentences naming the single most important matchup or stat that determines the game outcome, with specific player names and rating numbers. This must always be the final element of the output. Never skip it.
+
+Make it vivid, confident, and specific — not hedging or generic. If the data says the user's team will lose, predict the loss honestly. IMPORTANT: This section must be complete — do not cut it short. The Deciding Factor must always appear at the end."""
 
         stats_block = ""
         if your_stats_raw:
@@ -2909,7 +2912,7 @@ Opponent Team Ratings:
             )
             response = client.messages.create(
                 model="claude-haiku-4-5-20251001",
-                max_tokens=6000,
+                max_tokens=12000,
                 system=strategy_system_prompt,
                 messages=[{"role": "user", "content": user_message}],
             )
