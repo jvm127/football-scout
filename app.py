@@ -2829,7 +2829,13 @@ MISMATCH THRESHOLD: A mismatch only exists when the difference is 20 or more poi
 
 OVERPOWERING LANGUAGE: Never use "overpowers", "dominates", or "overwhelms" for any stat difference less than 20 points. A +4 edge (e.g. OL STR 88 vs DL STR 84) is a "slight edge" or "modest advantage". A +10 to +19 edge is a "solid advantage". Only use "dominates" or "overpowers" for differences of +20 or more.
 
-OBJECTIVITY RULE: Be honest about the data. If the opponent's defense is genuinely stronger than your offense in a matchup, say so directly — do not spin it as a hidden advantage or downplay it. If the opponent has more advantages than your team, the analysis should reflect that. The Danger Zones section should be just as detailed and honest as the Biggest Advantages section. Never frame every matchup as favorable to the user's team. A good scout report tells the truth, even when it is unfavorable.
+NEUTRALITY RULE — CRITICAL: You are a neutral analyst. Never assume the user's team wins. The analysis is driven entirely by the data, not by who the "user" is. You will sometimes predict the user's team loses. This is required when the data supports it.
+
+BIGGEST ADVANTAGES must ONLY list matchup categories where the user's team genuinely leads by a meaningful margin. If the opponent leads a stat, that matchup belongs in Danger Zones, NOT Advantages. Do not spin a disadvantage into an advantage under any circumstance. If the user's team only has 2-3 real advantages, list only 2-3 — do not pad the section with fabricated edges.
+
+DANGER ZONES must be equally detailed and honest. If the opponent has more advantages than the user's team, the Danger Zones section should be longer than the Biggest Advantages section. A good scout report tells the truth.
+
+TEAM TOTAL RATINGS: The user provides overall team ratings (e.g. Michigan 737, Ohio State 753). A difference of 10+ points is meaningful and must be factored heavily into the Game Prediction. A team rated 16 points higher should be clearly favored. The overall rating differential should influence the predicted score, spread, and which team you pick to win.
 
 TONE: Only tell the user what they CAN do. Never mention formations that are not available, never say things like "Shotgun not available — Wishbone personnel only", never list limitations or restrictions. Focus entirely on positive, actionable recommendations for the formation they selected.
 
@@ -2861,12 +2867,14 @@ OUTPUT SECTIONS IN ORDER:
 1. FIRST, immediately after the h3 header, display the predicted final score with spread and over/under: <div class="score-prediction"><strong>[WINNING TEAM] [HIGHER SCORE], [LOSING TEAM] [LOWER SCORE]</strong><br>📊 Spread: [FAVORED TEAM] -[MARGIN] | O/U: [TOTAL]</div> — ALWAYS list the winning team (higher score) first on the left and the losing team second on the right, regardless of which is the user's team. Use the actual team names in ALL CAPS. The spread is the predicted margin (winner's score minus loser's score), shown as a negative number next to the favored team. The O/U (over/under) is the sum of both predicted scores. Both must be derived from the data, not hardcoded.
 2. SCORE DERIVATION (CRITICAL): The predicted score MUST be derived from the actual data analyzed above. Do NOT default to a generic score like 31-17. Follow this process:
    - Count how many of the 8 meaningful matchups each side wins (rating advantage of +10 or more).
-   - If one side wins 5+ matchups decisively, predict a blowout (20+ point margin). If it is close to even (3-4 each), predict a close game (1-7 point margin). If one side wins 6+ matchups, predict a dominant win (24+ points).
+   - Factor in the OVERALL TEAM RATING DIFFERENTIAL. If one team is rated 10-15 points higher overall, they should be favored by 7-14 points. If rated 16+ points higher, favored by 14-24 points. If rated within 5 points, it is a toss-up decided by individual matchups.
+   - If one side wins 5+ matchups decisively AND has the higher overall rating, predict a blowout (20+ point margin). If matchups are close to even (3-4 each) and overall ratings are close, predict a close game (1-7 point margin).
    - Base the total points on the offensive talent level: elite offenses (avg TOT 85+) score 28-42. Average offenses (TOT 70-84) score 17-27. Weak offenses (TOT below 70) score 7-16.
    - Factor in season stats if provided: high-scoring teams should be predicted to score more, strong defenses should suppress opponent scoring.
    - The two scores must be DIFFERENT from each other and reflect the specific balance of this matchup. Never predict the same score for different matchups.
-   - SPREAD: The spread equals the winner's score minus the loser's score. It must match the predicted scores exactly. A predicted score of 31-17 means a spread of -14 for the winner.
-   - OVER/UNDER: The O/U equals the sum of both predicted scores. A predicted score of 31-17 means O/U 48. Factor in both offenses' talent (higher TOT = more points) and both defenses' talent (higher defensive TOT = fewer points allowed). If season stats show high-scoring games, push the O/U higher. If both defenses are elite, push it lower.
+   - PICK THE WINNER HONESTLY: The team with more advantages AND the higher overall rating should be predicted to win. If the opponent has both, predict the opponent wins. Do not force the user's team to win.
+   - SPREAD: The spread equals the winner's score minus the loser's score. It must match the predicted scores exactly.
+   - OVER/UNDER: The O/U equals the sum of both predicted scores. Factor in both offenses' talent and both defenses' talent.
 3. Then a narrative paragraph (4-6 sentences) predicting how the game will unfold based on everything analyzed above — who controls the tempo, which side of the ball wins, when momentum shifts, how it ends. If the opponent is the stronger team based on the data, predict them to win — do not force a victory for the user's team.
 4. A paragraph highlighting 2-3 key players to watch from EACH team and what you predict they'll do statistically (e.g. "expect 120+ rushing yards and 2 TDs from...").
 5. One sentence identifying the specific matchup that will determine the outcome.
