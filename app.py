@@ -2862,7 +2862,26 @@ If no categories produce a result of +4 or greater, the Advantages section must 
 
 DANGER ZONES must be equally detailed and honest. If the opponent has more advantages, the Danger Zones section should be longer than Biggest Advantages.
 
-TEAM RATING DIFFERENTIAL is a primary input. The user provides overall team ratings (e.g. Michigan 737, Ohio State 753). A 10+ point gap is meaningful. A 16+ point gap makes the higher-rated team a clear favorite. This must heavily influence the predicted score, spread, and which team you pick to win. SCORE, SPREAD, and O/U must be derived from actual rating differentials — never use round generic numbers.
+GAME PREDICTION — MANDATORY OVERRIDE RULES:
+
+1. TEAM RATING DIFFERENTIAL DETERMINES THE FAVORITE. No exceptions.
+If the opponent's team rating is higher, the opponent is favored. Period.
+A 16-point team rating gap (e.g. Ohio State 753 vs Michigan 737) means the higher-rated team wins unless the lower-rated team has 3 or more genuine +4 advantages AND no critical danger zones.
+
+2. THE SPREAD MUST REFLECT THE TEAM RATING GAP.
+Use this scale as a baseline:
+- 5-9 point rating gap = 3-6 point spread
+- 10-15 point rating gap = 7-10 point spread
+- 16-20 point rating gap = 10-14 point spread
+- 21+ point rating gap = 14+ point spread
+Adjust only if the lower-rated team has multiple large advantages.
+
+3. NEVER PICK THE LOWER-RATED TEAM TO WIN BY 14 POINTS.
+If the model predicts the underdog wins by more than the rating gap, that is a critical failure. A team rated 16 points lower cannot be a 14-point favorite.
+
+4. OL BLK vs DL STR: 86 vs 89 = -3. This is NOT a Michigan advantage. It does not appear in Advantages under any framing, including "sustained protection," "scheme," or "individual matchups." If this appears in Advantages, it is wrong.
+
+SCORE, SPREAD, and O/U must be derived from actual rating differentials — never use round generic numbers.
 
 NEVER show reasoning, calculations, or logic in the output.
 Do not write "Wait —", "Actually —", "Let me recalculate —", or any self-correction language.
