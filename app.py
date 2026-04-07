@@ -2837,33 +2837,28 @@ MISMATCH THRESHOLD: A mismatch only exists when the difference is 20 or more poi
 
 OVERPOWERING LANGUAGE: Never use "overpowers", "dominates", or "overwhelms" for any stat difference less than 20 points. A +4 edge (e.g. OL STR 88 vs DL STR 84) is a "slight edge" or "modest advantage". A +10 to +19 edge is a "solid advantage". Only use "dominates" or "overpowers" for differences of +20 or more.
 
-CALCULATING ADVANTAGES — MANDATORY PROCESS:
-For every potential matchup category, calculate: User's team stat MINUS opponent's stat.
-- Result is negative: opponent leads — goes in Danger Zones only
-- Result is 0 to +3: near-tie — omit entirely from both sections
-- Result is +4 or greater: genuine advantage — goes in Biggest Advantages
+IRONCLAD RULES — NO EXCEPTIONS:
 
-Example: OL BLK 86 vs DL STR 89 = 86 - 89 = -3. Opponent leads. Danger Zone.
-Example: OL STR 88 vs DL STR 89 = 88 - 89 = -1. Near-tie. Omit entirely.
+1. CALCULATE EVERYTHING BEFORE WRITING ANYTHING.
+Compute every positional average and every differential in full before the first word of output is written. There is no mid-output reasoning. There is no "however" or "actually" or "but." The output contains only final conclusions.
 
-This math must be performed silently before writing any output.
-Never list a category as an advantage when the subtraction result is zero or negative.
-Never show the calculation in the output. Only write the final conclusion.
+2. A CATEGORY IS AN ADVANTAGE ONLY IF: user's average MINUS opponent's average = +4 or greater.
+Not the best individual player. Not "cohesion." Not "scheme." The GROUP AVERAGE differential must be +4 or greater. If it is not, it is not an advantage.
+
+3. USE ONE NUMBER PER POSITION GROUP. ALWAYS.
+Compute the average once. Use it everywhere. The DL STR used in Advantages must be identical to the DL STR used in Danger Zones and Game Prediction.
+
+4. NEVER LIST A CATEGORY AS AN ADVANTAGE AND THEN EXPLAIN WHY THE OPPONENT ACTUALLY WINS IT.
+If the opponent's number is higher, it is their advantage. Full stop. It does not appear in the user's Advantages section under any framing.
+
+5. NO INDIVIDUAL EXCEPTIONS TO GROUP AVERAGES.
+"Kenneth Sawyer beats one DB" does not make WR SPD vs DB SPD a Michigan advantage if the group average differential is negative. Individual matchups belong in the narrative, not in the Advantages header.
+
+6. NEVER SHOW MATH, HEDGING, OR CORRECTIONS IN THE OUTPUT.
+No "actually," no "however," no "wait," no recalculations. Silent computation only.
+
 If no categories produce a result of +4 or greater, the Advantages section must say:
 "No clear structural advantages identified — game plan must compensate through execution and discipline."
-
-STAT AVERAGING RULES — MANDATORY:
-When calculating any team average (OL STR, DL STR, LB SPD, DB SPD, etc.):
-- Include EVERY player listed at that position on the roster input
-- Do not cherry-pick high or low outliers
-- Do not use one number for advantages and a different number for danger zones
-- Each position group gets ONE average, calculated once, used consistently throughout the entire analysis
-
-For the DL STR calculation specifically:
-- Average the STR rating of ALL defensive linemen provided
-- Use that single number everywhere DL STR appears — Advantages, Danger Zones, and Game Prediction must all reference the same figure
-
-If the same matchup (e.g. OL BLK vs DL STR) appears in both Advantages AND Danger Zones with different numbers, that is a critical error. Each matchup category appears in exactly one section or is omitted entirely.
 
 DANGER ZONES must be equally detailed and honest. If the opponent has more advantages, the Danger Zones section should be longer than Biggest Advantages.
 
