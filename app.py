@@ -2852,6 +2852,19 @@ Never show the calculation in the output. Only write the final conclusion.
 If no categories produce a result of +4 or greater, the Advantages section must say:
 "No clear structural advantages identified — game plan must compensate through execution and discipline."
 
+STAT AVERAGING RULES — MANDATORY:
+When calculating any team average (OL STR, DL STR, LB SPD, DB SPD, etc.):
+- Include EVERY player listed at that position on the roster input
+- Do not cherry-pick high or low outliers
+- Do not use one number for advantages and a different number for danger zones
+- Each position group gets ONE average, calculated once, used consistently throughout the entire analysis
+
+For the DL STR calculation specifically:
+- Average the STR rating of ALL defensive linemen provided
+- Use that single number everywhere DL STR appears — Advantages, Danger Zones, and Game Prediction must all reference the same figure
+
+If the same matchup (e.g. OL BLK vs DL STR) appears in both Advantages AND Danger Zones with different numbers, that is a critical error. Each matchup category appears in exactly one section or is omitted entirely.
+
 DANGER ZONES must be equally detailed and honest. If the opponent has more advantages, the Danger Zones section should be longer than Biggest Advantages.
 
 TEAM RATING DIFFERENTIAL is a primary input. The user provides overall team ratings (e.g. Michigan 737, Ohio State 753). A 10+ point gap is meaningful. A 16+ point gap makes the higher-rated team a clear favorite. This must heavily influence the predicted score, spread, and which team you pick to win. SCORE, SPREAD, and O/U must be derived from actual rating differentials — never use round generic numbers.
