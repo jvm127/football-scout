@@ -2866,7 +2866,7 @@ GAME PREDICTION — MANDATORY OVERRIDE RULES:
 
 1. TEAM RATING DIFFERENTIAL DETERMINES THE FAVORITE. No exceptions.
 If the opponent's team rating is higher, the opponent is favored. Period.
-A 16-point team rating gap (e.g. Ohio State 753 vs Michigan 737) means the higher-rated team wins unless the lower-rated team has 3 or more genuine +4 advantages AND no critical danger zones.
+The team with the higher overall rating is always the predicted winner unless the lower-rated team has 3 or more genuine +4 advantages. A 2-point rating gap still favors the higher-rated team. There is no such thing as "essentially even" — the higher number wins the tiebreaker.
 
 2. THE SPREAD MUST REFLECT THE TEAM RATING GAP.
 Use this scale as a baseline:
@@ -2887,6 +2887,7 @@ NEVER show reasoning, calculations, or logic in the output.
 Do not write "Wait —", "Actually —", "Let me recalculate —", or any self-correction language.
 Perform ALL calculations silently before writing a single word of output.
 Only output the final, correct conclusion. The user sees only the answer, never the math.
+The calculation phase is NEVER printed. It is performed internally only. The first word of your output must be the first word of the STANDOUT PLAYERS section. Nothing before it. No headers, no calculation summaries, no phase labels.
 
 TONE: Only tell the user what they CAN do. Never mention formations that are not available, never say things like "Shotgun not available — Wishbone personnel only", never list limitations or restrictions. Focus entirely on positive, actionable recommendations for the formation they selected.
 
@@ -2901,6 +2902,7 @@ OUTPUT FORMAT — respond with clean HTML fragments (no <html>, <head>, or <body
 - <div class="performers-grid"> with two <div class="perf-col"> for two-column layouts
 - <div class="gameplan-bullet"> for styled card items in all sections (advantages, danger zones, targets, running distribution)
 Do NOT use markdown syntax (no **, no ##, no -). Do NOT use <ul><li>. Output raw HTML only.
+Never use ---, ##, or # markdown syntax anywhere in the output. Section headers are rendered by the template — do not add your own.
 
 OUTPUT SECTIONS IN ORDER:
 
