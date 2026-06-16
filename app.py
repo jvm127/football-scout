@@ -2958,7 +2958,7 @@ Opponent Team Ratings:
                 timeout=90.0,
             )
             response = client.messages.create(
-                model="claude-haiku-4-5-20251001",
+                model="claude-sonnet-4-6",
                 max_tokens=12000,
                 system=strategy_system_prompt,
                 messages=[{"role": "user", "content": user_message}],
@@ -3131,7 +3131,7 @@ Opponent Team Ratings:
         try:
             client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
             response = client.messages.create(
-                model="claude-sonnet-4-20250514",
+                model="claude-haiku-4-5-20251001",
                 max_tokens=1500,
                 system=halftime_system_prompt,
                 messages=[{"role": "user", "content": user_message}],
@@ -3439,7 +3439,7 @@ Game Log:
         try:
             client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
             response = client.messages.create(
-                model="claude-sonnet-4-20250514",
+                model="claude-sonnet-4-6",
                 max_tokens=2000,
                 system=game_analysis_prompt,
                 messages=[{"role": "user", "content": user_message}],
@@ -4083,7 +4083,7 @@ SECTION RULES:
     try:
         client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
         response = client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-sonnet-4-6",
             max_tokens=16000,
             system=system_prompt,
             messages=[{"role": "user", "content": user_message}],
