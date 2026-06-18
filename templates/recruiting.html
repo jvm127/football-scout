@@ -246,6 +246,13 @@
       margin-left: auto;
     }
     .btn-export:hover { background: #047857; border-color: #34d399; }
+    .btn-export.btn-add { background: #1e3a8a; color: #dbeafe; border-color: #3b82f6; margin-left: 8px; }
+    .btn-export.btn-add:hover { background: #1d4ed8; border-color: #60a5fa; }
+    .btn-export.btn-excel { background: #166534; color: #dcfce7; border-color: #22c55e; margin-left: 8px; }
+    .btn-export.btn-excel:hover { background: #15803d; border-color: #4ade80; }
+    .btn-export.btn-reset { background: transparent; color: #cbd5e1; border-color: #475569; margin-left: 8px; }
+    .btn-export.btn-reset:hover { background: #334155; border-color: #64748b; }
+    .excel-status { text-align: right; margin: 6px 0 0; font-size: 12px; color: #94a3b8; font-family: inherit; }
 
     .btn-pdf {
       display: none; align-items: center; gap: 8px;
@@ -376,17 +383,28 @@
       <option value="TKL">TKL (Tackling)</option>
       <option value="T">T (Technique)</option>
     </select>
-    <button class="btn-export" onclick="exportCSV()">Export CSV</button>
+    <button class="btn-export" onclick="exportCSV()">Download CSV</button>
+    <button class="btn-export btn-add" onclick="addToExcel()">Add to Excel</button>
+    <button class="btn-export btn-excel" onclick="downloadExcel()">Download Excel</button>
+    <button class="btn-export btn-reset" onclick="resetExcel()">Reset</button>
   </div>
+  <div id="excelStatus" class="excel-status">Excel workbook: empty</div>
 
   <div id="resultsArea"></div>
   <button class="btn-pdf" id="pdfBtn" onclick="window.print()">Export to PDF</button>
 
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
   // Global store for re-sorting without API call
   var _lastResultData = null;
+  // Accumulated per-position tables for the multi-tab Excel (.xlsx) export.
+  // Shape: { "<position>": { header: [...], rows: [[...], ...] } }
+  var _excelTabs = {};
+  var _EXCEL_TABS_KEY = 'draftExcelTabs';
+  try { _excelTabs = JSON.parse(localStorage.getItem(_EXCEL_TABS_KEY)) || {}; }
+  catch (e) { _excelTabs = {}; }
 
   function getAttrClass(val) {
     var n = parseInt(val, 10);
@@ -469,8 +487,10 @@
     return s;
   }
 
-  function exportCSV() {
-    if (!_lastResultData || !_lastResultData.sections) return;
+  // Build a 2D table (header + raw rows) from the current analysis, shared by
+  // the CSV download and the Excel-tab accumulator. Returns null if no data.
+  function buildExportTable() {
+    if (!_lastResultData || !_lastResultData.sections) return null;
     var sortKey = document.getElementById('sortSelect').value;
     var posGroup = document.getElementById('position').value;
 
@@ -492,7 +512,7 @@
 
     var header = ['Rank','Name','Position','Tier','Distance','OVR','GPA','Work Ethic']
       .concat(attrKeys).concat(['Strengths','Red Flags','Section']);
-    var rows = [header.join(',')];
+    var rows = [];
 
     _lastResultData.sections.forEach(function(section) {
       (section.tiers || []).forEach(function(tier) {
@@ -501,31 +521,105 @@
         players.forEach(function(p) {
           var attrs = p.attributes || {};
           var row = [
-            csvEscape(p.rank),
-            csvEscape(p.name),
-            csvEscape(posGroup),
-            csvEscape(tier.name),
-            csvEscape(fmtDist(p.distance)),
-            csvEscape(p.ovr),
-            csvEscape(p.gpa),
-            csvEscape(p.work_ethic)
+            p.rank, p.name, posGroup, tier.name, fmtDist(p.distance),
+            p.ovr, p.gpa, p.work_ethic
           ];
-          attrKeys.forEach(function(a) { row.push(csvEscape(attrs[a] != null ? attrs[a] : '')); });
-          row.push(csvEscape((p.strengths || []).join('; ')));
-          row.push(csvEscape((p.red_flags || []).join('; ')));
-          row.push(csvEscape(section.header));
-          rows.push(row.join(','));
+          attrKeys.forEach(function(a) { row.push(attrs[a] != null ? attrs[a] : ''); });
+          row.push((p.strengths || []).join('; '));
+          row.push((p.red_flags || []).join('; '));
+          row.push(section.header);
+          rows.push(row);
         });
       });
     });
 
-    var blob = new Blob(['\uFEFF' + rows.join('\n')], {type: 'text/csv;charset=utf-8;'});
+    return { pos: posGroup, header: header, rows: rows };
+  }
+
+  // --- Download the current analysis as a single CSV ---
+  function exportCSV() {
+    var t = buildExportTable();
+    if (!t) return;
+    var lines = [t.header.map(csvEscape).join(',')];
+    t.rows.forEach(function(r) { lines.push(r.map(csvEscape).join(',')); });
+    var blob = new Blob(['\uFEFF' + lines.join('\n')], {type: 'text/csv;charset=utf-8;'});
     var link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = 'recruiting-evaluation.csv';
     link.click();
     URL.revokeObjectURL(link.href);
   }
+
+  // --- Multi-tab Excel (.xlsx) accumulator ---
+  function saveExcelTabs() {
+    try { localStorage.setItem(_EXCEL_TABS_KEY, JSON.stringify(_excelTabs)); } catch (e) {}
+  }
+
+  function updateExcelStatus() {
+    var el = document.getElementById('excelStatus');
+    if (!el) return;
+    var positions = Object.keys(_excelTabs);
+    if (!positions.length) {
+      el.textContent = 'Excel workbook: empty';
+    } else {
+      el.textContent = 'Excel workbook (' + positions.length + ' tab' +
+        (positions.length > 1 ? 's' : '') + '): ' + positions.join(', ');
+    }
+  }
+
+  // Add the current analysis as a tab named after the selected position.
+  // Re-adding the same position overwrites that tab with the latest analysis.
+  function addToExcel() {
+    var t = buildExportTable();
+    if (!t) { alert('Run an analysis first, then add it to the workbook.'); return; }
+    _excelTabs[t.pos] = { header: t.header, rows: t.rows };
+    saveExcelTabs();
+    updateExcelStatus();
+  }
+
+  // Excel sheet names must be <=31 chars and exclude \ / ? * [ ] : and be unique.
+  function sanitizeSheetName(name, used) {
+    var s = String(name == null ? 'Sheet' : name)
+      .replace(/[\\\/\?\*\[\]:]/g, ' ').trim().slice(0, 31) || 'Sheet';
+    var base = s, n = 2;
+    while (used[s]) {
+      var suffix = ' ' + (n++);
+      s = base.slice(0, 31 - suffix.length) + suffix;
+    }
+    used[s] = true;
+    return s;
+  }
+
+  function downloadExcel() {
+    var positions = Object.keys(_excelTabs);
+    if (!positions.length) {
+      alert('Nothing added yet. Use "Add to Excel" for each position first.');
+      return;
+    }
+    if (typeof XLSX === 'undefined') {
+      alert('Spreadsheet library failed to load \u2014 check your connection and refresh.');
+      return;
+    }
+    var wb = XLSX.utils.book_new();
+    var used = {};
+    positions.forEach(function(pos) {
+      var t = _excelTabs[pos];
+      var aoa = [t.header].concat(t.rows);
+      var ws = XLSX.utils.aoa_to_sheet(aoa);
+      XLSX.utils.book_append_sheet(wb, ws, sanitizeSheetName(pos, used));
+    });
+    XLSX.writeFile(wb, 'draft-board.xlsx');
+  }
+
+  function resetExcel() {
+    if (!Object.keys(_excelTabs).length) return;
+    if (!confirm('Clear all positions added to the Excel workbook?')) return;
+    _excelTabs = {};
+    saveExcelTabs();
+    updateExcelStatus();
+  }
+
+  updateExcelStatus();  // reflect any positions restored from a prior session
 
   function renderResults(data, sortKey) {
     var area = document.getElementById('resultsArea');
