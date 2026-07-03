@@ -3129,7 +3129,10 @@ Opponent Team Ratings:
 {opp_ratings_raw}"""
 
         try:
-            client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+            client = anthropic.Anthropic(
+                api_key=os.environ.get("ANTHROPIC_API_KEY"),
+                timeout=280.0,  # stay under gunicorn --timeout 300 so a slow call fails cleanly instead of killing the worker
+            )
             response = client.messages.create(
                 model="claude-haiku-4-5-20251001",
                 max_tokens=1500,
@@ -3437,7 +3440,10 @@ Game Log:
 {gamelog_raw}{context_block}"""
 
         try:
-            client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+            client = anthropic.Anthropic(
+                api_key=os.environ.get("ANTHROPIC_API_KEY"),
+                timeout=280.0,  # stay under gunicorn --timeout 300 so a slow call fails cleanly instead of killing the worker
+            )
             response = client.messages.create(
                 model="claude-sonnet-4-6",
                 max_tokens=2000,
@@ -4081,7 +4087,10 @@ SECTION RULES:
     user_message = '\n'.join(user_parts)
 
     try:
-        client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+        client = anthropic.Anthropic(
+            api_key=os.environ.get("ANTHROPIC_API_KEY"),
+            timeout=280.0,  # stay under gunicorn --timeout 300 so a slow call fails cleanly instead of killing the worker
+        )
         response = client.messages.create(
             model="claude-sonnet-4-6",
             max_tokens=16000,
