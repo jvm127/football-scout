@@ -2955,14 +2955,19 @@ Opponent Team Ratings:
         try:
             client = anthropic.Anthropic(
                 api_key=os.environ.get("ANTHROPIC_API_KEY"),
-                timeout=90.0,
+                timeout=280.0,   # stay under gunicorn --timeout 300 so a slow call fails cleanly
+                max_retries=0,   # a timeout must fail once, not silently retry 3x (90s x3 blew past the gunicorn limit → 502)
             )
-            response = client.messages.create(
+            # Stream this large (up to 12k-token) generation: the SDK holds the
+            # connection open and reads chunks instead of hitting its per-request
+            # read timeout, which a non-streaming 12k-token call reliably exceeded.
+            with client.messages.stream(
                 model="claude-sonnet-4-6",
                 max_tokens=12000,
                 system=strategy_system_prompt,
                 messages=[{"role": "user", "content": user_message}],
-            )
+            ) as stream:
+                response = stream.get_final_message()
             raw_result = validate_ai_output(response.content[0].text)
             # Sanitize: only allow specific safe HTML tags
             import re as _re
@@ -3132,6 +3137,7 @@ Opponent Team Ratings:
             client = anthropic.Anthropic(
                 api_key=os.environ.get("ANTHROPIC_API_KEY"),
                 timeout=280.0,  # stay under gunicorn --timeout 300 so a slow call fails cleanly instead of killing the worker
+                max_retries=0,  # without this the SDK retries timeouts up to 3x (280s x3), blowing past gunicorn's limit
             )
             response = client.messages.create(
                 model="claude-haiku-4-5-20251001",
@@ -3443,6 +3449,7 @@ Game Log:
             client = anthropic.Anthropic(
                 api_key=os.environ.get("ANTHROPIC_API_KEY"),
                 timeout=280.0,  # stay under gunicorn --timeout 300 so a slow call fails cleanly instead of killing the worker
+                max_retries=0,  # without this the SDK retries timeouts up to 3x (280s x3), blowing past gunicorn's limit
             )
             response = client.messages.create(
                 model="claude-sonnet-4-6",
@@ -4089,14 +4096,18 @@ SECTION RULES:
     try:
         client = anthropic.Anthropic(
             api_key=os.environ.get("ANTHROPIC_API_KEY"),
-            timeout=280.0,  # stay under gunicorn --timeout 300 so a slow call fails cleanly instead of killing the worker
+            timeout=280.0,   # stay under gunicorn --timeout 300 so a slow call fails cleanly
+            max_retries=0,   # a timeout must fail once, not silently retry 3x past the gunicorn limit
         )
-        response = client.messages.create(
+        # Stream this large (up to 16k-token) generation so the SDK holds the
+        # connection open instead of hitting its per-request read timeout.
+        with client.messages.stream(
             model="claude-sonnet-4-6",
             max_tokens=16000,
             system=system_prompt,
             messages=[{"role": "user", "content": user_message}],
-        )
+        ) as stream:
+            response = stream.get_final_message()
         result_text = response.content[0].text
         print(f">>> RECRUITING RAW RESPONSE (first 500): {result_text[:500]}", flush=True)
 
