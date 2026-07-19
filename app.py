@@ -2963,7 +2963,7 @@ Opponent Team Ratings:
             # read timeout, which a non-streaming 12k-token call reliably exceeded.
             with client.messages.stream(
                 model="claude-sonnet-4-6",
-                max_tokens=5000,
+                max_tokens=7000,
                 system=strategy_system_prompt,
                 messages=[{"role": "user", "content": user_message}],
             ) as stream:
