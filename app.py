@@ -2968,6 +2968,7 @@ Opponent Team Ratings:
                 messages=[{"role": "user", "content": user_message}],
             ) as stream:
                 response = stream.get_final_message()
+            print(f"[STRATEGY] stop_reason={response.stop_reason} output_tokens={response.usage.output_tokens}", flush=True)
             raw_result = validate_ai_output(response.content[0].text)
             # Sanitize: only allow specific safe HTML tags
             import re as _re
